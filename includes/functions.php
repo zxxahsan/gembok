@@ -36,6 +36,21 @@ function getMikrotikSettings() {
     return $settings;
 }
 
+function getSetting($key, $default = '') {
+    static $settings = null;
+    if ($settings === null) {
+        $rows = fetchAll("SELECT setting_key, setting_value FROM settings");
+        $settings = [];
+        foreach ($rows as $row) {
+            $settings[$row['setting_key']] = $row['setting_value'];
+        }
+    }
+    if (isset($settings[$key]) && $settings[$key] !== '') {
+        return $settings[$key];
+    }
+    return $default;
+}
+
 // Format currency
 function formatCurrency($amount) {
     return CURRENCY_SYMBOL . ' ' . number_format($amount, 0, ',', '.');
@@ -627,6 +642,50 @@ function mikrotikUpdateSecret($id, $data) {
     return ['success' => false, 'message' => 'Unknown response'];
 }
 
+function mikrotikGetSecretByName($username) {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return null;
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return null;
+    }
+    
+    mikrotikWrite($socket, '/ppp/secret/print');
+    mikrotikWrite($socket, '?name=' . $username);
+    mikrotikWrite($socket, '');
+    
+    $allWords = [];
+    $done = false;
+    $timeout = time() + 10;
+    
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words)) {
+            break;
+        }
+        
+        foreach ($words as $word) {
+            $allWords[] = $word;
+            if ($word === '!done') {
+                $done = true;
+                break;
+            }
+        }
+    }
+    
+    fclose($socket);
+    
+    $users = mikrotikParseUsers($allWords);
+    if (empty($users)) {
+        return null;
+    }
+    
+    return $users[0];
+}
+
 // Delete PPPoE Secret
 function mikrotikDeleteSecret($id) {
     $socket = mikrotikConnect();
@@ -1017,6 +1076,179 @@ function mikrotikGetHotspotUsers() {
     }
     
     return $users;
+}
+
+function mikrotikRemoveActiveSessionByName($username) {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return false;
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return false;
+    }
+    
+    mikrotikWrite($socket, '/ppp/active/print');
+    mikrotikWrite($socket, '?name=' . $username);
+    mikrotikWrite($socket, '');
+    
+    $allWords = [];
+    $done = false;
+    $timeout = time() + 10;
+    
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words)) break;
+        foreach ($words as $word) {
+            $allWords[] = $word;
+            if ($word === '!done') {
+                $done = true;
+                break;
+            }
+        }
+    }
+    
+    $sessionId = null;
+    foreach ($allWords as $word) {
+        if (strpos($word, '=.id=') === 0) {
+            $sessionId = substr($word, 5);
+            break;
+        }
+    }
+    
+    if (!$sessionId) {
+        fclose($socket);
+        return false;
+    }
+    
+    mikrotikWrite($socket, '/ppp/active/remove');
+    mikrotikWrite($socket, '=.id=' . $sessionId);
+    mikrotikWrite($socket, '');
+    
+    $response = mikrotikReadSentence($socket);
+    fclose($socket);
+    
+    foreach ($response as $word) {
+        if (strpos($word, '!trap') === 0) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+function mikrotikGetResource() {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return null;
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return null;
+    }
+    
+    mikrotikWrite($socket, '/system/resource/print');
+    mikrotikWrite($socket, '');
+    
+    $allWords = [];
+    $done = false;
+    $timeout = time() + 10;
+    
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words)) break;
+        foreach ($words as $word) {
+            $allWords[] = $word;
+            if ($word === '!done') {
+                $done = true;
+                break;
+            }
+        }
+    }
+    
+    fclose($socket);
+    
+    $resource = [];
+    foreach ($allWords as $word) {
+        if ($word === '!re') {
+            continue;
+        }
+        if (strpos($word, '=') === 0) {
+            $word = substr($word, 1);
+            $parts = explode('=', $word, 2);
+            if (count($parts) === 2) {
+                $resource[$parts[0]] = $parts[1];
+            }
+        }
+    }
+    
+    return $resource;
+}
+
+function mikrotikPing($target, $count = 4) {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return null;
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return null;
+    }
+    
+    mikrotikWrite($socket, '/ping');
+    mikrotikWrite($socket, '=address=' . $target);
+    mikrotikWrite($socket, '=count=' . (int)$count);
+    mikrotikWrite($socket, '');
+    
+    $allWords = [];
+    $done = false;
+    $timeout = time() + 15;
+    
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words)) break;
+        foreach ($words as $word) {
+            $allWords[] = $word;
+            if ($word === '!done') {
+                $done = true;
+                break;
+            }
+        }
+    }
+    
+    fclose($socket);
+    
+    $sent = 0;
+    $received = 0;
+    $lost = 0;
+    $latencies = [];
+    
+    foreach ($allWords as $word) {
+        if (strpos($word, '=sent=') === 0) {
+            $sent = (int)substr($word, 6);
+        } elseif (strpos($word, '=received=') === 0) {
+            $received = (int)substr($word, 10);
+        } elseif (strpos($word, '=packet-loss=') === 0) {
+            $lost = (int)substr($word, 13);
+        } elseif (strpos($word, '=time=') === 0) {
+            $latencies[] = (float)substr($word, 6);
+        }
+    }
+    
+    $avg = null;
+    if (!empty($latencies)) {
+        $avg = array_sum($latencies) / count($latencies);
+    }
+    
+    return [
+        'sent' => $sent,
+        'received' => $received,
+        'loss' => $lost,
+        'avg' => $avg
+    ];
 }
 
 // Get GenieACS settings from database (override config.php)

@@ -57,6 +57,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 setFlash('success', 'Pengaturan sistem berhasil disimpan');
                 redirect('settings.php');
                 break;
+
+            case 'save_website':
+                $websiteSettings = [
+                    'homepage_title' => sanitize($_POST['homepage_title']),
+                    'homepage_subtitle' => sanitize($_POST['homepage_subtitle']),
+                    'homepage_tagline' => sanitize($_POST['homepage_tagline'])
+                ];
+                
+                foreach ($websiteSettings as $key => $value) {
+                    $existing = fetchOne("SELECT id FROM settings WHERE setting_key = ?", [$key]);
+                    if ($existing) {
+                        update('settings', ['setting_value' => $value], 'setting_key = ?', [$key]);
+                    } else {
+                        insert('settings', ['setting_key' => $key, 'setting_value' => $value]);
+                    }
+                }
+                
+                setFlash('success', 'Pengaturan website berhasil disimpan');
+                redirect('settings.php');
+                break;
                 
             case 'save_mikrotik':
                 $mikrotikSettings = [
@@ -111,7 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'MIDTRANS_API_KEY' => sanitize($_POST['midtrans_api_key']),
                     'MIDTRANS_MERCHANT_CODE' => sanitize($_POST['midtrans_merchant_code']),
                     'DEFAULT_PAYMENT_GATEWAY' => sanitize($_POST['default_payment_gateway']),
-                    'TELEGRAM_BOT_TOKEN' => sanitize($_POST['telegram_token'])
+                    'TELEGRAM_BOT_TOKEN' => sanitize($_POST['telegram_token']),
+                    'TELEGRAM_ADMIN_CHAT_ID' => sanitize($_POST['telegram_admin_chat_id'])
                 ];
                 
                 foreach ($integrationSettings as $key => $value) {
@@ -206,6 +227,36 @@ ob_start();
                 <label class="form-label">Invoice Start Number</label>
                 <input type="number" name="invoice_start" class="form-control" value="<?php echo (int)($settings['invoice_start'] ?? 1); ?>">
             </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Simpan
+        </button>
+    </form>
+</div>
+
+<!-- Website Settings -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-globe"></i> Pengaturan Website</h3>
+    </div>
+    
+    <form method="POST">
+        <input type="hidden" name="action" value="save_website">
+        
+        <div class="form-group">
+            <label class="form-label">Judul Utama Homepage</label>
+            <input type="text" name="homepage_title" class="form-control" value="<?php echo htmlspecialchars($settings['homepage_title'] ?? 'Internet cepat dan stabil untuk rumah dan bisnis Anda'); ?>">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Subjudul Homepage</label>
+            <input type="text" name="homepage_subtitle" class="form-control" value="<?php echo htmlspecialchars($settings['homepage_subtitle'] ?? 'Kelola koneksi pelanggan dan billing dengan sistem yang sederhana'); ?>">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Tagline Singkat</label>
+            <input type="text" name="homepage_tagline" class="form-control" value="<?php echo htmlspecialchars($settings['homepage_tagline'] ?? APP_NAME . ' - ISP Management System'); ?>">
         </div>
         
         <button type="submit" class="btn btn-primary">
@@ -380,6 +431,13 @@ ob_start();
         <div class="form-group">
             <label class="form-label">Telegram Bot Token</label>
             <input type="text" name="telegram_token" class="form-control" value="<?php echo htmlspecialchars($settings['TELEGRAM_BOT_TOKEN'] ?? ''); ?>" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+            <small style="color: var(--text-muted);">Token dari @BotFather</small>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Admin Chat ID</label>
+            <input type="text" name="telegram_admin_chat_id" class="form-control" value="<?php echo htmlspecialchars($settings['TELEGRAM_ADMIN_CHAT_ID'] ?? ''); ?>" placeholder="Contoh: 123456789 atau -1001234567890">
+            <small style="color: var(--text-muted);">Chat ID admin / grup untuk menerima notifikasi dari bot</small>
         </div>
         
         <button type="submit" class="btn btn-primary">

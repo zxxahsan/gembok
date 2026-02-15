@@ -17,3 +17,7 @@
 [2026-02-15 14:05:36] ERROR: MikroTik login failed: Authentication failed
 [2026-02-15 14:05:39] ERROR: MikroTik login failed: Authentication failed
 [2026-02-15 14:06:07] ERROR: MikroTik login failed: Authentication failed
+[2026-02-15 21:41:43] ERROR: Database Query Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'gembok_simple.odps' doesn't exist
+[2026-02-15 21:41:43] ERROR: Database Query Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'gembok_simple.odp_links' doesn't exist
+[2026-02-15 21:47:00] ERROR: Database Query Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'gembok_simple.odps' doesn't exist
+[2026-02-15 21:47:00] ERROR: Database Query Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'gembok_simple.odp_links' doesn't exist

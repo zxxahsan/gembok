@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $result = mikrotikUpdateSecret($id, $data);
             
             if ($result['success']) {
+                mikrotikRemoveActiveSessionByName($data['name']);
                 setFlash('success', 'User PPPoE berhasil diperbarui');
                 logActivity('UPDATE_PPPOE_USER', "ID: $id");
             } else {
