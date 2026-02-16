@@ -18,7 +18,8 @@ define('MIKROTIK_PORT', 8700);
 
 // Application Configuration
 define('APP_NAME', 'GEMBOK');
-define('APP_URL', 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']));
+$appScheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+define('APP_URL', $appScheme . '://' . $_SERVER['HTTP_HOST']);
 define('APP_VERSION', '2.0.0');
 define('GEMBOK_UPDATE_VERSION_URL', 'https://raw.githubusercontent.com/alijayanet/gembok-simple/main/version.txt');
 
@@ -80,11 +81,17 @@ define('UPLOAD_MAX_SIZE', 5242880); // 5MB
 define('UPLOAD_ALLOWED_TYPES', ['jpg', 'jpeg', 'png', 'pdf']);
 
 // Pagination
-define('ITEMS_PER_PAGE', 20);
+if (!defined('ITEMS_PER_PAGE')) {
+    define('ITEMS_PER_PAGE', 20);
+}
 
 // Currency
-define('CURRENCY', 'IDR');
-define('CURRENCY_SYMBOL', 'Rp');
+if (!defined('CURRENCY')) {
+    define('CURRENCY', 'IDR');
+}
+if (!defined('CURRENCY_SYMBOL')) {
+    define('CURRENCY_SYMBOL', 'Rp');
+}
 
 // Invoice Settings
 define('INVOICE_PREFIX', 'INV');

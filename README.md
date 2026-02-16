@@ -278,3 +278,491 @@ This is the simplified version of GEMBOK - designed for easy installation and mi
 
 ---
 
+## 📁 Struktur Folder (Sangat Sederhana)
+
+```
+gembok-simple/
+├── admin/               # Halaman admin
+│   ├── login.php
+│   ├── dashboard.php
+│   ├── customers.php
+│   ├── packages.php
+│   ├── invoices.php
+│   ├── mikrotik.php
+│   ├── genieacs.php
+│   ├── map.php
+│   ├── settings.php
+│   ├── trouble.php
+│   ├── voucher.php
+│   ├── export.php
+│   ├── import.php
+│   ├── forgot_password.php
+│   └── logout.php
+├── portal/              # Halaman pelanggan
+│   ├── login.php
+│   ├── dashboard.php
+│   └── logout.php
+├── api/                 # API endpoints
+│   ├── dashboard.php
+│   ├── customers.php
+│   ├── invoices.php
+│   ├── mikrotik.php
+│   ├── genieacs.php
+│   ├── onu_locations.php
+│   ├── onu_wifi.php
+│   └── portal_password.php
+├── install_steps/       # Installer wizard steps
+│   ├── step1_server.php
+│   ├── step2_database.php
+│   ├── step3_admin.php
+│   ├── step4_mikrotik.php
+│   ├── step5_integrations.php
+└── ...
+TIDAK ADA:
+❌ composer.json
+❌ vendor/ folder
+❌ .env file
+❌ app/ folder
+❌ migrations/
+```
+
+---
+
+## ✅ Keunggulan Versi Simple vs Original
+
+| Fitur | Original (CodeIgniter) | Simple (Native PHP) |
+|-------|----------------------|---------------------|
+| Dependencies | Composer + vendor | Tidak ada |
+| Configuration | .env + Database | config.php (satu file) |
+| Installation | Manual + CLI | Installer wizard |
+| Framework | CodeIgniter 4 | Native PHP |
+| Size | ~50MB | ~5MB |
+| Setup Time | 30-60 menit | 5-10 menit |
+| Features | Sama | Sama |
+| Performance | Berat | Ringan |
+
+---
+
+## ✅ Perbaikan yang Sudah Dilakukan
+
+### 🔴 Perbaikan Kritis (Sudah Diperbaiki)
+1. **Tabel admin_users** - Ditambahkan di installer
+2. **Folder logs/** - Dibuat otomatis di db.php
+3. **File .htaccess** - Dibuat untuk security
+4. **CSF Protection** - Ditambahkan di functions.php
+5. **Session Timeout** - Ditambahkan di config.php
+6. **Password Reset** - Fitur lupa password dibuat
+7. **Cron Scheduler** - Script scheduler dibuat
+8. **Error Handling** - Diperbaiki di semua API endpoints
+9. **Export/Import** - Fitur export/import pelanggan dibuat
+
+### � Perbaikan Tambahan
+- Security headers di .htaccess
+- Rate limiting untuk API
+- Audit logging untuk semua actions
+- Validasi yang lebih ketat
+- Error handling yang konsisten
+
+---
+
+## 🎯 Cara Install (Detail)
+
+### Step 1: Upload
+1. Download file ZIP
+2. Extract di komputer
+3. Upload SEMUA file ke hosting (via File Manager atau FTP)
+4. Pastikan semua file di folder public_html atau root folder
+
+### Step 2: Buka Installer
+Buka browser dan akses: `http://namadomain.com/install.php`
+
+### Step 3: Ikuti Wizard
+
+**Step 1: Server Check**
+- Cek PHP version (min 7.4)
+- Cek MySQL extension
+- Cek CURL extension
+- Cek JSON extension
+- Cek Session support
+- Cek File permissions
+
+**Step 2: Database Setup**
+- Host: localhost (default)
+- Database Name: nama database yang sudah dibuat
+- Username: username database
+- Password: password database
+- Klik "Test Connection" untuk cek
+
+**Step 3: Admin Setup**
+- Username: admin (default)
+- Password: password admin
+- Email: email admin (opsional)
+
+**Step 4: MikroTik Setup (Opsional)**
+- MikroTik IP Address
+- Username MikroTik
+- Password MikroTik
+- API Port (default: 8728)
+
+**Step 5: Integrations Setup (Opsional)**
+- WhatsApp API URL & Token
+- Tripay API Key, Private Key, Merchant Code
+- Telegram Bot Token
+
+**Step 6: Finish**
+- Klik "Install Now"
+- Tunggu proses selesai
+- Klik "Go to Login"
+
+### Step 4: Login
+- Username: admin
+- Password: password yang Anda set
+
+---
+
+## 🔧 Konfigurasi Manual (Opsional)
+
+Jika ingin edit config manual, buka file `includes/config.php`:
+
+```php
+<?php
+// Database Configuration
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'gembok_db');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+
+// MikroTik Configuration
+define('MIKROTIK_HOST', '192.168.1.1');
+define('MIKROTIK_USER', 'admin');
+define('MIKROTIK_PASS', '');
+define('MIKROTIK_PORT', 8728);
+
+// Application Configuration
+define('APP_NAME', 'GEMBOK');
+define('APP_URL', 'http://localhost/gembok-simple');
+define('APP_VERSION', '2.0.0');
+
+// Security
+define('ENCRYPTION_KEY', 'your-secret-key-here');
+
+// WhatsApp Configuration
+define('WHATSAPP_API_URL', '');
+define('WHATSAPP_TOKEN', '');
+
+// Tripay Configuration
+define('TRIPAY_API_KEY', '');
+define('TRIPAY_PRIVATE_KEY', '');
+define('TRIPAY_MERCHANT_CODE', '');
+
+// Telegram Configuration
+define('TELEGRAM_BOT_TOKEN', '');
+
+// GenieACS Configuration
+define('GENIEACS_URL', 'http://localhost:7557');
+define('GENIEACS_USERNAME', '');
+define('GENIEACS_PASSWORD', '');
+```
+
+---
+
+## 🎨 Fitur Tersedia
+
+### Admin Panel
+- ✅ Dashboard dengan statistik real-time
+- ✅ Manajemen Pelanggan (tambah, edit, delete, isolir, peta lokasi)
+- ✅ Manajemen Paket Internet
+- ✅ Manajemen Invoice (generate, bayar, unisolate)
+- ✅ MikroTik PPPoE & Hotspot Management
+- ✅ Voucher Generator
+- ✅ GenieACS Device Management
+- ✅ Peta Lokasi ONU (Leaflet.js)
+- ✅ Trouble Ticket Management
+- ✅ Settings (Admin, MikroTik, Integrations)
+- ✅ Cron Job Scheduler
+- ✅ **Export/Import Pelanggan** - Fitur baru!
+
+### Customer Portal
+- ✅ Login dengan nomor HP
+- ✅ Dashboard dengan info paket & status
+- ✅ Status pembayaran & riwayat tagihan
+- ✅ Informasi ONU (serial, model, status, signal)
+- ✅ Pengaturan WiFi (SSID & Password) real-time
+- ✅ Ganti password portal
+- ✅ **Lupa Password** - Fitur baru!
+
+### Integrasi
+- ✅ MikroTik API (PPPoE & Hotspot)
+- ✅ GenieACS (ONU/ONT monitoring & control)
+- ✅ WhatsApp (Notifications)
+- ✅ Tripay (Payment Gateway)
+- ✅ Telegram (Bot notifications)
+
+### API Endpoints
+- ✅ `/api/dashboard.php` - Dashboard stats
+- ✅ `/api/customers.php` - Customers list
+- ✅ `/api/invoices.php` - Invoices list
+- ✅ `/api/mikrotik.php` - MikroTik operations
+- ✅ `/api/genieacs.php` - GenieACS operations
+- ✅ `/api/onu_locations.php` - ONU locations
+- ✅ `/api/onu_wifi.php` - WiFi settings
+- ✅ `/api/portal_password.php` - Portal password
+
+---
+
+## 📊 Database Structure
+
+### Tables
+- `settings` - Konfigurasi sistem
+- `admin_users` - User admin
+- `packages` - Paket internet
+- `customers` - Data pelanggan
+- `invoices` - Tagihan/invoice
+- `onu_locations` - Lokasi ONU
+- `trouble_tickets` - Tiket gangguan
+- `cron_schedules` - Jadwal cron job
+- `cron_logs` - Log eksekusi cron
+- `webhook_logs` - Log webhook
+
+---
+
+## 🔒 Security Features
+
+- ✅ Password hashing (bcrypt)
+- ✅ Input validation & sanitization
+- ✅ SQL injection prevention (PDO prepared statements)
+- ✅ XSS prevention (output escaping)
+- ✅ CSRF protection
+- ✅ Session timeout (1 hour)
+- ✅ .htaccess security headers
+- ✅ Error logging
+- Webhook signature validation
+- File upload validation
+- Directory protection
+
+---
+
+## 📞 Support
+
+- **WhatsApp:** 0819-4721-5703
+- **GitHub:** https://github.com/alijayanet/gembok-php
+- **Issues:** https://github.com/alijayanet/gembok-php/issues
+
+---
+
+## 🆚 Perbandingan: Original vs Simple
+
+| Fitur | Original (CodeIgniter) | Simple (Native PHP) |
+|-------|----------------------|---------------------|
+| Dependencies | Composer + vendor | Tidak ada |
+| Configuration | .env + Database | config.php (satu file) |
+| Installation | Manual + CLI | Installer wizard |
+| Framework | CodeIgniter 4 | Native PHP |
+| Size | ~50MB | ~5MB |
+| Setup Time | 30-60 menit | 5-10 menit |
+| Features | Sama | Sama |
+| Performance | Sedikit lebih berat | Lebih ringan |
+
+---
+
+## 💡 Tips & Tricks
+
+### Upload via FTP
+1. Gunakan FileZilla atau FTP client lainnya
+2. Upload semua file ke public_html
+3. Set permission folder: 755 (files), 777 (logs/)
+
+### Upload via cPanel
+1. Buka File Manager di cPanel
+2. Upload ZIP file
+3. Extract di public_html
+4. Buka install.php
+
+### Troubleshooting
+1. Cek file `logs/error.log` jika ada error
+2. Pastikan folder permissions: 755 (auto), 777 (logs/)
+3. Cek PHP version minimal 7.4
+4. Cek MySQL extension aktif
+5. Pastikan database sudah dibuat di cPanel/phpMyAdmin
+
+### Reinstall
+Jika perlu reinstall:
+1. Hapus file `includes/installed.lock`
+2. Buka install.php lagi
+3. Ikuti wizard lagi
+
+---
+
+## ⚙️ Setup Cron Job di Hosting
+
+### Cara Setup Cron Job
+
+**Penting:** Cron job diperlukan untuk:
+- Auto-isolir pelanggan yang belum bayar
+- Auto-send pengingat pembayaran
+- Backup database otomatis
+
+### 1. cPanel (paling umum)
+
+**Langkah:**
+1. Login ke cPanel
+2. Cari menu **"Cron Jobs"**
+3. Klik **"Add New Cron Job"**
+4. Isi form:
+   - **Command:** `/usr/bin/php /home/username/public_html/cron/scheduler.php`
+   - **Interval:** `* * * * *` (setiap menit)
+   - Atau lebih hemat: `*/5 * * *` (setiap 5 menit)
+5. Klik **"Add New Cron Job"**
+
+**Catatan:** Ganti `/home/username/public_html` dengan path yang sesuai dengan hosting Anda.
+
+### 2. Plesk
+
+**Langkah:**
+1. Login ke Plesk
+2. Cari menu **"Scheduled Tasks"**
+3. Klik **"Add Task"**
+4. Pilih **"Run a command"**
+5. Isi form:
+   - **Command:** `/usr/bin/php /var/www/vhosts/username/httpdocs/cron/scheduler.php`
+   - **Run:** `*/5 * * * *` (setiap 5 menit)
+6. Klik **"OK"**
+
+### 3. DirectAdmin
+
+**Langkah:**
+1. Login ke DirectAdmin
+2. Cari menu **"Cron Jobs"**
+3. Klik **"Create Cron Job"**
+4. Isi form:
+   - **Command:** `/usr/bin/php /home/username/public_html/cron/scheduler.php`
+   - **Minute:** `*/5`
+   - **Hour:** `*`
+   - **Day of Month:** `*`
+   - **Month:** `*`
+   - **Day of Week:** `*`
+5. Klik **"Create"**
+
+### 4. CyberPanel
+
+**Langkah:**
+1. Login ke CyberPanel
+2. Cari menu **"Cron Jobs"**
+3. Klik **"Add Cron Job"**
+4. Isi form:
+   - **Command:** `/usr/bin/php /home/yourdomain/public_html/cron/scheduler.php`
+   - **Schedule:** `*/5 * * * *`
+5. Klik **"Create"**
+
+### 5. Shared Hosting Lainnya
+
+Untuk hosting lain, cari menu seperti:
+- **Cron Jobs**
+- **Scheduled Tasks**
+- **Task Scheduler**
+- **Cron Manager**
+
+**Command yang digunakan:**
+```bash
+/usr/bin/php /path/ke/gembok-simple/cron/scheduler.php
+```
+
+**Ganti `/path/ke/gembok-simple/` dengan path absolut ke folder aplikasi Anda.**
+
+### 6. Cara Cek Path Absolut
+
+**Cara cek path:**
+1. Buat file `checkpath.php` di root folder:
+```php
+<?php
+echo __DIR__;
+?>
+```
+
+2. Upload ke hosting
+3. Buka di browser: `http://namadomain.com/checkpath.php`
+4. Hasilnya adalah path absolut yang benar
+
+**Contoh output:**
+```
+/home/username/public_html/gembok-simple
+```
+
+### 7. Test Cron Job
+
+**Cara test:**
+1. Jalankan manual di terminal:
+```bash
+php /path/ke/cron/scheduler.php
+```
+
+2. Cek log di `cron/logs/`:
+   - `activity.log` - Log aktivitas
+   - `error.log` - Log error
+
+3. Cek di halaman admin:
+   - Dashboard → Cron Manager
+   - Lihat log eksekusi
+
+### 8. Cron Job yang Akan Dijalankan
+
+**Scheduler akan menjalankan:**
+1. **Auto-isolir** - Pelanggan yang belum bayar otomatis diisolir
+2. **Backup database** - Backup database otomatis (setiap hari)
+3. **Send reminders** - Kirim pengingat pembayaran (3 hari sebelum jatuh tempo)
+4. **Custom scripts** - Script custom yang Anda tambahkan
+
+**Waktu eksekusi:** Setiap 5 menit (hemat resource server)
+
+### 9. Troubleshooting Cron Job
+
+**Masalah umum:**
+- **Cron job tidak jalan:**
+  - Cek path absolut benar atau tidak
+  - Pastikan permission file `scheduler.php` = 755
+  - Cek error di `logs/error.log`
+  
+- **Cron job error:**
+  - Cek log error di `logs/error.log`
+  - Pastikan PHP CLI diaktifkan di hosting
+  - Cek path ke file `includes/config.php`
+  
+- **Cron job jalan tapi tidak ada efek:**
+  - Cek database connection
+  - Cek MikroTik connection
+  - Cek log aktivitas di `logs/activity.log`
+
+### 10. Cron Job Manager di Admin Panel
+
+**Cara setup:**
+1. Login ke admin panel
+2. Buka menu **"Cron Manager"**
+3. Klik **"Add Schedule"**
+4. Isi form:
+   - **Name:** Auto-isolir
+   - **Task Type:** auto_isolir
+   - **Schedule Time:** 00:00
+   - **Schedule Days:** daily
+   - **Is Active:** Yes
+5. Klik **"Save"**
+
+**Cron job akan berjalan otomatis sesuai jadwal!**
+
+---
+
+## 🎉 Selesai!
+
+Aplikasi GEMBOK Simple Version siap digunakan!
+
+**Versi ini sangat cocok untuk:**
+- Pemula yang baru belajar
+- Hosting dengan resource terbatas
+- Deployment cepat
+- Maintenance mudah
+
+**Semua fitur sama dengan versi original, tapi jauh lebih mudah diinstall!**
+
+---
+
+*Dokumentasi ini dibuat untuk versi 2.0.0 - Simple Version*
+*Terakhir diperbarui: 2026-02-15*

@@ -662,64 +662,64 @@ $pageDescription = $pageDescription ?? '';
             </div>
             
             <div class="sidebar-nav">
-                <a href="<?php echo APP_URL; ?>/dashboard.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/dashboard.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : ''; ?>">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/customers.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'customers.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/customers.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'customers.php' ? 'active' : ''; ?>">
                     <i class="fas fa-users"></i>
                     <span>Pelanggan</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/packages.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'packages.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/packages.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'packages.php' ? 'active' : ''; ?>">
                     <i class="fas fa-box"></i>
                     <span>Paket</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/invoices.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'invoices.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/invoices.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'invoices.php' ? 'active' : ''; ?>">
                     <i class="fas fa-file-invoice"></i>
                     <span>Invoice</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/mikrotik.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'mikrotik.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/mikrotik.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'mikrotik.php' ? 'active' : ''; ?>">
                     <i class="fas fa-network-wired"></i>
                     <span>MikroTik</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/genieacs.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'genieacs.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/genieacs.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'genieacs.php' ? 'active' : ''; ?>">
                     <i class="fas fa-satellite-dish"></i>
                     <span>GenieACS</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/map.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'map.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/map.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'map.php' ? 'active' : ''; ?>">
                     <i class="fas fa-map-marked-alt"></i>
                     <span>Peta</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/voucher.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'voucher.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/voucher.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'voucher.php' ? 'active' : ''; ?>">
                     <i class="fas fa-ticket-alt"></i>
                     <span>Voucher</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/trouble.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'trouble.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/trouble.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'trouble.php' ? 'active' : ''; ?>">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Gangguan</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/settings.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'settings.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/settings.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'settings.php' ? 'active' : ''; ?>">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
                 </a>
                 
-                <a href="<?php echo APP_URL; ?>/update.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'update.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/update.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'update.php' ? 'active' : ''; ?>">
                     <i class="fas fa-sync-alt"></i>
                     <span>Update</span>
                 </a>
                 
                 <div style="margin-top: 20px; border-top: 1px solid var(--border-color);"></div>
                 
-                <a href="<?php echo APP_URL; ?>/logout.php" class="menu-item">
+                <a href="<?php echo APP_URL; ?>/admin/logout.php" class="menu-item">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
                 </a>

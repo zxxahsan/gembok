@@ -119,7 +119,7 @@ ob_start();
             <i class="fas fa-check-circle"></i>
         </div>
         <div class="stat-info">
-            <h3><?php echo count(array_filter($customers, fn($c) => $c['status'] === 'active')); ?></h3>
+            <h3><?php echo count(array_filter($customers, function($c) { return $c['status'] === 'active'; })); ?></h3>
             <p>Aktif</p>
         </div>
     </div>
@@ -129,7 +129,7 @@ ob_start();
             <i class="fas fa-ban"></i>
         </div>
         <div class="stat-info">
-            <h3><?php echo count(array_filter($customers, fn($c) => $c['status'] === 'isolated')); ?></h3>
+            <h3><?php echo count(array_filter($customers, function($c) { return $c['status'] === 'isolated'; })); ?></h3>
             <p>Isolir</p>
         </div>
     </div>

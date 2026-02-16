@@ -98,7 +98,9 @@ $onlineCount = count($activeSessions);
 $onlineUsernames = array_column($activeSessions, 'name');
 
 // Calculate stats
-$disabledCount = count(array_filter($mikrotikUsers, fn($u) => ($u['disabled'] ?? 'false') === 'true'));
+$disabledCount = count(array_filter($mikrotikUsers, function($u) {
+    return ($u['disabled'] ?? 'false') === 'true';
+}));
 $offlineCount = $totalUsers - $onlineCount;
 
 // Get MikroTik profiles

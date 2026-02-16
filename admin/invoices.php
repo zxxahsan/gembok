@@ -232,7 +232,9 @@ $invoices = fetchAll("
 $customers = fetchAll("SELECT id, name, pppoe_username, package_id FROM customers WHERE status = 'active' ORDER BY name");
 
 $totalInvoices = count($invoices);
-$paidInvoices = count(array_filter($invoices, fn($i) => $i['status'] === 'paid'));
+$paidInvoices = count(array_filter($invoices, function($i) {
+    return $i['status'] === 'paid';
+}));
 $unpaidInvoices = $totalInvoices - $paidInvoices;
 
 ob_start();
@@ -275,7 +277,14 @@ ob_start();
             <i class="fas fa-money-bill"></i>
         </div>
         <div class="stat-info">
-            <h3><?php echo formatCurrency(array_sum(array_column(array_filter($invoices, fn($i) => $i['status'] === 'paid'), 'amount'))); ?></h3>
+            <h3>
+                <?php
+                $paid = array_filter($invoices, function($i) {
+                    return $i['status'] === 'paid';
+                });
+                echo formatCurrency(array_sum(array_column($paid, 'amount')));
+                ?>
+            </h3>
             <p>Total Pendapatan</p>
         </div>
     </div>

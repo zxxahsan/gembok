@@ -121,6 +121,7 @@ function installApplication() {
         header("Location: admin/login.php");
         exit;
     } catch (Exception $e) {
+        global $error;
         $error = "Installation failed: " . $e->getMessage();
     }
 }
@@ -152,7 +153,8 @@ define('MIKROTIK_PORT', {$mikrotik['port']});
 
 // Application Configuration
 define('APP_NAME', 'GEMBOK');
-define('APP_URL', 'http://' . \$_SERVER['HTTP_HOST'] . dirname(\$_SERVER['PHP_SELF']));
+\$appScheme = (!empty(\$_SERVER['HTTPS']) && \$_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+define('APP_URL', \$appScheme . '://' . \$_SERVER['HTTP_HOST']);
 define('APP_VERSION', '2.0.0');
 
 // Security
@@ -174,6 +176,19 @@ define('TELEGRAM_BOT_TOKEN', '{$integrations['telegram_token']}');
 define('GENIEACS_URL', 'http://localhost:7557');
 define('GENIEACS_USERNAME', '');
 define('GENIEACS_PASSWORD', '');
+
+// Pagination
+if (!defined('ITEMS_PER_PAGE')) {
+    define('ITEMS_PER_PAGE', 20);
+}
+
+// Currency
+if (!defined('CURRENCY')) {
+    define('CURRENCY', 'IDR');
+}
+if (!defined('CURRENCY_SYMBOL')) {
+    define('CURRENCY_SYMBOL', 'Rp');
+}
 PHP;
 }
 
@@ -315,7 +330,7 @@ function createDatabaseTables() {
     CREATE TABLE IF NOT EXISTS webhook_logs (
         id INT AUTO_INCREMENT PRIMARY KEY,
         source VARCHAR(50),
-        payload JSON,
+        payload TEXT,
         status_code INT,
         response TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -334,7 +349,14 @@ function insertDefaultData() {
     
     // Insert admin user
     $admin = $_SESSION['admin_config'];
-    $stmt = $pdo->prepare("INSERT INTO admin_users (username, password, email, created_at) VALUES (?, ?, ?, NOW())");
+    $stmt = $pdo->prepare("
+        INSERT INTO admin_users (username, password, email, created_at)
+        VALUES (?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            password = VALUES(password),
+            email = VALUES(email),
+            updated_at = NOW()
+    ");
     $stmt->execute([$admin['username'], $admin['password'], $admin['email']]);
     
     // Insert default packages
