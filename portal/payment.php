@@ -78,7 +78,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $invoice['amount'],
             $invoice['customer_name'],
             $invoice['customer_phone'],
-            $invoice['due_date'],
             $defaultGateway,
             $selectedPaymentMethod
         );
@@ -130,7 +129,7 @@ ob_start();
                                         cursor: pointer; 
                                         transition: all 0.3s;
                                         text-align: center;"
-                                 onclick="selectPaymentMethod('<?php echo $method['code']; ?>')">
+                                 onclick="selectPaymentMethod('<?php echo $method['code']; ?>', this)">
                                 <input type="radio" 
                                        name="payment_method" 
                                        value="<?php echo $method['code']; ?>"
@@ -234,7 +233,7 @@ ob_start();
 </style>
 
 <script>
-function selectPaymentMethod(methodCode) {
+function selectPaymentMethod(methodCode, element) {
     document.querySelectorAll('input[name="payment_method"]').forEach(input => {
         input.checked = false;
     });
@@ -244,7 +243,9 @@ function selectPaymentMethod(methodCode) {
     document.querySelectorAll('.payment-method-option').forEach(el => {
         el.style.borderColor = 'var(--border-color)';
     });
-    event.currentTarget.style.borderColor = 'var(--neon-cyan)';
+    if (element) {
+        element.style.borderColor = 'var(--neon-cyan)';
+    }
 }
 </script>
 

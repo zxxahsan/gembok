@@ -684,7 +684,12 @@ $pageDescription = $pageDescription ?? '';
                 
                 <a href="<?php echo APP_URL; ?>/admin/mikrotik.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'mikrotik.php' ? 'active' : ''; ?>">
                     <i class="fas fa-network-wired"></i>
-                    <span>MikroTik</span>
+                    <span>PPPoE</span>
+                </a>
+                
+                <a href="<?php echo APP_URL; ?>/admin/hotspot.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'hotspot.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-wifi"></i>
+                    <span>Hotspot</span>
                 </a>
                 
                 <a href="<?php echo APP_URL; ?>/admin/genieacs.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'genieacs.php' ? 'active' : ''; ?>">

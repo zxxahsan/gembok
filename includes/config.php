@@ -19,66 +19,52 @@ define('MIKROTIK_PORT', 8700);
 // Application Configuration
 define('APP_NAME', 'GEMBOK');
 $appScheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-define('APP_URL', $appScheme . '://' . $_SERVER['HTTP_HOST']);
+$httpHost = $_SERVER['HTTP_HOST'] ?? '';
+$documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
+$basePath = '';
+if ($httpHost !== '' && $documentRoot !== '') {
+    $documentRoot = realpath($documentRoot);
+    $projectRoot = realpath(__DIR__ . '/..');
+    if ($documentRoot && $projectRoot && strpos($projectRoot, $documentRoot) === 0) {
+        $relativePath = str_replace('\\', '/', substr($projectRoot, strlen($documentRoot)));
+        $basePath = '/' . ltrim($relativePath, '/');
+        $basePath = rtrim($basePath, '/');
+    }
+}
+if ($httpHost !== '') {
+    define('APP_URL', $appScheme . '://' . $httpHost . $basePath);
+} else {
+    define('APP_URL', 'http://localhost/gembok-simple');
+}
 define('APP_VERSION', '2.0.0');
 define('GEMBOK_UPDATE_VERSION_URL', 'https://raw.githubusercontent.com/alijayanet/gembok-simple/main/version.txt');
 
 // Security
-define('ENCRYPTION_KEY', bin2hex(random_bytes(32)));
+define('ENCRYPTION_KEY', '7188ee15c026ea63b24f57299944f796d9fd0c560443326b6e8a4ae7a1910496');
 
 // WhatsApp Configuration
 define('WHATSAPP_API_URL', '');
 define('WHATSAPP_TOKEN', '');
-define('FONNTE_API_TOKEN', '');
-define('WABLAS_API_TOKEN', '');
-define('MPWA_API_KEY', '');
 
 // Tripay Configuration
 define('TRIPAY_API_KEY', '');
 define('TRIPAY_PRIVATE_KEY', '');
 define('TRIPAY_MERCHANT_CODE', '');
 
+if (!defined('MIDTRANS_API_KEY')) {
+    define('MIDTRANS_API_KEY', '');
+}
+if (!defined('MIDTRANS_MERCHANT_CODE')) {
+    define('MIDTRANS_MERCHANT_CODE', '');
+}
+
 // Telegram Configuration
 define('TELEGRAM_BOT_TOKEN', '');
 
 // GenieACS Configuration
-define('GENIEACS_URL', 'http://192.168.8.89:7557');
+define('GENIEACS_URL', 'http://localhost:7557');
 define('GENIEACS_USERNAME', '');
 define('GENIEACS_PASSWORD', '');
-
-// Timezone
-date_default_timezone_set('Asia/Jakarta');
-
-// Error Reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Session Configuration
-ini_set('session.cookie_httponly', 1);
-ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_secure', 0); // Set to 1 if using HTTPS
-define('SESSION_TIMEOUT', 3600); // 1 hour
-
-// Check session timeout
-if (isset($_SESSION['admin']['login_time'])) {
-    if (time() - $_SESSION['admin']['login_time'] > SESSION_TIMEOUT) {
-        session_destroy();
-        header('Location: ' . APP_URL . '/admin/login.php');
-        exit;
-    }
-}
-
-if (isset($_SESSION['customer']['login_time'])) {
-    if (time() - $_SESSION['customer']['login_time'] > SESSION_TIMEOUT) {
-        session_destroy();
-        header('Location: ' . APP_URL . '/portal/login.php');
-        exit;
-    }
-}
-
-// File Upload
-define('UPLOAD_MAX_SIZE', 5242880); // 5MB
-define('UPLOAD_ALLOWED_TYPES', ['jpg', 'jpeg', 'png', 'pdf']);
 
 // Pagination
 if (!defined('ITEMS_PER_PAGE')) {
@@ -93,6 +79,9 @@ if (!defined('CURRENCY_SYMBOL')) {
     define('CURRENCY_SYMBOL', 'Rp');
 }
 
-// Invoice Settings
-define('INVOICE_PREFIX', 'INV');
-define('INVOICE_START', 1);
+if (!defined('INVOICE_PREFIX')) {
+    define('INVOICE_PREFIX', 'INV');
+}
+if (!defined('INVOICE_START')) {
+    define('INVOICE_START', 1);
+}

@@ -208,7 +208,10 @@ ob_start();
             <i class="fas fa-file-invoice"></i> Invoice
         </a>
         <a href="mikrotik.php" class="btn btn-secondary" style="justify-content: center;">
-            <i class="fas fa-network-wired"></i> MikroTik
+            <i class="fas fa-network-wired"></i> PPPoE
+        </a>
+        <a href="hotspot.php" class="btn btn-secondary" style="justify-content: center;">
+            <i class="fas fa-wifi"></i> Hotspot
         </a>
         <a href="genieacs.php" class="btn btn-secondary" style="justify-content: center;">
             <i class="fas fa-satellite-dish"></i> GenieACS

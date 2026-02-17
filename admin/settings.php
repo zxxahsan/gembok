@@ -125,6 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'FONNTE_API_TOKEN' => sanitize($_POST['fonnte_api_token']),
                     'WABLAS_API_TOKEN' => sanitize($_POST['wablas_api_token']),
                     'MPWA_API_KEY' => sanitize($_POST['mpwa_api_key']),
+                    'WHATSAPP_ADMIN_NUMBER' => sanitize($_POST['whatsapp_admin_number']),
                     'TRIPAY_API_KEY' => sanitize($_POST['tripay_api_key']),
                     'TRIPAY_PRIVATE_KEY' => sanitize($_POST['tripay_private_key']),
                     'TRIPAY_MERCHANT_CODE' => sanitize($_POST['tripay_merchant_code']),
@@ -375,6 +376,11 @@ ob_start();
         <div class="form-group">
             <label class="form-label">MPWA API Key</label>
             <input type="password" name="mpwa_api_key" class="form-control" value="<?php echo htmlspecialchars($settings['MPWA_API_KEY'] ?? ''); ?>" placeholder="Masukkan API Key MPWA">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Nomor Admin WhatsApp</label>
+            <input type="text" name="whatsapp_admin_number" class="form-control" value="<?php echo htmlspecialchars($settings['WHATSAPP_ADMIN_NUMBER'] ?? ''); ?>" placeholder="Contoh: 6281234567890">
         </div>
         
         <hr style="margin: 30px 0; border-color: var(--border-color);">

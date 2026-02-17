@@ -7,10 +7,11 @@ header('Content-Type: application/json');
 
 require_once '../includes/db.php';
 require_once '../includes/functions.php';
+require_once '../includes/payment.php';
 
 try {
     $action = $_GET['action'] ?? '';
-    $gateway = $_GET['gateway'] ?? '';
+    $gateway = $_GET['gateway'] ?? 'tripay';
     
     if ($action === 'create_transaction') {
         // Create payment transaction
@@ -29,12 +30,23 @@ try {
         }
         
         // Generate payment link based on gateway
-        $paymentLink = generatePaymentLink($invoice, $gateway);
+        $result = generatePaymentLink(
+            $invoice['invoice_number'],
+            $invoice['amount'],
+            $invoice['customer_name'],
+            $invoice['customer_phone'],
+            $gateway
+        );
+        
+        if (!$result['success']) {
+            echo json_encode(['success' => false, 'message' => $result['message'] ?? 'Gagal generate payment link']);
+            exit;
+        }
         
         echo json_encode([
             'success' => true,
             'data' => [
-                'payment_link' => $paymentLink,
+                'payment_link' => $result['link'],
                 'invoice' => [
                     'number' => $invoice['invoice_number'],
                     'amount' => $invoice['amount'],
@@ -76,54 +88,4 @@ try {
 } catch (Exception $e) {
     logError("Payment API error: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Internal server error']);
-}
-
-function generatePaymentLink($invoice, $gateway = 'tripay') {
-    $invoiceNumber = $invoice['invoice_number'];
-    $amount = $invoice['amount'];
-    
-    switch ($gateway) {
-        case 'tripay':
-            if (empty(TRIPAY_API_KEY) || empty(TRIPAY_MERCHANT_CODE)) {
-                return [
-                    'success' => false,
-                    'message' => 'Payment gateway not configured',
-                    'link' => null
-                ];
-            }
-            
-            // Generate Tripay payment link
-            $merchantRef = $invoiceNumber;
-            $paymentLink = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$amount}&merchant_ref={$merchantRef}";
-            
-            return [
-                'success' => true,
-                'link' => $paymentLink
-            ];
-            
-        case 'midtrans':
-            if (empty($_ENV['MIDTRANS_API_KEY']) || empty($_ENV['MIDTRANS_MERCHANT_CODE'])) {
-                return [
-                    'success' => false,
-                    'message' => 'Payment gateway not configured',
-                    'link' => null
-                ];
-            }
-            
-            // Generate Midtrans payment link
-            $merchantRef = $invoiceNumber;
-            $paymentLink = "https://app.midtrans.com/paymentlink.php?merchant_code=" . $_ENV['MIDTRANS_MERCHANT_CODE'] . "&amount={$amount}&order_id={$merchantRef}";
-            
-            return [
-                'success' => true,
-                'link' => $paymentLink
-            ];
-            
-        default:
-            return [
-                'success' => false,
-                'message' => 'Payment gateway not supported',
-                'link' => null
-            ];
-    }
 }

@@ -226,11 +226,13 @@ function handleHelp($chatId) {
         $message .= "/mt_ping &lt;ip/host&gt; - Ping dari MikroTik\n";
         $message .= "/pppoe_list - Daftar user PPPoE\n";
         $message .= "/pppoe_add &lt;user&gt; &lt;pass&gt; &lt;profile&gt; - Tambah PPPoE\n";
+        $message .= "/pppoe_edit &lt;user&gt; &lt;pass&gt; &lt;profile&gt; - Ubah PPPoE\n";
         $message .= "/pppoe_del &lt;user&gt; - Hapus PPPoE\n";
         $message .= "/pppoe_disable &lt;user&gt; - Nonaktifkan PPPoE\n";
         $message .= "/pppoe_enable &lt;user&gt; - Aktifkan PPPoE\n";
         $message .= "/hs_list - Daftar user Hotspot\n";
         $message .= "/hs_add &lt;user&gt; &lt;pass&gt; &lt;profile&gt; - Tambah Hotspot\n";
+        $message .= "/hs_edit &lt;user&gt; &lt;pass&gt; &lt;profile&gt; - Ubah Hotspot\n";
         $message .= "/hs_del &lt;user&gt; - Hapus Hotspot\n";
     }
     
@@ -271,9 +273,8 @@ function sendMessage($chatId, $text, $options = []) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     
-    $response = curl_exec($ch);
+    curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     
     logActivity('TELEGRAM_SEND', "To: {$chatId}, Status code: {$httpCode}");
     
@@ -307,9 +308,8 @@ function editMessageText($chatId, $messageId, $text, $replyMarkup = null) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     
-    $response = curl_exec($ch);
+    curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     
     logActivity('TELEGRAM_EDIT', "To: {$chatId}, Msg: {$messageId}, Status code: {$httpCode}");
     
@@ -416,6 +416,10 @@ function handleCommand($chatId, $text) {
             handlePppoeAdd($chatId, $args);
             break;
         
+        case '/pppoe_edit':
+            handlePppoeEdit($chatId, $args);
+            break;
+        
         case '/pppoe_del':
             handlePppoeDel($chatId, $args);
             break;
@@ -434,6 +438,10 @@ function handleCommand($chatId, $text) {
         
         case '/hs_add':
             handleHotspotAdd($chatId, $args);
+            break;
+        
+        case '/hs_edit':
+            handleHotspotEdit($chatId, $args);
             break;
         
         case '/hs_del':
@@ -1049,6 +1057,7 @@ function handleMikrotikPppoeHelp($chatId) {
     $message = "👤 Perintah PPPoE MikroTik\n\n";
     $message .= "/pppoe_list - Daftar user PPPoE\n";
     $message .= "/pppoe_add &lt;user&gt; &lt;pass&gt; &lt;profile&gt;\n";
+    $message .= "/pppoe_edit &lt;user&gt; &lt;pass&gt; &lt;profile&gt;\n";
     $message .= "/pppoe_del &lt;user&gt;\n";
     $message .= "/pppoe_disable &lt;user&gt;\n";
     $message .= "/pppoe_enable &lt;user&gt;\n";
@@ -1065,6 +1074,7 @@ function handleMikrotikHotspotHelp($chatId) {
     $message = "🌐 Perintah Hotspot MikroTik\n\n";
     $message .= "/hs_list - Daftar user Hotspot\n";
     $message .= "/hs_add &lt;user&gt; &lt;pass&gt; &lt;profile&gt;\n";
+    $message .= "/hs_edit &lt;user&gt; &lt;pass&gt; &lt;profile&gt;\n";
     $message .= "/hs_del &lt;user&gt;\n";
     
     sendMessage($chatId, $message);
@@ -1163,6 +1173,42 @@ function handlePppoeAdd($chatId, $args) {
         sendMessage($chatId, "User PPPoE {$user} berhasil ditambahkan dengan profile {$profile}.");
     } else {
         sendMessage($chatId, "Gagal menambah user PPPoE {$user}: {$result['message']}");
+    }
+}
+
+function handlePppoeEdit($chatId, $args) {
+    if (!isAdminChat($chatId)) {
+        sendMessage($chatId, "Perintah MikroTik hanya untuk admin.");
+        return;
+    }
+    
+    $parts = preg_split('/\s+/', trim($args));
+    if (count($parts) < 3) {
+        $msg = "Ubah user PPPoE\n\n";
+        $msg .= "Format:\n";
+        $msg .= "/pppoe_edit &lt;user&gt; &lt;pass&gt; &lt;profile&gt;\n\n";
+        $msg .= "Contoh:\n";
+        $msg .= "/pppoe_edit pelanggan001 rahasia paket-10mbps";
+        sendMessage($chatId, $msg);
+        return;
+    }
+    
+    $user = $parts[0];
+    $pass = $parts[1];
+    $profile = $parts[2];
+    
+    $secret = mikrotikGetSecretByName($user);
+    if (!$secret || empty($secret['.id'])) {
+        sendMessage($chatId, "User PPPoE {$user} tidak ditemukan.");
+        return;
+    }
+    
+    $result = mikrotikUpdateSecret($secret['.id'], ['password' => $pass, 'profile' => $profile]);
+    if ($result['success']) {
+        mikrotikRemoveActiveSessionByName($user);
+        sendMessage($chatId, "User PPPoE {$user} berhasil diperbarui.");
+    } else {
+        sendMessage($chatId, "Gagal memperbarui user PPPoE {$user}: {$result['message']}");
     }
 }
 
@@ -1468,6 +1514,41 @@ function handleHotspotAdd($chatId, $args) {
     }
 }
 
+function handleHotspotEdit($chatId, $args) {
+    if (!isAdminChat($chatId)) {
+        sendMessage($chatId, "Perintah MikroTik hanya untuk admin.");
+        return;
+    }
+    
+    $parts = preg_split('/\s+/', trim($args));
+    if (count($parts) < 3) {
+        $msg = "Ubah user Hotspot\n\n";
+        $msg .= "Format:\n";
+        $msg .= "/hs_edit &lt;user&gt; &lt;pass&gt; &lt;profile&gt;\n\n";
+        $msg .= "Contoh:\n";
+        $msg .= "/hs_edit user1 rahasia hotspot-3mbps";
+        sendMessage($chatId, $msg);
+        return;
+    }
+    
+    $user = $parts[0];
+    $pass = $parts[1];
+    $profile = $parts[2];
+    
+    $hotspotUser = getHotspotUserByName($user);
+    if (!$hotspotUser || empty($hotspotUser['.id'])) {
+        sendMessage($chatId, "User Hotspot {$user} tidak ditemukan.");
+        return;
+    }
+    
+    $result = mikrotikUpdateHotspotUser($hotspotUser['.id'], ['password' => $pass, 'profile' => $profile]);
+    if ($result['success']) {
+        sendMessage($chatId, "User Hotspot {$user} berhasil diperbarui.");
+    } else {
+        sendMessage($chatId, "Gagal memperbarui user Hotspot {$user}: {$result['message']}");
+    }
+}
+
 function handleHotspotDel($chatId, $args, $silent = false) {
     if (!isAdminChat($chatId)) {
         if (!$silent) {
@@ -1562,4 +1643,14 @@ function handleHotspotDelCallback($chatId, $data, $callbackQuery) {
     } else {
         editMessageText($chatId, $messageId, $message, $keyboard);
     }
+}
+
+function getHotspotUserByName($name) {
+    $users = mikrotikGetHotspotUsers();
+    foreach ($users as $u) {
+        if (($u['name'] ?? '') === $name) {
+            return $u;
+        }
+    }
+    return null;
 }

@@ -839,6 +839,124 @@ function mikrotikGetProfiles() {
     return $profiles;
 }
 
+function mikrotikAddPppoeProfile($name, $rateLimit = '') {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return ['success' => false, 'message' => 'Cannot connect to MikroTik'];
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return ['success' => false, 'message' => 'Authentication failed'];
+    }
+    
+    mikrotikWrite($socket, '/ppp/profile/add');
+    mikrotikWrite($socket, '=name=' . $name);
+    if ($rateLimit !== '') {
+        mikrotikWrite($socket, '=rate-limit=' . $rateLimit);
+    }
+    mikrotikWrite($socket, '');
+    
+    $response = mikrotikReadSentence($socket);
+    fclose($socket);
+    
+    foreach ($response as $word) {
+        if ($word === '!done') {
+            return ['success' => true, 'message' => 'Profile added successfully'];
+        }
+        if (strpos($word, '!trap') === 0) {
+            $message = 'Unknown error';
+            foreach ($response as $w) {
+                if (strpos($w, '=message=') === 0) {
+                    $message = substr($w, 9);
+                    break;
+                }
+            }
+            return ['success' => false, 'message' => $message];
+        }
+    }
+    
+    return ['success' => false, 'message' => 'Unknown response'];
+}
+
+function mikrotikUpdatePppoeProfile($id, $data) {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return ['success' => false, 'message' => 'Cannot connect to MikroTik'];
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return ['success' => false, 'message' => 'Authentication failed'];
+    }
+    
+    mikrotikWrite($socket, '/ppp/profile/set');
+    mikrotikWrite($socket, '=.id=' . $id);
+    
+    if (isset($data['name'])) mikrotikWrite($socket, '=name=' . $data['name']);
+    if (isset($data['rate_limit'])) mikrotikWrite($socket, '=rate-limit=' . $data['rate_limit']);
+    
+    mikrotikWrite($socket, '');
+    
+    $response = mikrotikReadSentence($socket);
+    fclose($socket);
+    
+    foreach ($response as $word) {
+        if ($word === '!done') {
+            return ['success' => true, 'message' => 'Profile updated successfully'];
+        }
+        if (strpos($word, '!trap') === 0) {
+            $message = 'Unknown error';
+            foreach ($response as $w) {
+                if (strpos($w, '=message=') === 0) {
+                    $message = substr($w, 9);
+                    break;
+                }
+            }
+            return ['success' => false, 'message' => $message];
+        }
+    }
+    
+    return ['success' => false, 'message' => 'Unknown response'];
+}
+
+function mikrotikDeletePppoeProfile($id) {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return ['success' => false, 'message' => 'Cannot connect to MikroTik'];
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return ['success' => false, 'message' => 'Authentication failed'];
+    }
+    
+    mikrotikWrite($socket, '/ppp/profile/remove');
+    mikrotikWrite($socket, '=.id=' . $id);
+    mikrotikWrite($socket, '');
+    
+    $response = mikrotikReadSentence($socket);
+    fclose($socket);
+    
+    foreach ($response as $word) {
+        if ($word === '!done') {
+            return ['success' => true, 'message' => 'Profile deleted successfully'];
+        }
+        if (strpos($word, '!trap') === 0) {
+            $message = 'Unknown error';
+            foreach ($response as $w) {
+                if (strpos($w, '=message=') === 0) {
+                    $message = substr($w, 9);
+                    break;
+                }
+            }
+            return ['success' => false, 'message' => $message];
+        }
+    }
+    
+    return ['success' => false, 'message' => 'Unknown response'];
+}
+
 function mikrotikParseProfiles($response) {
     // $response is now an array of words from binary protocol
     // Format: =key=value (e.g., =name=default)
@@ -925,6 +1043,128 @@ function mikrotikGetHotspotProfiles() {
     }
     
     return $profiles;
+}
+
+function mikrotikAddHotspotProfile($name, $rateLimit = '', $sharedUsers = '') {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return ['success' => false, 'message' => 'Cannot connect to MikroTik'];
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return ['success' => false, 'message' => 'Authentication failed'];
+    }
+    
+    mikrotikWrite($socket, '/ip/hotspot/user/profile/add');
+    mikrotikWrite($socket, '=name=' . $name);
+    if ($rateLimit !== '') {
+        mikrotikWrite($socket, '=rate-limit=' . $rateLimit);
+    }
+    if ($sharedUsers !== '') {
+        mikrotikWrite($socket, '=shared-users=' . $sharedUsers);
+    }
+    mikrotikWrite($socket, '');
+    
+    $response = mikrotikReadSentence($socket);
+    fclose($socket);
+    
+    foreach ($response as $word) {
+        if ($word === '!done') {
+            return ['success' => true, 'message' => 'Profile added successfully'];
+        }
+        if (strpos($word, '!trap') === 0) {
+            $message = 'Unknown error';
+            foreach ($response as $w) {
+                if (strpos($w, '=message=') === 0) {
+                    $message = substr($w, 9);
+                    break;
+                }
+            }
+            return ['success' => false, 'message' => $message];
+        }
+    }
+    
+    return ['success' => false, 'message' => 'Unknown response'];
+}
+
+function mikrotikUpdateHotspotProfile($id, $data) {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return ['success' => false, 'message' => 'Cannot connect to MikroTik'];
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return ['success' => false, 'message' => 'Authentication failed'];
+    }
+    
+    mikrotikWrite($socket, '/ip/hotspot/user/profile/set');
+    mikrotikWrite($socket, '=.id=' . $id);
+    
+    if (isset($data['name'])) mikrotikWrite($socket, '=name=' . $data['name']);
+    if (isset($data['rate_limit'])) mikrotikWrite($socket, '=rate-limit=' . $data['rate_limit']);
+    if (isset($data['shared_users'])) mikrotikWrite($socket, '=shared-users=' . $data['shared_users']);
+    
+    mikrotikWrite($socket, '');
+    
+    $response = mikrotikReadSentence($socket);
+    fclose($socket);
+    
+    foreach ($response as $word) {
+        if ($word === '!done') {
+            return ['success' => true, 'message' => 'Profile updated successfully'];
+        }
+        if (strpos($word, '!trap') === 0) {
+            $message = 'Unknown error';
+            foreach ($response as $w) {
+                if (strpos($w, '=message=') === 0) {
+                    $message = substr($w, 9);
+                    break;
+                }
+            }
+            return ['success' => false, 'message' => $message];
+        }
+    }
+    
+    return ['success' => false, 'message' => 'Unknown response'];
+}
+
+function mikrotikDeleteHotspotProfile($id) {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return ['success' => false, 'message' => 'Cannot connect to MikroTik'];
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return ['success' => false, 'message' => 'Authentication failed'];
+    }
+    
+    mikrotikWrite($socket, '/ip/hotspot/user/profile/remove');
+    mikrotikWrite($socket, '=.id=' . $id);
+    mikrotikWrite($socket, '');
+    
+    $response = mikrotikReadSentence($socket);
+    fclose($socket);
+    
+    foreach ($response as $word) {
+        if ($word === '!done') {
+            return ['success' => true, 'message' => 'Profile deleted successfully'];
+        }
+        if (strpos($word, '!trap') === 0) {
+            $message = 'Unknown error';
+            foreach ($response as $w) {
+                if (strpos($w, '=message=') === 0) {
+                    $message = substr($w, 9);
+                    break;
+                }
+            }
+            return ['success' => false, 'message' => $message];
+        }
+    }
+    
+    return ['success' => false, 'message' => 'Unknown response'];
 }
 
 // Add MikroTik Hotspot User
@@ -1076,6 +1316,112 @@ function mikrotikGetHotspotUsers() {
     }
     
     return $users;
+}
+
+function mikrotikUpdateHotspotUser($id, $data) {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return ['success' => false, 'message' => 'Cannot connect to MikroTik'];
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return ['success' => false, 'message' => 'Authentication failed'];
+    }
+    
+    mikrotikWrite($socket, '/ip/hotspot/user/set');
+    mikrotikWrite($socket, '=.id=' . $id);
+    
+    if (isset($data['name'])) mikrotikWrite($socket, '=name=' . $data['name']);
+    if (isset($data['password'])) mikrotikWrite($socket, '=password=' . $data['password']);
+    if (isset($data['profile'])) mikrotikWrite($socket, '=profile=' . $data['profile']);
+    if (isset($data['disabled'])) mikrotikWrite($socket, '=disabled=' . $data['disabled']);
+    
+    mikrotikWrite($socket, '');
+    
+    $response = mikrotikReadSentence($socket);
+    fclose($socket);
+    
+    foreach ($response as $word) {
+        if ($word === '!done') {
+            return ['success' => true, 'message' => 'User updated successfully'];
+        }
+        if (strpos($word, '!trap') === 0) {
+            $message = 'Unknown error';
+            foreach ($response as $w) {
+                if (strpos($w, '=message=') === 0) {
+                    $message = substr($w, 9);
+                    break;
+                }
+            }
+            return ['success' => false, 'message' => $message];
+        }
+    }
+    
+    return ['success' => false, 'message' => 'Unknown response'];
+}
+
+function mikrotikGetHotspotActiveSessions() {
+    $socket = mikrotikConnect();
+    if (!$socket) {
+        return [];
+    }
+    
+    if (!mikrotikLogin($socket)) {
+        fclose($socket);
+        return [];
+    }
+    
+    mikrotikWrite($socket, '/ip/hotspot/active/print');
+    mikrotikWrite($socket, '');
+    
+    $allWords = [];
+    $done = false;
+    $timeout = time() + 30;
+    
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words)) {
+            break;
+        }
+        
+        foreach ($words as $word) {
+            $allWords[] = $word;
+            if ($word === '!done') {
+                $done = true;
+                break;
+            }
+        }
+    }
+    
+    fclose($socket);
+    
+    $sessions = [];
+    $currentSession = [];
+    
+    foreach ($allWords as $word) {
+        if ($word === '!done') {
+            if (!empty($currentSession)) {
+                $sessions[] = $currentSession;
+            }
+            break;
+        }
+        
+        if ($word === '!re') {
+            if (!empty($currentSession)) {
+                $sessions[] = $currentSession;
+                $currentSession = [];
+            }
+        } elseif (strpos($word, '=') === 0) {
+            $word = substr($word, 1);
+            $parts = explode('=', $word, 2);
+            if (count($parts) === 2) {
+                $currentSession[$parts[0]] = $parts[1];
+            }
+        }
+    }
+    
+    return $sessions;
 }
 
 function mikrotikRemoveActiveSessionByName($username) {

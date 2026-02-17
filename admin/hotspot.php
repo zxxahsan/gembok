@@ -1,36 +1,29 @@
 <?php
-/**
- * MikroTik Management
- */
-
 require_once '../includes/auth.php';
 requireAdminLogin();
 
-$pageTitle = 'MikroTik PPPoE';
+$pageTitle = 'MikroTik Hotspot';
 
-// Get MikroTik settings
 $mikrotikSettings = getMikrotikSettings();
 
-// Handle CRUD operations
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
     switch ($action) {
         case 'add':
-            $result = mikrotikAddSecret(
+            $ok = mikrotikAddHotspotUser(
                 sanitize($_POST['username']),
                 sanitize($_POST['password']),
-                sanitize($_POST['profile']),
-                sanitize($_POST['service'])
+                sanitize($_POST['profile'])
             );
             
-            if ($result['success']) {
-                setFlash('success', 'User PPPoE berhasil ditambahkan');
-                logActivity('ADD_PPPOE_USER', "Username: " . $_POST['username']);
+            if ($ok) {
+                setFlash('success', 'User Hotspot berhasil ditambahkan');
+                logActivity('ADD_HOTSPOT_USER', "Username: " . $_POST['username']);
             } else {
-                setFlash('error', 'Gagal menambahkan user: ' . $result['message']);
+                setFlash('error', 'Gagal menambahkan user Hotspot');
             }
-            redirect('mikrotik.php');
+            redirect('hotspot.php');
             break;
             
         case 'edit':
@@ -38,33 +31,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data = [
                 'name' => sanitize($_POST['username']),
                 'password' => sanitize($_POST['password']),
-                'profile' => sanitize($_POST['profile']),
-                'service' => sanitize($_POST['service'])
+                'profile' => sanitize($_POST['profile'])
             ];
             
-            $result = mikrotikUpdateSecret($id, $data);
+            $result = mikrotikUpdateHotspotUser($id, $data);
             
             if ($result['success']) {
-                mikrotikRemoveActiveSessionByName($data['name']);
-                setFlash('success', 'User PPPoE berhasil diperbarui');
-                logActivity('UPDATE_PPPOE_USER', "ID: $id");
+                setFlash('success', 'User Hotspot berhasil diperbarui');
+                logActivity('UPDATE_HOTSPOT_USER', "ID: $id");
             } else {
                 setFlash('error', 'Gagal memperbarui user: ' . $result['message']);
             }
-            redirect('mikrotik.php');
+            redirect('hotspot.php');
             break;
             
         case 'delete':
-            $id = $_POST['user_id'];
-            $result = mikrotikDeleteSecret($id);
+            $username = sanitize($_POST['username']);
+            $ok = mikrotikDeleteHotspotUser($username);
             
-            if ($result['success']) {
-                setFlash('success', 'User PPPoE berhasil dihapus');
-                logActivity('DELETE_PPPOE_USER', "ID: $id");
+            if ($ok) {
+                setFlash('success', 'User Hotspot berhasil dihapus');
+                logActivity('DELETE_HOTSPOT_USER', "Username: $username");
             } else {
-                setFlash('error', 'Gagal menghapus user: ' . $result['message']);
+                setFlash('error', 'Gagal menghapus user Hotspot');
             }
-            redirect('mikrotik.php');
+            redirect('hotspot.php');
             break;
             
         case 'toggle':
@@ -72,93 +63,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $currentStatus = $_POST['current_status'] ?? 'false';
             $newStatus = ($currentStatus === 'true') ? 'false' : 'true';
             
-            $result = mikrotikUpdateSecret($id, ['disabled' => $newStatus]);
+            $result = mikrotikUpdateHotspotUser($id, ['disabled' => $newStatus]);
             
             if ($result['success']) {
                 $status = ($newStatus === 'true') ? 'disabled' : 'enabled';
-                setFlash('success', "User PPPoE berhasil di-$status");
-                logActivity('TOGGLE_PPPOE_USER', "ID: $id, Status: $status");
+                setFlash('success', "User Hotspot berhasil di-$status");
+                logActivity('TOGGLE_HOTSPOT_USER', "ID: $id, Status: $status");
             } else {
                 setFlash('error', 'Gagal mengubah status user: ' . $result['message']);
             }
-            redirect('mikrotik.php');
+            redirect('hotspot.php');
             break;
             
         case 'profile_add':
-            $result = mikrotikAddPppoeProfile(
+            $result = mikrotikAddHotspotProfile(
                 sanitize($_POST['profile_name']),
-                sanitize($_POST['rate_limit'])
+                sanitize($_POST['rate_limit']),
+                sanitize($_POST['shared_users'])
             );
             
             if ($result['success']) {
-                setFlash('success', 'Profile PPPoE berhasil ditambahkan');
-                logActivity('ADD_PPPOE_PROFILE', "Profile: " . $_POST['profile_name']);
+                setFlash('success', 'Profile Hotspot berhasil ditambahkan');
+                logActivity('ADD_HOTSPOT_PROFILE', "Profile: " . $_POST['profile_name']);
             } else {
                 setFlash('error', 'Gagal menambahkan profile: ' . $result['message']);
             }
-            redirect('mikrotik.php');
+            redirect('hotspot.php');
             break;
             
         case 'profile_edit':
             $id = $_POST['profile_id'];
             $data = [
                 'name' => sanitize($_POST['profile_name']),
-                'rate_limit' => sanitize($_POST['rate_limit'])
+                'rate_limit' => sanitize($_POST['rate_limit']),
+                'shared_users' => sanitize($_POST['shared_users'])
             ];
             
-            $result = mikrotikUpdatePppoeProfile($id, $data);
+            $result = mikrotikUpdateHotspotProfile($id, $data);
             
             if ($result['success']) {
-                setFlash('success', 'Profile PPPoE berhasil diperbarui');
-                logActivity('UPDATE_PPPOE_PROFILE', "ID: $id");
+                setFlash('success', 'Profile Hotspot berhasil diperbarui');
+                logActivity('UPDATE_HOTSPOT_PROFILE', "ID: $id");
             } else {
                 setFlash('error', 'Gagal memperbarui profile: ' . $result['message']);
             }
-            redirect('mikrotik.php');
+            redirect('hotspot.php');
             break;
             
         case 'profile_delete':
             $id = $_POST['profile_id'];
-            $result = mikrotikDeletePppoeProfile($id);
+            $result = mikrotikDeleteHotspotProfile($id);
             
             if ($result['success']) {
-                setFlash('success', 'Profile PPPoE berhasil dihapus');
-                logActivity('DELETE_PPPOE_PROFILE', "ID: $id");
+                setFlash('success', 'Profile Hotspot berhasil dihapus');
+                logActivity('DELETE_HOTSPOT_PROFILE', "ID: $id");
             } else {
                 setFlash('error', 'Gagal menghapus profile: ' . $result['message']);
             }
-            redirect('mikrotik.php');
+            redirect('hotspot.php');
             break;
     }
 }
 
-// Get MikroTik users (secrets)
-$mikrotikUsers = mikrotikGetPppoeUsers();
-$totalUsers = count($mikrotikUsers);
+$hotspotUsers = mikrotikGetHotspotUsers();
+$totalUsers = count($hotspotUsers);
 
-// Get active PPPoE sessions (currently online)
-$activeSessions = mikrotikGetActiveSessions();
+$activeSessions = mikrotikGetHotspotActiveSessions();
 $onlineCount = count($activeSessions);
 
-// Create list of online usernames
-$onlineUsernames = array_column($activeSessions, 'name');
+$onlineUsernames = [];
+foreach ($activeSessions as $session) {
+    if (!empty($session['user'])) {
+        $onlineUsernames[] = $session['user'];
+    } elseif (!empty($session['name'])) {
+        $onlineUsernames[] = $session['name'];
+    }
+}
 
-// Calculate stats
-$disabledCount = count(array_filter($mikrotikUsers, function($u) {
+$disabledCount = count(array_filter($hotspotUsers, function($u) {
     return ($u['disabled'] ?? 'false') === 'true';
 }));
-$offlineCount = $totalUsers - $onlineCount;
+$offlineCount = max(0, $totalUsers - $onlineCount);
 
-// Get MikroTik profiles
-$mikrotikProfiles = mikrotikGetProfiles();
-if (empty($mikrotikProfiles)) {
-    $mikrotikProfiles = [['name' => 'default']];
+$hotspotProfiles = mikrotikGetHotspotProfiles();
+if (empty($hotspotProfiles)) {
+    $hotspotProfiles = [['name' => 'default']];
 }
 
 ob_start();
 ?>
 
-<!-- Stats -->
 <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 30px;">
     <div class="stat-card">
         <div class="stat-icon cyan">
@@ -201,7 +195,6 @@ ob_start();
     </div>
 </div>
 
-<!-- Connection Status -->
 <?php if (mikrotikConnect()): ?>
     <div class="alert alert-success">
         <i class="fas fa-check-circle"></i>
@@ -216,24 +209,24 @@ ob_start();
 
 <div class="card">
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <a href="#pppoeProfilesSection" class="btn btn-secondary">
-            <i class="fas fa-layer-group"></i> Profile PPPoE
+        <a href="#hotspotProfilesSection" class="btn btn-secondary">
+            <i class="fas fa-layer-group"></i> Profile Hotspot
         </a>
-        <a href="#pppoeUsersSection" class="btn btn-secondary">
-            <i class="fas fa-network-wired"></i> User PPPoE
+        <a href="#hotspotUsersSection" class="btn btn-secondary">
+            <i class="fas fa-wifi"></i> User Hotspot
         </a>
     </div>
 </div>
 
-<div class="card" id="pppoeProfilesSection">
+<div class="card" id="hotspotProfilesSection">
     <div class="card-header">
-        <h3 class="card-title"><i class="fas fa-layer-group"></i> Profile PPPoE</h3>
-        <input type="text" id="searchPppoeProfile" class="form-control" placeholder="Cari profile..." style="width: 250px;">
+        <h3 class="card-title"><i class="fas fa-layer-group"></i> Profile Hotspot</h3>
+        <input type="text" id="searchHotspotProfile" class="form-control" placeholder="Cari profile..." style="width: 250px;">
     </div>
     
     <form method="POST" style="padding: 0 20px 20px;">
         <input type="hidden" name="action" value="profile_add">
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
             <div class="form-group">
                 <label class="form-label">Nama Profile</label>
                 <input type="text" name="profile_name" class="form-control" required placeholder="nama-profile">
@@ -243,6 +236,11 @@ ob_start();
                 <label class="form-label">Rate Limit</label>
                 <input type="text" name="rate_limit" class="form-control" placeholder="2M/2M">
             </div>
+            
+            <div class="form-group">
+                <label class="form-label">Shared Users</label>
+                <input type="number" name="shared_users" class="form-control" min="1" placeholder="1">
+            </div>
         </div>
         
         <button type="submit" class="btn btn-primary" style="margin-top: 20px;">
@@ -250,32 +248,34 @@ ob_start();
         </button>
     </form>
     
-    <table class="data-table" id="pppoeProfileTable">
+    <table class="data-table" id="hotspotProfileTable">
         <thead>
             <tr>
                 <th>Nama</th>
                 <th>Rate Limit</th>
+                <th>Shared Users</th>
                 <th>Aksi</th>
             </tr>
         </thead>
         <tbody>
-            <?php if (empty($mikrotikProfiles)): ?>
+            <?php if (empty($hotspotProfiles)): ?>
                 <tr>
-                    <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 30px;" data-label="Data">
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;" data-label="Data">
                         <i class="fas fa-layer-group" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
-                        Belum ada profile PPPoE atau tidak terkoneksi ke MikroTik
+                        Belum ada profile Hotspot atau tidak terkoneksi ke MikroTik
                     </td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($mikrotikProfiles as $profile): ?>
+                <?php foreach ($hotspotProfiles as $profile): ?>
                 <tr>
                     <td data-label="Nama">
                         <strong><?php echo htmlspecialchars($profile['name'] ?? 'N/A'); ?></strong>
                     </td>
                     <td data-label="Rate Limit"><?php echo htmlspecialchars($profile['rate-limit'] ?? '-'); ?></td>
+                    <td data-label="Shared Users"><?php echo htmlspecialchars($profile['shared-users'] ?? '-'); ?></td>
                     <td data-label="Aksi">
                         <div style="display: flex; gap: 5px;">
-                            <button class="btn btn-secondary btn-sm" onclick="editProfile('<?php echo htmlspecialchars($profile['.id'] ?? ''); ?>', '<?php echo htmlspecialchars($profile['name'] ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($profile['rate-limit'] ?? '', ENT_QUOTES); ?>')" title="Edit">
+                            <button class="btn btn-secondary btn-sm" onclick="editProfile('<?php echo htmlspecialchars($profile['.id'] ?? ''); ?>', '<?php echo htmlspecialchars($profile['name'] ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($profile['rate-limit'] ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($profile['shared-users'] ?? '', ENT_QUOTES); ?>')" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <form method="POST" style="display: inline;" onsubmit="return confirm('Hapus profile <?php echo htmlspecialchars($profile['name'] ?? ''); ?>?')">
@@ -294,10 +294,9 @@ ob_start();
     </table>
 </div>
 
-<!-- Add User Form -->
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title"><i class="fas fa-plus"></i> Tambah PPPoE User</h3>
+        <h3 class="card-title"><i class="fas fa-plus"></i> Tambah Hotspot User</h3>
     </div>
     
     <form method="POST">
@@ -305,30 +304,22 @@ ob_start();
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
             <div class="form-group">
                 <label class="form-label">Username</label>
-                <input type="text" name="username" class="form-control" required placeholder="Username PPPoE">
+                <input type="text" name="username" class="form-control" required placeholder="Username Hotspot">
             </div>
             
             <div class="form-group">
                 <label class="form-label">Password</label>
-                <input type="text" name="password" class="form-control" required placeholder="Password PPPoE">
+                <input type="text" name="password" class="form-control" required placeholder="Password Hotspot">
             </div>
             
             <div class="form-group">
                 <label class="form-label">Profile</label>
                 <select name="profile" class="form-control" required>
-                    <?php foreach ($mikrotikProfiles as $profile): ?>
+                    <?php foreach ($hotspotProfiles as $profile): ?>
                         <option value="<?php echo htmlspecialchars($profile['name']); ?>">
                             <?php echo htmlspecialchars($profile['name']); ?>
                         </option>
                     <?php endforeach; ?>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Service</label>
-                <select name="service" class="form-control" required>
-                    <option value="pppoe">PPPoE</option>
-                    <option value="any">Any</option>
                 </select>
             </div>
         </div>
@@ -339,49 +330,49 @@ ob_start();
     </form>
 </div>
 
-<!-- Users Table -->
-<div class="card" id="pppoeUsersSection">
+<div class="card" id="hotspotUsersSection">
     <div class="card-header">
-        <h3 class="card-title"><i class="fas fa-network-wired"></i> Daftar PPPoE User</h3>
-        <input type="text" id="searchPppoeUser" class="form-control" placeholder="Cari user..." style="width: 250px;">
+        <h3 class="card-title"><i class="fas fa-wifi"></i> Daftar Hotspot User</h3>
+        <input type="text" id="searchHotspotUser" class="form-control" placeholder="Cari user..." style="width: 250px;">
     </div>
     
-    <table class="data-table" id="pppoeUserTable">
+    <table class="data-table" id="hotspotUserTable">
         <thead>
             <tr>
                 <th>Username</th>
                 <th>Profile</th>
-                <th>Service</th>
                 <th>Status</th>
-                <th>Last Login</th>
+                <th>Uptime</th>
+                <th>Address</th>
                 <th>Aksi</th>
             </tr>
         </thead>
         <tbody>
-            <?php if (empty($mikrotikUsers)): ?>
+            <?php if (empty($hotspotUsers)): ?>
                 <tr>
                     <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;" data-label="Data">
                         <i class="fas fa-network-wired" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
-                        Belum ada PPPoE user atau tidak terkoneksi ke MikroTik
+                        Belum ada Hotspot user atau tidak terkoneksi ke MikroTik
                     </td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($mikrotikUsers as $user): ?>
+                <?php foreach ($hotspotUsers as $user): ?>
                 <?php 
-                    $isOnline = in_array($user['name'] ?? '', $onlineUsernames);
+                    $name = $user['name'] ?? '';
+                    $isOnline = in_array($name, $onlineUsernames);
                     $isDisabled = ($user['disabled'] ?? 'false') === 'true';
                 ?>
                 <tr>
                     <td data-label="Username">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div style="width: 32px; height: 32px; background: var(--gradient-primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem; position: relative;">
-                                <?php echo strtoupper(substr($user['name'] ?? 'U', 0, 1)); ?>
+                                <?php echo strtoupper(substr($name ?: 'U', 0, 1)); ?>
                                 <?php if ($isOnline && !$isDisabled): ?>
                                     <span style="position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; background: #00ff00; border-radius: 50%; border: 2px solid var(--bg-secondary);"></span>
                                 <?php endif; ?>
                             </div>
                             <div>
-                                <strong><?php echo htmlspecialchars($user['name'] ?? 'N/A'); ?></strong>
+                                <strong><?php echo htmlspecialchars($name ?: 'N/A'); ?></strong>
                                 <?php if (!empty($user['password'])): ?>
                                     <br><small style="color: var(--text-muted);">Pass: <?php echo htmlspecialchars($user['password']); ?></small>
                                 <?php endif; ?>
@@ -391,7 +382,6 @@ ob_start();
                     <td data-label="Profile">
                         <span class="badge badge-info"><?php echo htmlspecialchars($user['profile'] ?? 'default'); ?></span>
                     </td>
-                    <td data-label="Service"><?php echo htmlspecialchars($user['service'] ?? 'pppoe'); ?></td>
                     <td data-label="Status">
                         <?php if ($isDisabled): ?>
                             <span class="badge badge-danger">Disabled</span>
@@ -401,10 +391,11 @@ ob_start();
                             <span class="badge badge-warning">Offline</span>
                         <?php endif; ?>
                     </td>
-                    <td data-label="Last Login"><?php echo $user['last-login'] ?? 'Never'; ?></td>
+                    <td data-label="Uptime"><?php echo $user['uptime'] ?? '-'; ?></td>
+                    <td data-label="Address"><?php echo $user['address'] ?? '-'; ?></td>
                     <td data-label="Aksi">
                         <div style="display: flex; gap: 5px;">
-                            <button class="btn btn-secondary btn-sm" onclick="editUser('<?php echo htmlspecialchars($user['.id'] ?? ''); ?>', '<?php echo htmlspecialchars($user['name'] ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($user['password'] ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($user['profile'] ?? 'default'); ?>', '<?php echo htmlspecialchars($user['service'] ?? 'pppoe'); ?>')" title="Edit">
+                            <button class="btn btn-secondary btn-sm" onclick="editUser('<?php echo htmlspecialchars($user['.id'] ?? ''); ?>', '<?php echo htmlspecialchars($name, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($user['password'] ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($user['profile'] ?? 'default'); ?>')" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <form method="POST" style="display: inline;" onsubmit="return confirm('Toggle status user ini?')">
@@ -415,9 +406,9 @@ ob_start();
                                     <i class="fas fa-<?php echo ($user['disabled'] ?? 'false') === 'true' ? 'check' : 'ban'; ?>"></i>
                                 </button>
                             </form>
-                            <form method="POST" style="display: inline;" onsubmit="return confirm('Hapus user <?php echo htmlspecialchars($user['name'] ?? ''); ?>?')">
+                            <form method="POST" style="display: inline;" onsubmit="return confirm('Hapus user <?php echo htmlspecialchars($name); ?>?')">
                                 <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($user['.id'] ?? ''); ?>">
+                                <input type="hidden" name="username" value="<?php echo htmlspecialchars($name); ?>">
                                 <button type="submit" class="btn btn-danger btn-sm" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -434,7 +425,7 @@ ob_start();
 <div id="profileModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
     <div class="card" style="width: 450px; max-width: 90%; margin: 2rem;">
         <div class="card-header">
-            <h3 class="card-title"><i class="fas fa-edit"></i> Edit Profile PPPoE</h3>
+            <h3 class="card-title"><i class="fas fa-edit"></i> Edit Profile Hotspot</h3>
             <button onclick="closeProfileModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.25rem;">
                 <i class="fas fa-times"></i>
             </button>
@@ -453,6 +444,11 @@ ob_start();
                 <input type="text" name="rate_limit" id="edit_rate_limit" class="form-control" placeholder="2M/2M">
             </div>
             
+            <div class="form-group">
+                <label class="form-label">Shared Users</label>
+                <input type="number" name="shared_users" id="edit_shared_users" class="form-control" min="1">
+            </div>
+            
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
                 <button type="button" class="btn btn-secondary" onclick="closeProfileModal()">Batal</button>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan</button>
@@ -461,11 +457,10 @@ ob_start();
     </div>
 </div>
 
-<!-- Edit Modal -->
 <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
     <div class="card" style="width: 450px; max-width: 90%; margin: 2rem;">
         <div class="card-header">
-            <h3 class="card-title"><i class="fas fa-edit"></i> Edit PPPoE User</h3>
+            <h3 class="card-title"><i class="fas fa-edit"></i> Edit Hotspot User</h3>
             <button onclick="closeEditModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.25rem;">
                 <i class="fas fa-times"></i>
             </button>
@@ -484,25 +479,15 @@ ob_start();
                 <input type="text" name="password" id="edit_password" class="form-control" required>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div class="form-group">
-                    <label class="form-label">Profile</label>
-                    <select name="profile" id="edit_profile" class="form-control" required>
-                        <?php foreach ($mikrotikProfiles as $profile): ?>
-                            <option value="<?php echo htmlspecialchars($profile['name']); ?>">
-                                <?php echo htmlspecialchars($profile['name']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Service</label>
-                    <select name="service" id="edit_service" class="form-control" required>
-                        <option value="pppoe">PPPoE</option>
-                        <option value="any">Any</option>
-                    </select>
-                </div>
+            <div class="form-group">
+                <label class="form-label">Profile</label>
+                <select name="profile" id="edit_profile" class="form-control" required>
+                    <?php foreach ($hotspotProfiles as $profile): ?>
+                        <option value="<?php echo htmlspecialchars($profile['name']); ?>">
+                            <?php echo htmlspecialchars($profile['name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
@@ -514,11 +499,9 @@ ob_start();
 </div>
 
 <script>
-const usersData = <?php echo json_encode($mikrotikUsers); ?>;
-
-document.getElementById('searchPppoeUser').addEventListener('input', function(e) {
+document.getElementById('searchHotspotUser').addEventListener('input', function(e) {
     const search = e.target.value.toLowerCase();
-    const rows = document.querySelectorAll('#pppoeUserTable tbody tr');
+    const rows = document.querySelectorAll('#hotspotUserTable tbody tr');
     
     rows.forEach(row => {
         const text = row.textContent.toLowerCase();
@@ -526,9 +509,9 @@ document.getElementById('searchPppoeUser').addEventListener('input', function(e)
     });
 });
 
-document.getElementById('searchPppoeProfile').addEventListener('input', function(e) {
+document.getElementById('searchHotspotProfile').addEventListener('input', function(e) {
     const search = e.target.value.toLowerCase();
-    const rows = document.querySelectorAll('#pppoeProfileTable tbody tr');
+    const rows = document.querySelectorAll('#hotspotProfileTable tbody tr');
     
     rows.forEach(row => {
         const text = row.textContent.toLowerCase();
@@ -536,19 +519,19 @@ document.getElementById('searchPppoeProfile').addEventListener('input', function
     });
 });
 
-function editUser(id, name, password, profile, service) {
+function editUser(id, name, password, profile) {
     document.getElementById('edit_user_id').value = id;
     document.getElementById('edit_username').value = name;
     document.getElementById('edit_password').value = password;
     document.getElementById('edit_profile').value = profile;
-    document.getElementById('edit_service').value = service;
     document.getElementById('editModal').style.display = 'flex';
 }
 
-function editProfile(id, name, rateLimit) {
+function editProfile(id, name, rateLimit, sharedUsers) {
     document.getElementById('edit_profile_id').value = id;
     document.getElementById('edit_profile_name').value = name;
     document.getElementById('edit_rate_limit').value = rateLimit;
+    document.getElementById('edit_shared_users').value = sharedUsers;
     document.getElementById('profileModal').style.display = 'flex';
 }
 

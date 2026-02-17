@@ -6,13 +6,13 @@
 require_once 'config.php';
 
 // Generate payment link based on gateway
-function generatePaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $gateway = 'tripay', $paymentMethod = '') {
+function generatePaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $gateway = 'tripay', $paymentMethod = '') {
     switch ($gateway) {
         case 'tripay':
-            return generateTripayPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $paymentMethod);
+            return generateTripayPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $paymentMethod);
             
         case 'midtrans':
-            return generateMidtransPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $paymentMethod);
+            return generateMidtransPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $paymentMethod);
             
         default:
             return [
@@ -24,7 +24,7 @@ function generatePaymentLink($invoiceNumber, $amount, $customerName, $customerPh
 }
 
 // Tripay Payment Link Generator
-function generateTripayPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $paymentMethod = '') {
+function generateTripayPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $paymentMethod = '') {
     if (empty(TRIPAY_API_KEY) || empty(TRIPAY_MERCHANT_CODE)) {
         return [
             'success' => false,
@@ -47,7 +47,7 @@ function generateTripayPaymentLink($invoiceNumber, $amount, $customerName, $cust
 }
 
 // Midtrans Payment Link Generator
-function generateMidtransPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $paymentMethod = '') {
+function generateMidtransPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $paymentMethod = '') {
     if (empty(MIDTRANS_API_KEY) || empty(MIDTRANS_MERCHANT_CODE)) {
         return [
             'success' => false,
@@ -94,7 +94,7 @@ function getPaymentGateways() {
 }
 
 // Send payment reminder via WhatsApp
-function sendPaymentReminder($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate) {
+function sendPaymentReminder($amount, $customerName, $customerPhone, $dueDate) {
     $message = "Halo {$customerName},\n\n";
     $message .= "Tagihan internet Anda akan jatuh tempo pada " . formatDate($dueDate) . "\n\n";
     $message .= "Nominal: " . formatCurrency($amount) . "\n\n";
@@ -119,7 +119,6 @@ function getTripayPaymentStatus($merchantRef) {
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     
     if ($httpCode !== 200) {
         return ['success' => false, 'message' => 'Failed to get payment status'];
@@ -144,7 +143,6 @@ function getMidtransPaymentStatus($orderId) {
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     
     if ($httpCode !== 200) {
         return ['success' => false, 'message' => 'Failed to get payment status'];

@@ -131,6 +131,7 @@ function createConfigFile() {
     $admin = $_SESSION['admin_config'];
     $mikrotik = $_SESSION['mikrotik_config'];
     $integrations = $_SESSION['integrations_config'];
+    $encryptionKey = bin2hex(random_bytes(32));
     
     return <<<PHP
 <?php
@@ -154,11 +155,28 @@ define('MIKROTIK_PORT', {$mikrotik['port']});
 // Application Configuration
 define('APP_NAME', 'GEMBOK');
 \$appScheme = (!empty(\$_SERVER['HTTPS']) && \$_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-define('APP_URL', \$appScheme . '://' . \$_SERVER['HTTP_HOST']);
+\$httpHost = \$_SERVER['HTTP_HOST'] ?? '';
+\$documentRoot = \$_SERVER['DOCUMENT_ROOT'] ?? '';
+\$basePath = '';
+if (\$httpHost !== '' && \$documentRoot !== '') {
+    \$documentRoot = realpath(\$documentRoot);
+    \$projectRoot = realpath(__DIR__ . '/..');
+    if (\$documentRoot && \$projectRoot && strpos(\$projectRoot, \$documentRoot) === 0) {
+        \$relativePath = str_replace('\\\\', '/', substr(\$projectRoot, strlen(\$documentRoot)));
+        \$basePath = '/' . ltrim(\$relativePath, '/');
+        \$basePath = rtrim(\$basePath, '/');
+    }
+}
+if (\$httpHost !== '') {
+    define('APP_URL', \$appScheme . '://' . \$httpHost . \$basePath);
+} else {
+    define('APP_URL', 'http://localhost/gembok-simple');
+}
 define('APP_VERSION', '2.0.0');
+define('GEMBOK_UPDATE_VERSION_URL', 'https://raw.githubusercontent.com/alijayanet/gembok-simple/main/version.txt');
 
 // Security
-define('ENCRYPTION_KEY', bin2hex(random_bytes(32)));
+define('ENCRYPTION_KEY', '{$encryptionKey}');
 
 // WhatsApp Configuration
 define('WHATSAPP_API_URL', '{$integrations['whatsapp_url']}');
@@ -168,6 +186,13 @@ define('WHATSAPP_TOKEN', '{$integrations['whatsapp_token']}');
 define('TRIPAY_API_KEY', '{$integrations['tripay_api_key']}');
 define('TRIPAY_PRIVATE_KEY', '{$integrations['tripay_private_key']}');
 define('TRIPAY_MERCHANT_CODE', '{$integrations['tripay_merchant_code']}');
+
+if (!defined('MIDTRANS_API_KEY')) {
+    define('MIDTRANS_API_KEY', '');
+}
+if (!defined('MIDTRANS_MERCHANT_CODE')) {
+    define('MIDTRANS_MERCHANT_CODE', '');
+}
 
 // Telegram Configuration
 define('TELEGRAM_BOT_TOKEN', '{$integrations['telegram_token']}');
