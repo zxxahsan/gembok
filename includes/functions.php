@@ -241,22 +241,31 @@ function isValidEmail($email)
 function generateRandomString($length = 10, $type = 'mixed')
 {
     switch ($type) {
+        case 'numeric':
         case 'num':
             $x = '0123456789';
             break;
+        case 'alpha':
         case 'low':
             $x = 'abcdefghijklmnopqrstuvwxyz';
             break;
         case 'up':
             $x = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
             break;
+        case 'alphanumeric':
         case 'mixed':
             $x = '23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
             break; // Avoid ambiguous chars
         default:
             $x = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            break;
     }
-    return substr(str_shuffle(str_repeat($x, ceil($length / strlen($x)))), 1, $length);
+    
+    $str = '';
+    for ($i = 0; $i < $length; $i++) {
+        $str .= $x[rand(0, strlen($x) - 1)];
+    }
+    return $str;
 }
 
 // Mikhmon Metadata Helpers

@@ -20,3 +20,5 @@ Stack trace:
 #1 C:\xampp3\htdocs\gembok-simple2\debug_genieacs.php(6): genieacsGetDevices()
 #2 {main}
   thrown in C:\xampp3\htdocs\gembok-simple2\includes\functions.php on line 1419
+[19-Feb-2026 08:03:10 Asia/Jakarta] PHP Warning:  Undefined variable $hotspotProfiles in C:\xampp3\htdocs\gembok-simple2\admin\hotspot-user.php on line 28
+[19-Feb-2026 08:03:10 Asia/Jakarta] PHP Warning:  foreach() argument must be of type array|object, null given in C:\xampp3\htdocs\gembok-simple2\admin\hotspot-user.php on line 28
