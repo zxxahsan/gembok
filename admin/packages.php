@@ -146,17 +146,21 @@ ob_start();
     
     <div class="stat-card">
         <div class="stat-icon purple">
-            <i class="fas fa-wallet"></i>
+            <i class="fas fa-star"></i>
         </div>
         <div class="stat-info">
             <?php 
-            $totalRevenue = 0;
+            $mostPopularPackage = '-';
+            $maxCustomers = 0;
             foreach ($packages as $p) {
-                $totalRevenue += ($p['price'] * $p['customer_count']);
+                if ($p['customer_count'] > $maxCustomers) {
+                    $maxCustomers = $p['customer_count'];
+                    $mostPopularPackage = $p['name'];
+                }
             }
             ?>
-            <h3><?php echo formatCurrency($totalRevenue); ?></h3>
-            <p>Total Pendapatan/Bulan</p>
+            <h3 style="font-size: 1.2rem;"><?php echo htmlspecialchars($mostPopularPackage); ?></h3>
+            <p>Paket Terlaris</p>
         </div>
     </div>
 </div>

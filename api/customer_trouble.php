@@ -5,15 +5,20 @@
 
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../includes/db.php';
 
 // Check if customer is logged in
-if (!isset($_SESSION['customer_id'])) {
+if (!isCustomerLoggedIn()) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 
-$customerId = $_SESSION['customer_id'];
+$customer = getCurrentCustomer();
+$customerId = $customer['id'];
+
+// Get PDO connection
+$pdo = getDB();
 
 // Handle GET request (fetch tickets)
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -26,9 +31,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt->execute([$customerId]);
         $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        // Sanitize output
+        foreach ($tickets as &$ticket) {
+            $ticket['description'] = htmlspecialchars($ticket['description']);
+            $ticket['priority'] = htmlspecialchars($ticket['priority']);
+            $ticket['status'] = htmlspecialchars($ticket['status']);
+        }
+        
         echo json_encode(['success' => true, 'tickets' => $tickets]);
     } catch (Exception $e) {
         http_response_code(500);
+        logError("Trouble ticket fetch error: " . $e->getMessage());
         echo json_encode(['success' => false, 'message' => 'Database error']);
     }
     exit;
@@ -48,6 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
+    // Sanitize input (strip tags to be safe)
+    $description = strip_tags($description);
+    
     if (!in_array($priority, ['low', 'medium', 'high'])) {
         $priority = 'medium';
     }
@@ -63,8 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result) {
             $ticketId = $pdo->lastInsertId();
             
-            // Optionally send notification to admin
-            // This would require a notification system
+            // Log activity
+            logActivity('CREATE_TICKET', "Customer ID: {$customerId}, Ticket ID: {$ticketId}");
             
             echo json_encode([
                 'success' => true, 
@@ -77,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } catch (Exception $e) {
         http_response_code(500);
+        logError("Trouble ticket create error: " . $e->getMessage());
         echo json_encode(['success' => false, 'message' => 'Database error']);
     }
     exit;

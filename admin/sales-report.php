@@ -9,9 +9,9 @@ requireAdminLogin();
 $pageTitle = 'Laporan Penjualan Hotspot';
 
 // Handle filters
-$date_from = $_GET['date_from'] ?? date('Y-m-d');
-$date_to = $_GET['date_to'] ?? date('Y-m-d');
-$profile_filter = $_GET['profile'] ?? 'all';
+$date_from = sanitize($_GET['date_from'] ?? date('Y-m-d'));
+$date_to = sanitize($_GET['date_to'] ?? date('Y-m-d'));
+$profile_filter = sanitize($_GET['profile'] ?? 'all');
 
 $where = "DATE(created_at) BETWEEN ? AND ?";
 $params = [$date_from, $date_to];

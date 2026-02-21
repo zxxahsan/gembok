@@ -25,7 +25,7 @@ try {
         exit;
     }
     
-    $customer = getCurrentAdmin();
+    $customer = getCurrentCustomer();
     
     if (setCustomerPortalPassword($customer['id'], $password)) {
         echo json_encode(['success' => true, 'message' => 'Password berhasil diubah']);

@@ -10,6 +10,12 @@ $pageTitle = 'Router Management';
 
 // Handle Actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Verify CSRF token
+    if (!isset($_POST['csrf_token']) || !verifyCsrfToken($_POST['csrf_token'])) {
+        setFlash('error', 'Invalid CSRF token');
+        redirect('routers.php');
+    }
+
     $action = $_POST['action'] ?? '';
 
     if ($action === 'add' || $action === 'edit') {
@@ -111,6 +117,7 @@ ob_start();
                                         <form method="POST" style="display:inline;">
                                             <input type="hidden" name="action" value="switch">
                                             <input type="hidden" name="id" value="<?php echo $r['id']; ?>">
+                                            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                                             <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-play"></i>
                                                 Switch</button>
                                         </form>
@@ -120,6 +127,7 @@ ob_start();
                                     <form method="POST" style="display:inline;" onsubmit="return confirm('Hapus router ini?')">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="id" value="<?php echo $r['id']; ?>">
+                                        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                                         <button type="submit" class="btn btn-danger btn-sm"><i
                                                 class="fas fa-trash"></i></button>
                                     </form>
@@ -146,6 +154,7 @@ ob_start();
             <form method="POST" id="routerForm">
                 <input type="hidden" name="action" id="formAction" value="add">
                 <input type="hidden" name="id" id="routerId">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
 
                 <div class="form-group">
                     <label class="form-label">Nama Router</label>

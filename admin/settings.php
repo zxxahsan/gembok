@@ -34,6 +34,12 @@ function getSettingValue($key, $default = '') {
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Verify CSRF token
+    if (!isset($_POST['csrf_token']) || !verifyCsrfToken($_POST['csrf_token'])) {
+        setFlash('error', 'Invalid CSRF token');
+        redirect('settings.php');
+    }
+
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
             case 'save_system':
@@ -111,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'MIDTRANS_API_KEY' => sanitize($_POST['midtrans_api_key']),
                     'MIDTRANS_MERCHANT_CODE' => sanitize($_POST['midtrans_merchant_code']),
                     'DEFAULT_PAYMENT_GATEWAY' => sanitize($_POST['default_payment_gateway']),
+                    'WHATSAPP_ADMIN_NUMBER' => sanitize($_POST['whatsapp_admin_number']),
                     'TELEGRAM_BOT_TOKEN' => sanitize($_POST['telegram_token'])
                 ];
                 
@@ -172,6 +179,7 @@ ob_start();
     
     <form method="POST">
         <input type="hidden" name="action" value="save_system">
+        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
         
         <div class="form-group">
             <label class="form-label">Nama Aplikasi</label>
@@ -222,6 +230,7 @@ ob_start();
     
     <form method="POST">
         <input type="hidden" name="action" value="save_mikrotik">
+        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="form-group">
@@ -261,6 +270,7 @@ ob_start();
     
     <form method="POST">
         <input type="hidden" name="action" value="save_genieacs">
+        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
         
         <div class="form-group">
             <label class="form-label">GenieACS URL</label>
@@ -297,6 +307,7 @@ ob_start();
     
     <form method="POST">
         <input type="hidden" name="action" value="save_integrations">
+        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
         
         <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">WhatsApp Gateway</h4>
         
@@ -324,6 +335,12 @@ ob_start();
         <div class="form-group">
             <label class="form-label">MPWA API Key</label>
             <input type="password" name="mpwa_api_key" class="form-control" value="<?php echo htmlspecialchars($settings['MPWA_API_KEY'] ?? ''); ?>" placeholder="Masukkan API Key MPWA">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">WhatsApp Admin Number</label>
+            <input type="text" name="whatsapp_admin_number" class="form-control" value="<?php echo htmlspecialchars($settings['WHATSAPP_ADMIN_NUMBER'] ?? ''); ?>" placeholder="628xxxxxxxxxx">
+            <small style="color: var(--text-muted);">Nomor WhatsApp admin untuk mengelola bot (format: 628...)</small>
         </div>
         
         <hr style="margin: 30px 0; border-color: var(--border-color);">
@@ -396,6 +413,7 @@ ob_start();
     
     <form method="POST">
         <input type="hidden" name="action" value="change_password">
+        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
         
         <div class="form-group">
             <label class="form-label">Password Saat Ini</label>

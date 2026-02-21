@@ -96,6 +96,8 @@ $hotspotActive = mikrotikGetHotspotActive();
 $routerResource = mikrotikGetSystemResource();
 $hotspotTotalUsers = count($hotspotUsers);
 $hotspotActiveCount = count($hotspotActive);
+$pppoeActive = mikrotikGetActiveSessions();
+$pppoeActiveCount = is_array($pppoeActive) ? count($pppoeActive) : 0;
 $interfaces = mikrotikGetInterfaces();
 
 ob_start();
@@ -182,12 +184,12 @@ ob_start();
                     class="fas fa-users"></i> Hotspot Users</div>
         </div>
     </a>
-    <a href="hotspot-user.php" style="text-decoration: none;">
+    <a href="mikrotik.php" style="text-decoration: none;">
         <div style="background: linear-gradient(135deg, #eab308, #ca8a04); border-radius: 12px; padding: 20px; text-align: center; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;"
             onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(234,179,8,0.4)';"
             onmouseout="this.style.transform=''; this.style.boxShadow='';">
             <div style="font-size: 2.2rem; font-weight: 800; color: #fff;"><i class="fas fa-user-plus"></i></div>
-            <div style="color: rgba(255,255,255,0.85); font-size: 0.85rem; margin-top: 5px;">Add User</div>
+            <div style="color: rgba(255,255,255,0.85); font-size: 0.85rem; margin-top: 5px;">Add PPPoE</div>
         </div>
     </a>
     <a href="hotspot-user.php" style="text-decoration: none;">
@@ -198,6 +200,38 @@ ob_start();
             <div style="color: rgba(255,255,255,0.85); font-size: 0.85rem; margin-top: 5px;">Generate</div>
         </div>
     </a>
+</div>
+
+<!-- ISP Stats Grid (Mikhmon Style) -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+    <!-- Total Pelanggan -->
+    <div style="background: linear-gradient(135deg, #06b6d4, #0891b2); border-radius: 12px; padding: 20px; text-align: center; color: white; transition: transform 0.2s, box-shadow 0.2s;"
+         onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(6,182,212,0.4)';"
+         onmouseout="this.style.transform=''; this.style.boxShadow='';">
+        <div style="font-size: 2.2rem; font-weight: 800;"><?php echo $stats['totalCustomers']; ?></div>
+        <div style="font-size: 0.85rem; margin-top: 5px; opacity: 0.9;"><i class="fas fa-users"></i> Total Pelanggan</div>
+    </div>
+    <!-- PPPoE Active -->
+    <div style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 12px; padding: 20px; text-align: center; color: white; transition: transform 0.2s, box-shadow 0.2s;"
+         onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(139,92,246,0.4)';"
+         onmouseout="this.style.transform=''; this.style.boxShadow='';">
+        <div style="font-size: 2.2rem; font-weight: 800;"><?php echo $pppoeActiveCount; ?></div>
+        <div style="font-size: 0.85rem; margin-top: 5px; opacity: 0.9;"><i class="fas fa-network-wired"></i> PPPoE Active</div>
+    </div>
+    <!-- Pelanggan Isolir -->
+    <div style="background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 12px; padding: 20px; text-align: center; color: white; transition: transform 0.2s, box-shadow 0.2s;"
+         onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(245,158,11,0.4)';"
+         onmouseout="this.style.transform=''; this.style.boxShadow='';">
+        <div style="font-size: 2.2rem; font-weight: 800;"><?php echo $stats['isolatedCustomers']; ?></div>
+        <div style="font-size: 0.85rem; margin-top: 5px; opacity: 0.9;"><i class="fas fa-user-lock"></i> Pelanggan Isolir</div>
+    </div>
+    <!-- Total Pendapatan -->
+    <div style="background: linear-gradient(135deg, #ec4899, #db2777); border-radius: 12px; padding: 20px; text-align: center; color: white; transition: transform 0.2s, box-shadow 0.2s;"
+         onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(236,72,153,0.4)';"
+         onmouseout="this.style.transform=''; this.style.boxShadow='';">
+        <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 5px;"><?php echo formatCurrency($stats['totalRevenue']); ?></div>
+        <div style="font-size: 0.85rem; margin-top: 5px; opacity: 0.9;"><i class="fas fa-wallet"></i> Total Pendapatan</div>
+    </div>
 </div>
 
 <!-- Traffic Monitor + Hotspot Log (2-column layout) -->
@@ -267,37 +301,7 @@ ob_start();
     </div>
 <?php endif; ?>
 
-<!-- ISP Stats Grid -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon cyan"><i class="fas fa-users"></i></div>
-        <div class="stat-info">
-            <h3><?php echo $stats['totalCustomers']; ?></h3>
-            <p>Total Pelanggan</p>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
-        <div class="stat-info">
-            <h3><?php echo $stats['activeCustomers']; ?></h3>
-            <p>Pelanggan Aktif</p>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon orange"><i class="fas fa-ban"></i></div>
-        <div class="stat-info">
-            <h3><?php echo $stats['isolatedCustomers']; ?></h3>
-            <p>Pelanggan Isolir</p>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon pink"><i class="fas fa-wallet"></i></div>
-        <div class="stat-info">
-            <h3><?php echo formatCurrency($stats['totalRevenue']); ?></h3>
-            <p>Total Pendapatan</p>
-        </div>
-    </div>
-</div>
+<!-- ISP Stats Grid Removed -->
 
 
 <!-- Quick Actions -->

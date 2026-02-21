@@ -5,9 +5,26 @@
 
 require_once 'config.php';
 
+// Helper to get settings from database if constant is empty
+function getWhatsAppSetting($key, $constantValue) {
+    if (!empty($constantValue)) {
+        return $constantValue;
+    }
+    
+    // Attempt to fetch from database
+    try {
+        $row = fetchOne("SELECT setting_value FROM settings WHERE setting_key = ?", [$key]);
+        return $row ? $row['setting_value'] : '';
+    } catch (Exception $e) {
+        return '';
+    }
+}
+
 // Fonnte WhatsApp Sender
 function sendFonnteWhatsApp($phone, $message) {
-    if (empty(FONNTE_API_TOKEN)) {
+    $token = getWhatsAppSetting('FONNTE_API_TOKEN', defined('FONNTE_API_TOKEN') ? FONNTE_API_TOKEN : '');
+    
+    if (empty($token)) {
         return ['success' => false, 'message' => 'Fonnte API token not configured'];
     }
     
@@ -25,7 +42,7 @@ function sendFonnteWhatsApp($phone, $message) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'Authorization: ' . FONNTE_API_TOKEN
+        'Authorization: ' . $token
     ]);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
@@ -37,13 +54,15 @@ function sendFonnteWhatsApp($phone, $message) {
     if ($httpCode === 200) {
         return ['success' => true, 'data' => json_decode($response, true)];
     } else {
-        return ['success' => false, 'message' => 'Failed to send WhatsApp via Fonnte'];
+        return ['success' => false, 'message' => 'Failed to send WhatsApp via Fonnte (HTTP ' . $httpCode . ')'];
     }
 }
 
 // Wablas WhatsApp Sender
 function sendWablasWhatsApp($phone, $message) {
-    if (empty(WABLAS_API_TOKEN)) {
+    $token = getWhatsAppSetting('WABLAS_API_TOKEN', defined('WABLAS_API_TOKEN') ? WABLAS_API_TOKEN : '');
+    
+    if (empty($token)) {
         return ['success' => false, 'message' => 'Wablas API token not configured'];
     }
     
@@ -52,7 +71,7 @@ function sendWablasWhatsApp($phone, $message) {
     $data = [
         'phone' => $phone,
         'message' => $message,
-        'secret' => WABLAS_API_TOKEN
+        'secret' => $token
     ];
     
     $ch = curl_init($url);
@@ -70,13 +89,15 @@ function sendWablasWhatsApp($phone, $message) {
     if ($httpCode === 200) {
         return ['success' => true, 'data' => json_decode($response, true)];
     } else {
-        return ['success' => false, 'message' => 'Failed to send WhatsApp via Wablas'];
+        return ['success' => false, 'message' => 'Failed to send WhatsApp via Wablas (HTTP ' . $httpCode . ')'];
     }
 }
 
 // MPWA WhatsApp Sender
 function sendMpwaWhatsApp($phone, $message) {
-    if (empty(MPWA_API_KEY)) {
+    $token = getWhatsAppSetting('MPWA_API_KEY', defined('MPWA_API_KEY') ? MPWA_API_KEY : '');
+    
+    if (empty($token)) {
         return ['success' => false, 'message' => 'MPWA API key not configured'];
     }
     
@@ -85,7 +106,7 @@ function sendMpwaWhatsApp($phone, $message) {
     $data = [
         'phone' => $phone,
         'message' => $message,
-        'api_key' => MPWA_API_KEY
+        'api_key' => $token
     ];
     
     $ch = curl_init($url);
@@ -103,9 +124,10 @@ function sendMpwaWhatsApp($phone, $message) {
     if ($httpCode === 200) {
         return ['success' => true, 'data' => json_decode($response, true)];
     } else {
-        return ['success' => false, 'message' => 'Failed to send WhatsApp via MPWA'];
+        return ['success' => false, 'message' => 'Failed to send WhatsApp via MPWA (HTTP ' . $httpCode . ')'];
     }
 }
+
 
 // Get supported WhatsApp gateways
 function getWhatsAppGateways() {

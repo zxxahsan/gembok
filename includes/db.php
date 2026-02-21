@@ -23,7 +23,8 @@ function getDB() {
                 PDO::ATTR_EMULATE_PREPARES => false
             ]);
         } catch (PDOException $e) {
-            die("Database Error: " . $e->getMessage());
+            error_log("Database Connection Error: " . $e->getMessage());
+            die("Maaf, terjadi kesalahan koneksi database. Silakan coba beberapa saat lagi.");
         }
     }
     

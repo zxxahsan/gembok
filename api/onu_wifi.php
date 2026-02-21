@@ -8,7 +8,11 @@ header('Content-Type: application/json');
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 
-requireAdminLogin();
+// Allow both admin and customer
+if (!isCustomerLoggedIn() && !isAdminLoggedIn()) {
+    echo json_encode(['success' => false, 'message' => 'Not authenticated']);
+    exit;
+}
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -17,6 +21,21 @@ try {
     $serial = $input['serial'] ?? '';  // Keep for backward compatibility
     $ssid = $input['ssid'] ?? '';
     $password = $input['password'] ?? '';
+
+    // If customer is logged in, enforce ownership
+    if (isCustomerLoggedIn()) {
+        $customer = getCurrentCustomer();
+        // If pppoe_username is provided, it MUST match the customer's
+        if (!empty($pppoeUsername) && $pppoeUsername !== $customer['pppoe_username']) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized access to this device']);
+            exit;
+        }
+        // If only serial is provided, we still need to verify ownership (more complex, so enforce pppoe_username for customers)
+        if (empty($pppoeUsername)) {
+            // Force use of customer's pppoe_username
+            $pppoeUsername = $customer['pppoe_username'];
+        }
+    }
 
     // Use either pppoe_username or serial
     if (empty($pppoeUsername) && empty($serial)) {

@@ -10,6 +10,12 @@ $pageTitle = 'Pelanggan';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Verify CSRF token
+    if (!isset($_POST['csrf_token']) || !verifyCsrfToken($_POST['csrf_token'])) {
+        setFlash('error', 'Invalid CSRF token');
+        redirect('customers.php');
+    }
+
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
             case 'add':
@@ -107,7 +113,7 @@ ob_start();
 ?>
 
 <!-- Stats -->
-<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 30px;">
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 30px;">
     <div class="stat-card">
         <div class="stat-icon cyan">
             <i class="fas fa-users"></i>
@@ -137,24 +143,6 @@ ob_start();
             <p>Isolir</p>
         </div>
     </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon purple">
-            <i class="fas fa-wallet"></i>
-        </div>
-        <div class="stat-info">
-            <?php 
-            $totalRevenue = 0;
-            foreach ($customers as $c) {
-                if ($c['status'] === 'active') {
-                    $totalRevenue += $c['package_price'] ?? 0;
-                }
-            }
-            ?>
-            <h3><?php echo formatCurrency($totalRevenue); ?></h3>
-            <p>Estimasi Pendapatan</p>
-        </div>
-    </div>
 </div>
 
 <!-- Add Customer Form -->
@@ -165,6 +153,7 @@ ob_start();
     
     <form method="POST">
         <input type="hidden" name="action" value="add">
+        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
         
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
             <div class="form-group">
@@ -306,6 +295,7 @@ ob_start();
                             <form method="POST" style="display: inline;">
                                 <input type="hidden" name="action" value="unisolate">
                                 <input type="hidden" name="customer_id" value="<?php echo $c['id']; ?>">
+                                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                                 <button type="submit" class="btn btn-success btn-sm" title="Buka Isolir">
                                     <i class="fas fa-unlock"></i>
                                 </button>
@@ -372,6 +362,7 @@ ob_start();
         <form method="POST" id="editCustomerForm">
             <input type="hidden" name="action" value="edit">
             <input type="hidden" name="customer_id" id="edit_customer_id">
+            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
             
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
                 <div class="form-group">
