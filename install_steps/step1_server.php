@@ -1,15 +1,19 @@
 <?php
 // Step 1: Server Check
+$canWriteConfig = is_writable('includes/') && (!file_exists('includes/config.php') || is_writable('includes/config.php'));
+$canWriteLock = is_writable('includes/') && (!file_exists('includes/installed.lock') || is_writable('includes/installed.lock'));
+$permissionsOk = is_writable('.') && $canWriteConfig && $canWriteLock;
+
 $checks = [
     'PHP Version' => [
         'check' => version_compare(PHP_VERSION, '7.4', '>='),
         'message' => 'PHP Version: ' . PHP_VERSION . ' (Required: 7.4+)',
         'icon' => version_compare(PHP_VERSION, '7.4', '>=') ? 'fas fa-check-circle' : 'fas fa-times-circle'
     ],
-    'MySQL Extension' => [
-        'check' => extension_loaded('mysqli'),
-        'message' => 'MySQL Extension: ' . (extension_loaded('mysqli') ? 'Installed' : 'Not Installed'),
-        'icon' => extension_loaded('mysqli') ? 'fas fa-check-circle' : 'fas fa-times-circle'
+    'PDO MySQL Extension' => [
+        'check' => extension_loaded('pdo_mysql'),
+        'message' => 'PDO MySQL Extension: ' . (extension_loaded('pdo_mysql') ? 'Installed' : 'Not Installed'),
+        'icon' => extension_loaded('pdo_mysql') ? 'fas fa-check-circle' : 'fas fa-times-circle'
     ],
     'CURL Extension' => [
         'check' => extension_loaded('curl'),
@@ -27,9 +31,9 @@ $checks = [
         'icon' => function_exists('session_start') ? 'fas fa-check-circle' : 'fas fa-times-circle'
     ],
     'File Permissions' => [
-        'check' => is_writable('.') && is_writable('includes/'),
-        'message' => 'File Permissions: ' . (is_writable('.') && is_writable('includes/') ? 'Writable' : 'Not Writable'),
-        'icon' => is_writable('.') && is_writable('includes/') ? 'fas fa-check-circle' : 'fas fa-times-circle'
+        'check' => $permissionsOk,
+        'message' => 'File Permissions: ' . ($permissionsOk ? 'Writable' : 'Not Writable'),
+        'icon' => $permissionsOk ? 'fas fa-check-circle' : 'fas fa-times-circle'
     ]
 ];
 
