@@ -148,26 +148,85 @@ ob_start();
         </div>
     </div>
     
+    <?php
+    $activeCount = fetchOne("SELECT COUNT(*) as total FROM customers WHERE status = 'active'")['total'] ?? 0;
+    $isolatedCount = fetchOne("SELECT COUNT(*) as total FROM customers WHERE status = 'isolated'")['total'] ?? 0;
+    
+    // Calculate unpaid customers for current month
+    // Logic: Active customers who don't have a 'paid' invoice for current month
+    $currentMonth = date('m');
+    $currentYear = date('Y');
+    $unpaidCount = fetchOne("
+        SELECT COUNT(*) as total 
+        FROM customers c 
+        WHERE c.status = 'active' 
+        AND NOT EXISTS (
+            SELECT 1 FROM invoices i 
+            WHERE i.customer_id = c.id 
+            AND MONTH(i.due_date) = ? 
+            AND YEAR(i.due_date) = ? 
+            AND i.status = 'paid'
+        )
+    ", [$currentMonth, $currentYear])['total'] ?? 0;
+    ?>
     <div class="stat-card">
         <div class="stat-icon green">
             <i class="fas fa-check-circle"></i>
         </div>
         <div class="stat-info">
-            <h3><?php echo count(array_filter($customers, function ($c) { return ($c['status'] ?? '') === 'active'; })); ?></h3>
+            <h3><?php echo $activeCount; ?></h3>
             <p>Aktif</p>
         </div>
     </div>
     
     <div class="stat-card">
-        <div class="stat-icon orange">
+        <div class="stat-icon red">
             <i class="fas fa-ban"></i>
         </div>
         <div class="stat-info">
-            <h3><?php echo count(array_filter($customers, function ($c) { return ($c['status'] ?? '') === 'isolated'; })); ?></h3>
-            <p>Isolir</p>
+            <h3><?php echo $isolatedCount; ?></h3>
+            <p>Terisolir</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon orange">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-info">
+            <h3><?php echo $unpaidCount; ?></h3>
+            <p>Belum Lunas</p>
         </div>
     </div>
 </div>
+
+<style>
+    /* Make stats grid responsive for 4 cards */
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 15px;
+    }
+    
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
+        .stat-card {
+            padding: 15px;
+        }
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+        .stat-info h3 {
+            font-size: 1.5rem;
+        }
+        .stat-info p {
+            font-size: 0.8rem;
+        }
+    }
+</style>
 
 <!-- Add Customer Form -->
 <div class="card">

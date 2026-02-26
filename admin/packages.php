@@ -120,7 +120,7 @@ ob_start();
 <?php endif; ?>
 
 <!-- Stats -->
-<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 30px;">
+<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
     <div class="stat-card">
         <div class="stat-icon cyan">
             <i class="fas fa-box"></i>
@@ -152,18 +152,68 @@ ob_start();
             <?php 
             $mostPopularPackage = '-';
             $maxCustomers = 0;
+            $avgPrice = 0;
+            $totalPrice = 0;
+            $countPrice = 0;
+            
             foreach ($packages as $p) {
                 if ($p['customer_count'] > $maxCustomers) {
                     $maxCustomers = $p['customer_count'];
                     $mostPopularPackage = $p['name'];
                 }
+                $totalPrice += $p['price'];
+                $countPrice++;
+            }
+            
+            if ($countPrice > 0) {
+                $avgPrice = $totalPrice / $countPrice;
             }
             ?>
             <h3 style="font-size: 1.2rem;"><?php echo htmlspecialchars($mostPopularPackage); ?></h3>
             <p>Paket Terlaris</p>
         </div>
     </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon orange">
+            <i class="fas fa-check-double"></i>
+        </div>
+        <div class="stat-info">
+            <?php 
+            $activePackages = 0;
+            foreach ($packages as $p) {
+                if ($p['customer_count'] > 0) {
+                    $activePackages++;
+                }
+            }
+            ?>
+            <h3><?php echo $activePackages; ?></h3>
+            <p>Paket Terpakai</p>
+        </div>
+    </div>
 </div>
+
+<style>
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
+        .stat-card {
+            padding: 15px;
+        }
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+        .stat-info h3 {
+            font-size: 1.5rem;
+        }
+        .stat-info p {
+            font-size: 0.8rem;
+        }
+    }
+</style>
 
 <!-- Add Package Form -->
 <div class="card">
