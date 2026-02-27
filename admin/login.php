@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$appName = getSetting('app_name', 'GEMBOK');
 $pageTitle = 'Login Admin';
 $content = '';
 
@@ -45,7 +46,7 @@ ob_start();
                 style="font-size: 3rem; background: linear-gradient(135deg, #00f5ff 0%, #bf00ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 15px; display: inline-block;"></i>
             <h1
                 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, #00f5ff 0%, #bf00ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-                GEMBOK</h1>
+                <?php echo htmlspecialchars($appName); ?></h1>
             <p style="color: #b0b0c0;">ISP Management System</p>
         </div>
 

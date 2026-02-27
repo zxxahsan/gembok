@@ -15,7 +15,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Get page title
-$pageTitle = $pageTitle ?? APP_NAME;
+$appName = getSetting('app_name', 'GEMBOK');
+$pageTitle = $pageTitle ?? $appName;
 $pageDescription = $pageDescription ?? '';
 
 // Phase 3: Multi-router support
@@ -38,7 +39,7 @@ if (isset($_GET['switch_router'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($pageTitle); ?> - <?php echo APP_NAME; ?></title>
+    <title><?php echo htmlspecialchars($pageTitle); ?> - <?php echo htmlspecialchars($appName); ?></title>
     <meta name="description" content="<?php echo htmlspecialchars($pageDescription); ?>">
 
     <!-- Google Fonts -->
@@ -838,7 +839,7 @@ if (isset($_GET['switch_router'])) {
         <div class="sidebar" id="mainSidebar">
             <div class="sidebar-header">
                 <i class="fas fa-network-wired" style="font-size: 1.5rem; color: var(--neon-cyan);"></i>
-                <span class="sidebar-logo">GEMBOK</span>
+                <span class="sidebar-logo"><?php echo htmlspecialchars($appName); ?></span>
             </div>
 
             <div class="sidebar-nav">
