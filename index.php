@@ -1,6 +1,6 @@
 <?php
 /**
- * Homepage
+ * GEMBOK ISP - Modern Landing Page
  */
 
 // Check for installation
@@ -10,43 +10,62 @@ if (!file_exists(__DIR__ . '/includes/installed.lock')) {
 }
 
 require_once 'includes/config.php';
+require_once 'includes/db.php';
+require_once 'includes/functions.php';
+
+// Fetch Packages
+$packages = [];
+try {
+    $pdo = getDB();
+    $packages = $pdo->query("SELECT * FROM packages ORDER BY price ASC LIMIT 3")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    // Fail silently
+}
+
+// App settings
+$appName = getSetting('app_name', 'GEMBOK');
+
+// Landing settings
+$heroTitle = getSiteSetting('hero_title', 'Internet Cepat <br>Tanpa Batas');
+$heroDesc = getSiteSetting('hero_description', 'Nikmati koneksi internet fiber optic super cepat, stabil, dan unlimited untuk kebutuhan rumah maupun bisnis Anda. Gabung sekarang!');
+$contactPhone = getSiteSetting('contact_phone', '+62 812-3456-7890');
+$contactEmail = getSiteSetting('contact_email', 'info@gembok.net');
+$contactAddress = getSiteSetting('contact_address', 'Jakarta, Indonesia');
+$footerAbout = getSiteSetting('footer_about', 'Penyedia layanan internet terpercaya dengan jaringan fiber optic berkualitas untuk menunjang aktivitas digital Anda.');
+
+// Feature settings
+$f1_title = getSiteSetting('feature_1_title', 'Kecepatan Tinggi');
+$f1_desc = getSiteSetting('feature_1_desc', 'Koneksi fiber optic dengan kecepatan simetris upload dan download.');
+
+$f2_title = getSiteSetting('feature_2_title', 'Unlimited Quota');
+$f2_desc = getSiteSetting('feature_2_desc', 'Akses internet sepuasnya tanpa batasan kuota (FUP).');
+
+$f3_title = getSiteSetting('feature_3_title', 'Support 24/7');
+$f3_desc = getSiteSetting('feature_3_desc', 'Tim teknis kami siap membantu Anda kapanpun jika terjadi gangguan.');
+
+// Social settings
+$s_fb = getSiteSetting('social_facebook', '#');
+$s_ig = getSiteSetting('social_instagram', '#');
+$s_tw = getSiteSetting('social_twitter', '#');
+$s_yt = getSiteSetting('social_youtube', '#');
 ?>
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo APP_NAME; ?> - ISP Management System</title>
+    <title><?php echo $appName; ?> - Internet Service Provider</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Dark Theme Colors */
-            --bg-primary: #0a0a12;
-            --bg-secondary: #0f0f1a;
+            --primary: #00f5ff;
+            --secondary: #bf00ff;
+            --dark: #0a0a12;
+            --light: #ffffff;
+            --gray: #b0b0c0;
+            --bg-dark: #0f0f1a;
             --bg-card: #1a1a2e;
-            --bg-input: #161628;
-            --text-primary: #ffffff;
-            --text-secondary: #b0b0c0;
-            --text-muted: #666680;
-            --border-color: #2a2a40;
-            --accent-purple: #bf00ff;
-            --accent-cyan: #00f5ff;
-            --accent-pink: #ff00c8;
-            --accent-blue: #00aaff;
-            --neon-green: #00ff88;
-            --neon-yellow: #ffeb3b;
-            --neon-orange: #ff9800;
-            --neon-red: #ff4444;
-            --neon-cyan: #00f5ff;
-            --neon-purple: #bf00ff;
-            --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
-            --shadow-glow: 0 0 20px rgba(191, 0, 255, 0.3);
-            --gradient-primary: linear-gradient(135deg, #00f5ff 0%, #bf00ff 100%);
-            --gradient-secondary: linear-gradient(135deg, #ff00c8 0%, #00aaff 100%);
-            --gradient-accent: linear-gradient(135deg, #00ff88 0%, #ffeb3b 100%);
         }
 
         * {
@@ -56,619 +75,741 @@ require_once 'includes/config.php';
         }
 
         body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a12 100%);
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--dark);
+            color: var(--light);
+            overflow-x: hidden;
         }
 
-        .container {
-            background: var(--bg-secondary);
-            border-radius: 20px;
-            box-shadow: var(--shadow-card);
-            max-width: 1000px;
+        /* Navbar */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 50px;
+            background: rgba(10, 10, 18, 0.95);
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* Animated background effect */
-        .container::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: conic-gradient(from 0deg,
-                    transparent,
-                    var(--accent-purple),
-                    var(--accent-cyan),
-                    var(--accent-pink),
-                    transparent);
-            animation: rotate 10s linear infinite;
-            z-index: -1;
-        }
-
-        .container::after {
-            content: '';
-            position: absolute;
-            inset: 1px;
-            border-radius: 19px;
-            background: var(--bg-secondary);
-            z-index: -1;
-        }
-
-        @keyframes rotate {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .header {
-            background: var(--bg-card);
-            color: var(--text-primary);
-            padding: 40px;
-            text-align: center;
-            border-bottom: 1px solid var(--border-color);
-            position: relative;
-            overflow: visible;
-            z-index: 1;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--gradient-primary);
-            opacity: 0.1;
-            z-index: 0;
-        }
-
-        .header h1 {
-            font-size: 3rem;
-            font-weight: 800;
-            margin-bottom: 10px;
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            position: relative;
-            z-index: 1;
-        }
-
-        .header p {
-            opacity: 0.8;
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .header .subtitle {
-            font-size: 1rem;
-            color: var(--text-secondary);
-            position: relative;
-            z-index: 1;
-            margin-bottom: 25px;
-        }
-
-        .header .actions {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-            position: relative;
-            z-index: 3;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 12px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid transparent;
-            position: relative;
-            z-index: 2;
-        }
-
-        .btn-primary {
-            background: var(--gradient-primary);
-            color: white;
-            box-shadow: 0 4px 20px rgba(191, 0, 255, 0.3);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(191, 0, 255, 0.4), 0 0 20px rgba(191, 0, 255, 0.2);
-        }
-
-        .btn-secondary {
-            background: var(--bg-input);
-            color: var(--text-primary);
-            border-color: var(--border-color);
-        }
-
-        .btn-secondary:hover {
-            background: var(--bg-card);
-            border-color: var(--accent-cyan);
-            box-shadow: 0 0 15px rgba(0, 245, 255, 0.2);
-        }
-
-        .content {
-            padding: 40px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
-        }
-
-        .feature {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 30px;
-            text-align: center;
-            transition: all 0.3s ease;
-            border: 1px solid var(--border-color);
-            position: relative;
-            overflow: hidden;
+            z-index: 1000;
             backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .feature::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: -1;
-        }
-
-        .feature:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: var(--shadow-glow), 0 20px 40px rgba(0, 0, 0, 0.4);
-            border-color: var(--accent-purple);
-        }
-
-        .feature:hover::before {
-            opacity: 0.1;
-        }
-
-        .feature i {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            display: inline-block;
-        }
-
-        .feature h3 {
-            font-size: 1.3rem;
-            margin-bottom: 12px;
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        .feature p {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 40px;
-        }
-
-        .stat-card {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 20px;
-            text-align: center;
-            border: 1px solid var(--border-color);
-            transition: all 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-glow);
-            border-color: var(--accent-cyan);
-        }
-
-        @media (max-width: 480px) {
-            .stat-card {
-                padding: 15px;
-            }
-
-            .stat-icon {
-                width: 50px;
-                height: 50px;
-                font-size: 1.2rem;
-            }
-
-            .stat-info h3 {
-                font-size: 1.5rem;
-            }
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-glow);
-            border-color: var(--accent-cyan);
-        }
-
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 15px;
+        .logo {
             font-size: 1.5rem;
-        }
-
-        .cyan {
-            background: rgba(0, 245, 255, 0.1);
-            color: var(--neon-cyan);
-        }
-
-        .green {
-            background: rgba(0, 255, 136, 0.1);
-            color: var(--neon-green);
-        }
-
-        .purple {
-            background: rgba(191, 0, 255, 0.1);
-            color: var(--neon-purple);
-        }
-
-        .pink {
-            background: rgba(255, 0, 200, 0.1);
-            color: var(--neon-pink);
-        }
-
-        .stat-info h3 {
-            font-size: 2rem;
             font-weight: 700;
-            margin-bottom: 5px;
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .stat-info p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .actions {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            margin-top: 30px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 16px 32px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
+            color: var(--primary);
             text-decoration: none;
-            transition: all 0.3s ease;
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 10px;
-            border: 1px solid transparent;
         }
 
-        .btn-primary {
-            background: var(--gradient-primary);
-            color: white;
-            box-shadow: 0 4px 20px rgba(191, 0, 255, 0.3);
+        .nav-links {
+            display: flex;
+            gap: 30px;
         }
 
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(191, 0, 255, 0.4), 0 0 20px rgba(191, 0, 255, 0.2);
+        .nav-links a {
+            color: var(--light);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: 0.3s;
         }
 
-        .btn-secondary {
-            background: var(--bg-input);
-            color: var(--text-primary);
-            border-color: var(--border-color);
+        .nav-links a:hover {
+            color: var(--primary);
         }
 
-        .btn-secondary:hover {
-            background: var(--bg-card);
-            border-color: var(--accent-cyan);
-            box-shadow: 0 0 15px rgba(0, 245, 255, 0.2);
+        .login-btn {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            padding: 10px 25px;
+            border-radius: 50px;
+            color: #fff !important;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0, 245, 255, 0.3);
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s;
         }
 
-        .btn-tertiary {
-            background: transparent;
-            color: var(--neon-cyan);
-            border: 1px solid var(--accent-cyan);
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 245, 255, 0.4);
         }
 
-        .btn-tertiary:hover {
-            background: rgba(0, 245, 255, 0.1);
-            box-shadow: 0 0 15px rgba(0, 245, 255, 0.2);
+        /* Mobile Menu */
+        .menu-toggle {
+            display: none;
+            font-size: 1.5rem;
+            cursor: pointer;
         }
 
-        .footer {
-            background: var(--bg-card);
-            padding: 30px;
-            text-align: center;
-            border-top: 1px solid var(--border-color);
+        /* Hero Section */
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 50px;
+            position: relative;
+            background: radial-gradient(circle at top right, rgba(191, 0, 255, 0.1), transparent 40%),
+                        radial-gradient(circle at bottom left, rgba(0, 245, 255, 0.1), transparent 40%);
+            margin-top: 60px;
         }
 
-        .footer p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
+        .hero-content {
+            max-width: 600px;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #fff, #b0b0c0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            color: var(--gray);
+            margin-bottom: 30px;
             line-height: 1.6;
         }
 
-        .footer a {
-            color: var(--neon-cyan);
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border-radius: 8px;
             text-decoration: none;
-            transition: color 0.3s ease;
+            font-weight: 600;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .footer a:hover {
-            color: var(--accent-purple);
-            text-decoration: underline;
+        .btn-primary {
+            background: var(--primary);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            background: #00dcec;
         }
 
-        .footer-links {
+        .btn-outline {
+            border: 2px solid var(--border-color, #333);
+            color: var(--light);
+        }
+        
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .hero-image {
+            flex: 1;
             display: flex;
             justify-content: center;
-            gap: 20px;
-            margin-top: 15px;
-            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .hero-image img {
+            max-width: 100%;
+            height: auto;
+            animation: float 6s ease-in-out infinite;
+            filter: drop-shadow(0 0 30px rgba(0, 245, 255, 0.2));
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Features */
+        .features {
+            padding: 80px 50px;
+            background: var(--bg-dark);
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            margin-bottom: 50px;
+        }
+
+        .section-title span {
+            color: var(--primary);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 15px;
+            transition: 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0, 245, 255, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .feature-card p {
+            color: var(--gray);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Packages */
+        .pricing {
+            padding: 80px 50px;
+            background: var(--dark);
+            text-align: center;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: var(--bg-card);
+            padding: 40px 30px;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: 0.3s;
+        }
+
+        .pricing-card.popular {
+            border-color: var(--secondary);
+            box-shadow: 0 0 30px rgba(191, 0, 255, 0.15);
+        }
+        
+        .pricing-card:hover {
+            transform: scale(1.02);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: 20px;
+            right: -30px;
+            background: var(--secondary);
+            padding: 5px 40px;
+            transform: rotate(45deg);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--light);
+            margin: 20px 0;
+        }
+
+        .price span {
+            font-size: 1rem;
+            color: var(--gray);
+            font-weight: 400;
+        }
+
+        .package-features {
+            list-style: none;
+            margin: 30px 0;
+            text-align: left;
+        }
+
+        .package-features li {
+            margin-bottom: 15px;
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .package-features li i {
+            color: var(--primary);
+        }
+
+        /* Footer */
+        footer {
+            background: #080810;
+            padding: 80px 50px 30px;
+            border-top: 1px solid rgba(0, 245, 255, 0.1);
+            position: relative;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1.5fr;
+            gap: 60px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-col h4 {
+            margin-bottom: 25px;
+            color: var(--light);
+            font-size: 1.2rem;
+            font-weight: 600;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        .footer-col h4::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 30px;
+            height: 2px;
+            background: var(--primary);
         }
 
         .footer-links a {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 10px;
+            color: var(--gray);
+            text-decoration: none;
+            margin-bottom: 15px;
+            transition: 0.3s;
+            font-size: 0.95rem;
         }
 
-        .highlight {
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 700;
+        .footer-links a i {
+            font-size: 0.8rem;
+            color: var(--primary);
+            opacity: 0.5;
+            transition: 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+            padding-left: 5px;
+        }
+
+        .footer-links a:hover i {
+            opacity: 1;
+            transform: translateX(3px);
+        }
+
+        .contact-item {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            color: var(--gray);
+            font-size: 0.95rem;
+        }
+
+        .contact-item i {
+            color: var(--primary);
+            font-size: 1.1rem;
+            margin-top: 3px;
+        }
+
+        .contact-item div p {
+            margin-bottom: 5px;
+            color: var(--light);
+            font-weight: 500;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.6;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 25px;
+        }
+
+        .social-links a {
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-radius: 12px;
+            color: var(--light);
+            text-decoration: none;
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .social-links a:hover {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: #fff;
+            border-color: transparent;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 245, 255, 0.2);
+        }
+
+        .copyright {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            color: var(--gray);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .footer-content {
+                grid-template-columns: 1fr 1fr;
+            }
+            .footer-col:first-child {
+                grid-column: span 2;
+            }
         }
 
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 40px;
             }
-
-            .header p {
-                font-size: 1rem;
+            .footer-col:first-child {
+                grid-column: span 1;
             }
-
-            .header .actions {
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
+            footer {
+                padding: 60px 20px 30px;
             }
-
-            .content {
-                padding: 30px 20px;
+            .navbar {
+                padding: 20px;
             }
-
-            .actions {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .btn {
+            
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 70px;
+                left: 0;
                 width: 100%;
-                max-width: 300px;
+                background: var(--bg-dark);
+                flex-direction: column;
+                padding: 20px;
+                text-align: center;
+                box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            }
+            
+            .nav-links.active {
+                display: flex;
+            }
+            
+            .menu-toggle {
+                display: block;
+            }
+            
+            .hero {
+                flex-direction: column-reverse;
+                text-align: center;
+                height: auto;
+                padding: 100px 20px 50px;
+            }
+            
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .cta-buttons {
                 justify-content: center;
             }
+            
+            .hero-image {
+                margin-bottom: 40px;
+            }
+            
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .features, .pricing {
+                padding: 50px 20px;
+            }
         }
-
-        @media (max-width: 480px) {
-            .header h1 {
-                font-size: 1.8rem;
-            }
-
-            .header p {
-                font-size: 0.9rem;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .features {
-                grid-template-columns: 1fr;
-            }
-
-            .feature {
-                padding: 20px;
-            }
-
-            .content {
-                padding: 20px;
-            }
-
-            .header .actions {
-                gap: 8px;
-            }
+        
+        /* Dropdown Menu */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: var(--bg-card);
+            min-width: 160px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            top: 100%;
+            right: 0;
+            overflow: hidden;
+        }
+        
+        .dropdown-content a {
+            color: var(--text-primary);
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            text-align: left;
+        }
+        
+        .dropdown-content a:hover {
+            background-color: rgba(255,255,255,0.05);
+            color: var(--primary);
+        }
+        
+        .dropdown:hover .dropdown-content {
+            display: block;
         }
     </style>
 </head>
-
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🚀 GEMBOK</h1>
-            <p>ISP Management System - Modern & Powerful</p>
-            <div class="subtitle">Complete Solution for Internet Service Providers</div>
 
-            <div class="actions">
-                <a href="./admin/login.php" class="btn btn-primary">
-                    <i class="fas fa-user-shield"></i> Dashboard Admin
-                </a>
-                <a href="./sales/login.php" class="btn btn-primary" style="background: var(--gradient-secondary);">
-                    <i class="fas fa-wallet"></i> Area Sales
-                </a>
-                <a href="./portal/login.php" class="btn btn-secondary">
-                    <i class="fas fa-user"></i> Area Pelanggan
-                </a>
-            </div>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="#" class="logo">
+            <i class="fas fa-bolt"></i> <?php echo $appName; ?>
+        </a>
+        <div class="menu-toggle" onclick="toggleMenu()">
+            <i class="fas fa-bars"></i>
         </div>
-
-        <div class="content">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon cyan">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3>100+</h3>
-                        <p>Pelanggan</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon green">
-                        <i class="fas fa-box"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3>15+</h3>
-                        <p>Paket</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon purple">
-                        <i class="fas fa-file-invoice"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3>500+</h3>
-                        <p>Invoice</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon pink">
-                        <i class="fas fa-satellite-dish"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3>80+</h3>
-                        <p>ONU Devices</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="features">
-                <div class="feature">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <h3>Dashboard Modern</h3>
-                    <p>Statistik real-time dan monitoring lengkap dengan tampilan yang elegan dan informatif</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-users"></i>
-                    <h3>Manajemen Pelanggan</h3>
-                    <p>Kelola pelanggan, paket internet, dan status koneksi secara efisien dan cepat</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-file-invoice"></i>
-                    <h3>Billing Otomatis</h3>
-                    <p>Sistem invoice otomatis, pembayaran terintegrasi, dan pengingat jatuh tempo</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-network-wired"></i>
-                    <h3>Integrasi MikroTik</h3>
-                    <p>Manajemen PPPoE dan Hotspot langsung dari sistem dengan kontrol penuh</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-satellite-dish"></i>
-                    <h3>Monitoring GenieACS</h3>
-                    <p>Monitoring ONU/ONT devices secara real-time dengan informasi status lengkap</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-map-marked-alt"></i>
-                    <h3>Visualisasi Peta</h3>
-                    <p>Lokasi pelanggan dan perangkat dalam peta interaktif untuk manajemen area</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-ticket-alt"></i>
-                    <h3>Trouble Ticket</h3>
-                    <p>Sistem pelaporan gangguan lengkap dengan notifikasi dan penanganan otomatis</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-magic"></i>
-                    <h3>Voucher Editor</h3>
-                    <p>Desain template voucher hotspot sendiri dengan editor HTML/CSS yang interaktif</p>
+        <div class="nav-links" id="navLinks">
+            <a href="#home">Beranda</a>
+            <a href="#services">Layanan</a>
+            <a href="#pricing">Paket</a>
+            <a href="#contact">Hubungi Kami</a>
+            
+            <!-- Login Dropdown -->
+            <div class="dropdown">
+                <a href="#" class="login-btn">Member Area <i class="fas fa-chevron-down"></i></a>
+                <div class="dropdown-content">
+                    <a href="portal/login.php"><i class="fas fa-user"></i> Pelanggan</a>
+                    <a href="sales/login.php"><i class="fas fa-user-tie"></i> Sales / Agen</a>
+                    <a href="admin/login.php"><i class="fas fa-user-shield"></i> Admin</a>
                 </div>
             </div>
         </div>
+    </nav>
 
-        <div class="footer">
-            <p>
-                <span class="highlight">GEMBOK</span> - ISP Management System<br>
-                Dibuat dengan ❤️ untuk Internet Service Provider
-            </p>
-            <div class="footer-links">
-                <a href="https://github.com/alijayanet/gembok-php" target="_blank">
-                    <i class="fab fa-github"></i> GitHub
-                </a>
-                <a href="mailto:rtech.support@example.com" target="_blank">
-                    <i class="fas fa-envelope"></i> Support
-                </a>
-                <a href="#" onclick="alert('Versi: <?php echo APP_VERSION; ?>')">
-                    <i class="fas fa-code-branch"></i> v<?php echo APP_VERSION; ?>
-                </a>
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="hero-content">
+            <h1><?php echo $heroTitle; ?></h1>
+            <p><?php echo $heroDesc; ?></p>
+            <div class="cta-buttons">
+                <a href="#pricing" class="btn btn-primary">Lihat Paket</a>
+                <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $contactPhone); ?>?text=Halo%20saya%20ingin%20berlangganan" class="btn btn-outline">Hubungi Sales</a>
             </div>
         </div>
-    </div>
+        <div class="hero-image">
+            <!-- Simple SVG Illustration placeholder -->
+            <svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="200" cy="200" r="150" fill="url(#paint0_radial)" fill-opacity="0.2"/>
+                <path d="M100 200L150 250L300 100" stroke="#00f5ff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+                <defs>
+                    <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(200 200) rotate(90) scale(150)">
+                        <stop stop-color="#00F5FF"/>
+                        <stop offset="1" stop-color="#00F5FF" stop-opacity="0"/>
+                    </radialGradient>
+                </defs>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section class="features" id="services">
+        <div class="section-title">
+            Kenapa Memilih <span><?php echo $appName; ?></span>?
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <h3><?php echo htmlspecialchars($f1_title); ?></h3>
+                <p><?php echo htmlspecialchars($f1_desc); ?></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-infinity"></i>
+                </div>
+                <h3><?php echo htmlspecialchars($f2_title); ?></h3>
+                <p><?php echo htmlspecialchars($f2_desc); ?></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-headset"></i>
+                </div>
+                <h3><?php echo htmlspecialchars($f3_title); ?></h3>
+                <p><?php echo htmlspecialchars($f3_desc); ?></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing" id="pricing">
+        <div class="section-title">
+            Pilihan <span>Paket Internet</span>
+        </div>
+        <div class="pricing-grid">
+            <?php if (empty($packages)): ?>
+                <!-- Default Static Packages if DB Empty -->
+                <div class="pricing-card">
+                    <h3>Home Basic</h3>
+                    <div class="price">150k<span>/bulan</span></div>
+                    <ul class="package-features">
+                        <li><i class="fas fa-check-circle"></i> Speed up to 10 Mbps</li>
+                        <li><i class="fas fa-check-circle"></i> Unlimited Quota</li>
+                        <li><i class="fas fa-check-circle"></i> Support 24 Jam</li>
+                    </ul>
+                    <a href="https://wa.me/?text=Halo%20saya%20tertarik%20paket%20Basic" class="btn btn-outline" style="width: 100%; justify-content: center;">Pilih Paket</a>
+                </div>
+                <div class="pricing-card popular">
+                    <div class="popular-badge">Best Seller</div>
+                    <h3>Home Super</h3>
+                    <div class="price">250k<span>/bulan</span></div>
+                    <ul class="package-features">
+                        <li><i class="fas fa-check-circle"></i> Speed up to 20 Mbps</li>
+                        <li><i class="fas fa-check-circle"></i> Unlimited Quota</li>
+                        <li><i class="fas fa-check-circle"></i> Prioritas Support</li>
+                    </ul>
+                    <a href="https://wa.me/?text=Halo%20saya%20tertarik%20paket%20Super" class="btn btn-primary" style="width: 100%; justify-content: center;">Pilih Paket</a>
+                </div>
+            <?php else: ?>
+                <!-- Dynamic Packages from DB -->
+                <?php foreach($packages as $index => $pkg): ?>
+                    <div class="pricing-card <?php echo $index == 1 ? 'popular' : ''; ?>">
+                        <?php if($index == 1): ?><div class="popular-badge">Best Seller</div><?php endif; ?>
+                        <h3><?php echo htmlspecialchars($pkg['name']); ?></h3>
+                        <div class="price"><?php echo number_format($pkg['price'] / 1000, 0); ?>k<span>/bulan</span></div>
+                        <ul class="package-features">
+                            <li><i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($pkg['description'] ?: 'Unlimited Access'); ?></li>
+                            <li><i class="fas fa-check-circle"></i> Fiber Optic</li>
+                            <li><i class="fas fa-check-circle"></i> Support 24/7</li>
+                        </ul>
+                        <a href="https://wa.me/?text=Halo%20saya%20tertarik%20paket%20<?php echo urlencode($pkg['name']); ?>" class="btn <?php echo $index == 1 ? 'btn-primary' : 'btn-outline'; ?>" style="width: 100%; justify-content: center;">Pilih Paket</a>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contact">
+        <div class="footer-content">
+            <div class="footer-col">
+                <a href="#" class="logo" style="margin-bottom: 25px;">
+                    <i class="fas fa-bolt"></i> <?php echo $appName; ?>
+                </a>
+                <p style="color: var(--gray); line-height: 1.8; margin-bottom: 20px;">
+                    <?php echo $footerAbout; ?>
+                </p>
+                <div class="social-links">
+                    <?php if($s_fb !== '#'): ?><a href="<?php echo $s_fb; ?>"><i class="fab fa-facebook-f"></i> Facebook</a><?php endif; ?>
+                    <?php if($s_ig !== '#'): ?><a href="<?php echo $s_ig; ?>"><i class="fab fa-instagram"></i> Instagram</a><?php endif; ?>
+                    <?php if($s_tw !== '#'): ?><a href="<?php echo $s_tw; ?>"><i class="fab fa-twitter"></i> Twitter</a><?php endif; ?>
+                    <?php if($s_yt !== '#'): ?><a href="<?php echo $s_yt; ?>"><i class="fab fa-youtube"></i> YouTube</a><?php endif; ?>
+                </div>
+            </div>
+            
+            <div class="footer-col">
+                <h4>Navigasi</h4>
+                <div class="footer-links">
+                    <a href="#home"><i class="fas fa-chevron-right"></i> Beranda</a>
+                    <a href="#services"><i class="fas fa-chevron-right"></i> Layanan</a>
+                    <a href="#pricing"><i class="fas fa-chevron-right"></i> Paket Internet</a>
+                    <a href="portal/login.php"><i class="fas fa-chevron-right"></i> Portal Pelanggan</a>
+                </div>
+            </div>
+            
+            <div class="footer-col">
+                <h4>Hubungi Kami</h4>
+                <div class="contact-item">
+                    <i class="fas fa-phone-alt"></i>
+                    <div>
+                        <p>Telepon / WA</p>
+                        <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $contactPhone); ?>" style="color: inherit; text-decoration: none;"><?php echo $contactPhone; ?></a>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-envelope"></i>
+                    <div>
+                        <p>Email Support</p>
+                        <a href="mailto:<?php echo $contactEmail; ?>" style="color: inherit; text-decoration: none;"><?php echo $contactEmail; ?></a>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <div>
+                        <p>Alamat Kantor</p>
+                        <span><?php echo $contactAddress; ?></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="copyright">
+            &copy; <?php echo date('Y'); ?> <strong><?php echo $appName; ?></strong>. All rights reserved. 
+            <br><span style="opacity: 0.5; font-size: 0.75rem; margin-top: 10px; display: inline-block;">Designed for speed and reliability.</span>
+        </div>
+    </footer>
+
+    <script>
+        function toggleMenu() {
+            const navLinks = document.getElementById('navLinks');
+            navLinks.classList.toggle('active');
+        }
+        
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
 </body>
-
 </html>

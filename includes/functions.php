@@ -3,6 +3,54 @@
  * Helper Functions
  */
 
+// Global settings cache
+$global_settings_cache = null;
+$site_settings_cache = null;
+
+// Get setting from database with fallback to config constant
+function getSetting($key, $default = '') {
+    global $global_settings_cache;
+    
+    if ($global_settings_cache === null) {
+        $global_settings_cache = [];
+        $data = fetchAll("SELECT setting_key, setting_value FROM settings");
+        foreach ($data as $row) {
+            $global_settings_cache[$row['setting_key']] = $row['setting_value'];
+        }
+    }
+    
+    if (isset($global_settings_cache[$key]) && $global_settings_cache[$key] !== '') {
+        return $global_settings_cache[$key];
+    }
+    
+    if (defined($key)) {
+        return constant($key);
+    }
+    
+    return $default;
+}
+
+// Get site setting from site_settings table
+function getSiteSetting($key, $default = '') {
+    global $site_settings_cache;
+    
+    if ($site_settings_cache === null) {
+        $site_settings_cache = [];
+        try {
+            $data = fetchAll("SELECT setting_key, setting_value FROM site_settings");
+            if (is_array($data)) {
+                foreach ($data as $row) {
+                    $site_settings_cache[$row['setting_key']] = $row['setting_value'];
+                }
+            }
+        } catch (Exception $e) {
+            // Table might not exist yet
+        }
+    }
+    
+    return $site_settings_cache[$key] ?? $default;
+}
+
 // Get Mikrotik settings from database (supports multi-router)
 require_once __DIR__ . '/mikrotik_api.php';
 
@@ -340,7 +388,7 @@ function isolateCustomer($customerId)
     $package = fetchOne("SELECT * FROM packages WHERE id = ?", [$customer['package_id']]);
     if ($package && !empty($customer['pppoe_username'])) {
         // Call MikroTik API to change profile on assigned router
-        $result = mikrotikSetProfile($customer['pppoe_username'], $package['profile_isolir'], $customer['router_id']);
+        mikrotikSetProfile($customer['pppoe_username'], $package['profile_isolir'], $customer['router_id']);
 
         // Send WhatsApp notification
         $message = "Halo {$customer['name']},\n\nPembayaran internet Anda sudah melewati tanggal jatuh tempo.\n\nMohon segera lakukan pembayaran untuk mengaktifkan kembali koneksi internet Anda.\n\nTerima kasih.";
@@ -367,7 +415,7 @@ function unisolateCustomer($customerId)
     $package = fetchOne("SELECT * FROM packages WHERE id = ?", [$customer['package_id']]);
     if ($package && !empty($customer['pppoe_username'])) {
         // Call MikroTik API to change profile on assigned router
-        $result = mikrotikSetProfile($customer['pppoe_username'], $package['profile_normal'], $customer['router_id']);
+        mikrotikSetProfile($customer['pppoe_username'], $package['profile_normal'], $customer['router_id']);
     }
 
     logActivity('UNISOLATE_CUSTOMER', "Customer ID: {$customerId}");
@@ -452,7 +500,7 @@ function genieacsGetDevices()
 
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    // curl_close($ch); // Deprecated in PHP 8.0+
 
     if ($httpCode === 200) {
         $devices = json_decode($response, true);
@@ -873,7 +921,7 @@ function genieacsReboot($serial)
         curl_setopt($ch, CURLOPT_USERPWD, $genieacs['username'] . ':' . $genieacs['password']);
     }
 
-    $response = curl_exec($ch);
+    curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     // curl_close() is deprecated in PHP 8.0+ - CurlHandle auto-destroys
 

@@ -433,6 +433,14 @@ function createDatabaseTables() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (sales_user_id) REFERENCES sales_users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+    CREATE TABLE IF NOT EXISTS site_settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        setting_key VARCHAR(50) UNIQUE NOT NULL,
+        setting_value TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ";
     
     $statements = array_filter(array_map('trim', explode(';', $sql)));
@@ -464,6 +472,30 @@ function insertDefaultData() {
     foreach ($settings as $setting) {
         $stmt = $pdo->prepare("INSERT IGNORE INTO settings (setting_key, setting_value) VALUES (?, ?)");
         $stmt->execute($setting);
+    }
+
+    $siteSettings = [
+        ['hero_title', 'Internet Cepat <br>Tanpa Batas'],
+        ['hero_description', 'Nikmati koneksi internet fiber optic super cepat, stabil, dan unlimited untuk kebutuhan rumah maupun bisnis Anda. Gabung sekarang!'],
+        ['contact_phone', '+62 812-3456-7890'],
+        ['contact_email', 'info@gembok.net'],
+        ['contact_address', 'Jakarta, Indonesia'],
+        ['footer_about', 'Penyedia layanan internet terpercaya dengan jaringan fiber optic berkualitas untuk menunjang aktivitas digital Anda.'],
+        ['feature_1_title', 'Kecepatan Tinggi'],
+        ['feature_1_desc', 'Koneksi fiber optic dengan kecepatan simetris upload dan download.'],
+        ['feature_2_title', 'Unlimited Quota'],
+        ['feature_2_desc', 'Akses internet sepuasnya tanpa batasan kuota (FUP).'],
+        ['feature_3_title', 'Support 24/7'],
+        ['feature_3_desc', 'Tim teknis kami siap membantu Anda kapanpun jika terjadi gangguan.'],
+        ['social_facebook', '#'],
+        ['social_instagram', '#'],
+        ['social_twitter', '#'],
+        ['social_youtube', '#']
+    ];
+
+    foreach ($siteSettings as $ss) {
+        $stmt = $pdo->prepare("INSERT IGNORE INTO site_settings (setting_key, setting_value) VALUES (?, ?)");
+        $stmt->execute($ss);
     }
 
     $cronSchedules = [

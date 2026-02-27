@@ -134,6 +134,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect('settings.php');
                 break;
                 
+            case 'save_landing':
+                // Auto create table if not exists (lazy migration)
+                $pdo = getDB();
+                $pdo->exec("CREATE TABLE IF NOT EXISTS site_settings (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    setting_key VARCHAR(50) UNIQUE NOT NULL,
+                    setting_value TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+                $landingSettings = [
+                    'hero_title' => $_POST['hero_title'],
+                    'hero_description' => $_POST['hero_description'],
+                    'contact_phone' => sanitize($_POST['contact_phone']),
+                    'contact_email' => sanitize($_POST['contact_email']),
+                    'contact_address' => sanitize($_POST['contact_address']),
+                    'footer_about' => sanitize($_POST['footer_about']),
+                    'feature_1_title' => sanitize($_POST['feature_1_title']),
+                    'feature_1_desc' => sanitize($_POST['feature_1_desc']),
+                    'feature_2_title' => sanitize($_POST['feature_2_title']),
+                    'feature_2_desc' => sanitize($_POST['feature_2_desc']),
+                    'feature_3_title' => sanitize($_POST['feature_3_title']),
+                    'feature_3_desc' => sanitize($_POST['feature_3_desc']),
+                    'social_facebook' => sanitize($_POST['social_facebook']),
+                    'social_instagram' => sanitize($_POST['social_instagram']),
+                    'social_twitter' => sanitize($_POST['social_twitter']),
+                    'social_youtube' => sanitize($_POST['social_youtube'])
+                ];
+                
+                // Use site_settings table for these
+                foreach ($landingSettings as $key => $value) {
+                    $existing = fetchOne("SELECT id FROM site_settings WHERE setting_key = ?", [$key]);
+                    if ($existing) {
+                        update('site_settings', ['setting_value' => $value], 'setting_key = ?', [$key]);
+                    } else {
+                        insert('site_settings', ['setting_key' => $key, 'setting_value' => $value]);
+                    }
+                }
+                
+                setFlash('success', 'Pengaturan Landing Page berhasil disimpan');
+                redirect('settings.php');
+                break;
+                
             case 'change_password':
                 $currentPassword = $_POST['current_password'];
                 $newPassword = $_POST['new_password'];
@@ -295,6 +339,128 @@ ob_start();
         
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save"></i> Simpan
+        </button>
+    </form>
+</div>
+
+<!-- Landing Page Settings -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-globe"></i> Pengaturan Landing Page</h3>
+    </div>
+    
+    <form method="POST">
+        <input type="hidden" name="action" value="save_landing">
+        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+        
+        <?php
+        $siteSettings = [];
+        $siteSettingsData = fetchAll("SELECT * FROM site_settings");
+        foreach ($siteSettingsData as $s) {
+            $siteSettings[$s['setting_key']] = $s['setting_value'];
+        }
+        ?>
+        
+        <div class="form-group">
+            <label class="form-label">Judul Utama (Hero Title)</label>
+            <input type="text" name="hero_title" class="form-control" value="<?php echo htmlspecialchars($siteSettings['hero_title'] ?? 'Internet Cepat <br>Tanpa Batas'); ?>" placeholder="Internet Cepat Tanpa Batas">
+            <small style="color: var(--text-muted);">Gunakan &lt;br&gt; untuk baris baru</small>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Deskripsi Utama</label>
+            <textarea name="hero_description" class="form-control" rows="3"><?php echo htmlspecialchars($siteSettings['hero_description'] ?? ''); ?></textarea>
+        </div>
+        
+        <h4 style="margin: 20px 0 15px; color: var(--neon-cyan);">Informasi Kontak</h4>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label class="form-label">Nomor Telepon / WhatsApp</label>
+                <input type="text" name="contact_phone" class="form-control" value="<?php echo htmlspecialchars($siteSettings['contact_phone'] ?? ''); ?>">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" name="contact_email" class="form-control" value="<?php echo htmlspecialchars($siteSettings['contact_email'] ?? ''); ?>">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Alamat Kantor</label>
+            <textarea name="contact_address" class="form-control" rows="2"><?php echo htmlspecialchars($siteSettings['contact_address'] ?? ''); ?></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Tentang (Footer)</label>
+            <textarea name="footer_about" class="form-control" rows="2"><?php echo htmlspecialchars($siteSettings['footer_about'] ?? ''); ?></textarea>
+        </div>
+
+        <h4 style="margin: 20px 0 15px; color: var(--neon-cyan);">Fitur & Layanan (3 Kolom)</h4>
+        
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+            <!-- Feature 1 -->
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px;">
+                <h5>Fitur 1</h5>
+                <div class="form-group">
+                    <label class="form-label">Judul</label>
+                    <input type="text" name="feature_1_title" class="form-control" value="<?php echo htmlspecialchars($siteSettings['feature_1_title'] ?? 'Kecepatan Tinggi'); ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Deskripsi</label>
+                    <textarea name="feature_1_desc" class="form-control" rows="2"><?php echo htmlspecialchars($siteSettings['feature_1_desc'] ?? 'Koneksi fiber optic dengan kecepatan simetris upload dan download.'); ?></textarea>
+                </div>
+            </div>
+
+            <!-- Feature 2 -->
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px;">
+                <h5>Fitur 2</h5>
+                <div class="form-group">
+                    <label class="form-label">Judul</label>
+                    <input type="text" name="feature_2_title" class="form-control" value="<?php echo htmlspecialchars($siteSettings['feature_2_title'] ?? 'Unlimited Quota'); ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Deskripsi</label>
+                    <textarea name="feature_2_desc" class="form-control" rows="2"><?php echo htmlspecialchars($siteSettings['feature_2_desc'] ?? 'Akses internet sepuasnya tanpa batasan kuota (FUP).'); ?></textarea>
+                </div>
+            </div>
+
+            <!-- Feature 3 -->
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px;">
+                <h5>Fitur 3</h5>
+                <div class="form-group">
+                    <label class="form-label">Judul</label>
+                    <input type="text" name="feature_3_title" class="form-control" value="<?php echo htmlspecialchars($siteSettings['feature_3_title'] ?? 'Support 24/7'); ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Deskripsi</label>
+                    <textarea name="feature_3_desc" class="form-control" rows="2"><?php echo htmlspecialchars($siteSettings['feature_3_desc'] ?? 'Tim teknis kami siap membantu Anda kapanpun jika terjadi gangguan.'); ?></textarea>
+                </div>
+            </div>
+        </div>
+
+        <h4 style="margin: 20px 0 15px; color: var(--neon-cyan);">Media Sosial</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label class="form-label"><i class="fab fa-facebook"></i> Facebook URL</label>
+                <input type="text" name="social_facebook" class="form-control" value="<?php echo htmlspecialchars($siteSettings['social_facebook'] ?? '#'); ?>">
+            </div>
+            <div class="form-group">
+                <label class="form-label"><i class="fab fa-instagram"></i> Instagram URL</label>
+                <input type="text" name="social_instagram" class="form-control" value="<?php echo htmlspecialchars($siteSettings['social_instagram'] ?? '#'); ?>">
+            </div>
+            <div class="form-group">
+                <label class="form-label"><i class="fab fa-twitter"></i> Twitter URL</label>
+                <input type="text" name="social_twitter" class="form-control" value="<?php echo htmlspecialchars($siteSettings['social_twitter'] ?? '#'); ?>">
+            </div>
+            <div class="form-group">
+                <label class="form-label"><i class="fab fa-youtube"></i> Youtube URL</label>
+                <input type="text" name="social_youtube" class="form-control" value="<?php echo htmlspecialchars($siteSettings['social_youtube'] ?? '#'); ?>">
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Simpan Landing Page
         </button>
     </form>
 </div>

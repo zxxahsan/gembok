@@ -146,6 +146,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $output[] = "Added column: voucher_type to sales_users";
                 }
                 
+                try {
+                    $pdo->query("SELECT id FROM site_settings LIMIT 1");
+                } catch (Exception $e) {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS site_settings (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        setting_key VARCHAR(50) UNIQUE NOT NULL,
+                        setting_value TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                    $output[] = "Created table: site_settings";
+                    
+                    // Insert default data for site_settings
+                    $siteSettings = [
+                        ['hero_title', 'Internet Cepat <br>Tanpa Batas'],
+                        ['hero_description', 'Nikmati koneksi internet fiber optic super cepat, stabil, dan unlimited untuk kebutuhan rumah maupun bisnis Anda. Gabung sekarang!'],
+                        ['contact_phone', '+62 812-3456-7890'],
+                        ['contact_email', 'info@gembok.net'],
+                        ['contact_address', 'Jakarta, Indonesia'],
+                        ['footer_about', 'Penyedia layanan internet terpercaya dengan jaringan fiber optic berkualitas untuk menunjang aktivitas digital Anda.']
+                    ];
+                    
+                    foreach ($siteSettings as $ss) {
+                        $stmt = $pdo->prepare("INSERT IGNORE INTO site_settings (setting_key, setting_value) VALUES (?, ?)");
+                        $stmt->execute($ss);
+                    }
+                }
+                
                 $output[] = "Database migration completed.";
                 
             } catch (Exception $e) {
