@@ -45,12 +45,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Test connection
         try {
-            $pdo = new PDO(
-                "mysql:host={$_POST['db_host']};dbname={$_POST['db_name']}",
-                $_POST['db_user'],
-                $_POST['db_pass']
-            );
-            $_SESSION['db_connected'] = true;
+                $pdo = new PDO(
+                    "mysql:host={$_POST['db_host']};dbname={$_POST['db_name']}",
+                    $_POST['db_user'],
+                    $_POST['db_pass']
+                );
+                $pdo->exec("SET sql_mode = ''");
+                $_SESSION['db_connected'] = true;
             header("Location: install.php?step=3");
             exit;
         } catch (PDOException $e) {
@@ -174,10 +175,8 @@ if (php_sapi_name() !== 'cli' && isset(\$_SERVER['HTTP_HOST'])) {
 define('APP_VERSION', '2.0.5');
 define('GEMBOK_UPDATE_VERSION_URL', 'https://raw.githubusercontent.com/alijaya0601/gembok-simple2/main/version.txt');
 
-// Pagination and currency
+// Pagination
 define('ITEMS_PER_PAGE', 20);
-define('CURRENCY', 'IDR');
-define('CURRENCY_SYMBOL', 'Rp');
 define('INVOICE_PREFIX', 'INV');
 define('INVOICE_START', 1);
 
@@ -466,6 +465,7 @@ function insertDefaultData() {
         ['app_name', 'GEMBOK'],
         ['app_version', '2.0.0'],
         ['currency', 'IDR'],
+        ['CURRENCY_SYMBOL', 'Rp'],
         ['timezone', 'Asia/Jakarta'],
         ['invoice_prefix', 'INV'],
         ['invoice_start', '1']
