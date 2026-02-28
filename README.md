@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/alijayanet/gembok-simple/main/assets/sim4.png" alt="Gembok Dashboard" width="100%">
+  <img src="https://raw.githubusercontent.com/alijayanet/gembok-simple/main/assets/demo-dashboard.png" alt="Gembok Dashboard" width="100%">
 </p>
 
 ---
@@ -23,6 +23,7 @@
 - **Customer Management** - Complete customer lifecycle
 - **Package Management** - Flexible internet packages
 - **Billing System** - Automated invoicing and payments
+- **Sales Portal** - Dedicated agent dashboard with deposit system
 - **MikroTik Integration** - PPPoE and Hotspot management
 - **GenieACS Integration** - ONU/ONT monitoring and control
 
@@ -31,6 +32,7 @@
 - **Interactive Map** - Location-based customer visualization
 - **Trouble Ticket System** - Issue tracking and resolution
 - **Voucher Generator** - MikroTik hotspot voucher creation
+- **Sales Deposit System** - Prepaid balance for agents
 - **Mobile Responsive** - Works on all devices
 
 ### 🔗 Integrations
@@ -76,13 +78,14 @@ http://your-domain.com/install.php
 #### 5. Complete Setup
 - Access admin panel: `http://your-domain.com/admin/login`
 - Access customer portal: `http://your-domain.com/portal/login`
+- Access sales portal: `http://your-domain.com/sales/login`
 
 ---
 
 ## 🎨 Admin Dashboard Preview
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/alijayanet/gembok-simple/main/assets/sim5.png" alt="Admin Dashboard" width="800">
+  <img src="https://raw.githubusercontent.com/alijayanet/gembok-simple/main/assets/admin-dashboard-preview.png" alt="Admin Dashboard" width="800">
 </p>
 
 ### Dashboard Features:
