@@ -55,13 +55,15 @@ $recentInvoices = fetchAll("
 $onuData = null;
 $onuOnline = false;
 $onuSignal = 'N/A';
+$onuDevices = '-';
 
 // Find device by customer's PPPoE username using the enhanced function
 $customerDevice = genieacsFindDeviceByPppoe($customer['pppoe_username']);
 
 if ($customerDevice) {
-    // Get detailed device info
-    $onuData = genieacsGetDeviceInfo($customer['pppoe_username']);
+    // Get detailed device info using the actual device ID/serial, not the username
+    $deviceId = $customerDevice['_id'] ?? $customerDevice['_deviceId']['_SerialNumber'] ?? $customer['pppoe_username'];
+    $onuData = genieacsGetDeviceInfo($deviceId);
     
     // Determine online status
     if ($onuData && isset($onuData['status'])) {
@@ -69,11 +71,22 @@ if ($customerDevice) {
     }
     
     // Get signal strength
-    if ($customerDevice && isset($customerDevice['VirtualParameters']['RXPower'])) {
-        $onuSignal = $customerDevice['VirtualParameters']['RXPower'];
+    $rxPowerFromDevice = genieacsGetValue($customerDevice, 'VirtualParameters.RXPower');
+    if ($rxPowerFromDevice !== null) {
+        $onuSignal = $rxPowerFromDevice;
     } elseif ($onuData && isset($onuData['rx_power'])) {
-        $onuSignal = $onuData['rx_power'];
+        $onuSignal = is_array($onuData['rx_power']) ? ($onuData['rx_power']['_value'] ?? 'N/A') : $onuData['rx_power'];
     }
+    if (is_array($onuSignal)) {
+        $onuSignal = $onuSignal['_value'] ?? $onuSignal['value'] ?? 'N/A';
+    }
+    
+    // Get connected devices (SSID 1)
+    $rawDevices = genieacsGetValue($customerDevice, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations') ?? ($onuData['total_associations'] ?? '-');
+    if (is_array($rawDevices)) {
+        $rawDevices = $rawDevices['_value'] ?? $rawDevices['value'] ?? '-';
+    }
+    $onuDevices = is_numeric($rawDevices) ? (int)$rawDevices : '-';
 }
 
 $pageTitle = 'Dashboard Pelanggan';
@@ -190,12 +203,12 @@ ob_start();
         <?php if ($onuData): ?>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                 <div>
-                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Serial Number</p>
-                    <p><code><?php echo htmlspecialchars($customerDevice['_deviceId']['_SerialNumber'] ?? $onuData['_deviceId']['_SerialNumber'] ?? '-'); ?></code></p>
+                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Username PPPoE</p>
+                    <p><code><?php echo htmlspecialchars($customer['pppoe_username'] ?? '-'); ?></code></p>
                 </div>
                 <div>
-                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Model</p>
-                    <p><?php echo htmlspecialchars($customerDevice['InternetGatewayDevice']['DeviceInfo']['ModelName'] ?? $onuData['InternetGatewayDevice']['DeviceInfo']['ModelName'] ?? 'N/A'); ?></p>
+                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Perangkat Terhubung</p>
+                    <p><?php echo htmlspecialchars($onuDevices); ?> Device</p>
                 </div>
                 <div>
                     <p style="color: var(--text-secondary); margin-bottom: 5px;">Status</p>
@@ -221,47 +234,48 @@ ob_start();
 
     <!-- WiFi Settings -->
     <?php 
-    // Find device by customer's PPPoE username
-    $customerDevice = genieacsFindDeviceByPppoe($customer['pppoe_username']);
-    $customerDeviceInfo = $customerDevice ? genieacsGetDeviceInfo($customer['pppoe_username']) : null;
-    $isCustomerDeviceOnline = $customerDevice && isset($customerDeviceInfo['status']) && $customerDeviceInfo['status'] === 'online';
+    $isCustomerDeviceOnline = $customerDevice && $onuOnline;
     ?>
     
     <?php if ($isCustomerDeviceOnline && $customerDevice): ?>
-    <div class="card">
+    <div class="card" id="wifi-settings">
         <h3 style="margin-bottom: 15px; color: var(--neon-cyan);">
             <i class="fas fa-wifi"></i> Pengaturan WiFi
         </h3>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <div>
-                <div class="form-group">
-                    <label class="form-label">SSID WiFi Saat Ini</label>
-                    <input type="text" class="form-control" 
-                           value="<?php echo htmlspecialchars($customerDeviceInfo['ssid'] ?? 'N/A'); ?>" readonly>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <div style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">SSID WiFi Saat Ini</label>
+                        <input type="text" class="form-control" 
+                               value="<?php echo htmlspecialchars($onuData['ssid'] ?? 'N/A'); ?>" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">SSID WiFi Baru</label>
+                        <input type="text" id="wifiSsid" class="form-control" 
+                               placeholder="Masukkan SSID baru">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">SSID WiFi Baru</label>
-                    <input type="text" id="wifiSsid" class="form-control" 
-                           placeholder="Masukkan SSID baru">
-                </div>
-                <button class="btn btn-primary" onclick="updateSsid()">
+                <button class="btn btn-primary" onclick="updateSsid()" style="align-self: flex-start; margin-top: auto;">
                     <i class="fas fa-save"></i> Simpan SSID
                 </button>
             </div>
             
-            <div>
-                <div class="form-group">
-                    <label class="form-label">Password WiFi Saat Ini</label>
-                    <input type="password" class="form-control" 
-                           value="<?php echo htmlspecialchars($customerDeviceInfo['wifi_password'] ?? ''); ?>" readonly>
+            <div style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">Password WiFi Saat Ini</label>
+                        <input type="password" class="form-control" 
+                               value="<?php echo htmlspecialchars($onuData['wifi_password'] ?? ''); ?>" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password WiFi Baru</label>
+                        <input type="password" id="wifiPassword" class="form-control" 
+                               placeholder="Masukkan password baru">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Password WiFi Baru</label>
-                    <input type="password" id="wifiPassword" class="form-control" 
-                           placeholder="Masukkan password baru">
-                </div>
-                <button class="btn btn-primary" onclick="updatePassword()">
+                <button class="btn btn-primary" onclick="updatePassword()" style="align-self: flex-start; margin-top: auto;">
                     <i class="fas fa-save"></i> Simpan Password
                 </button>
             </div>
@@ -297,7 +311,7 @@ ob_start();
     </div>
     
     <!-- Trouble Tickets -->
-    <div class="card">
+    <div class="card" id="lapor-gangguan">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h3 style="color: var(--neon-cyan);">
                 <i class="fas fa-ticket-alt"></i> Laporan Gangguan
