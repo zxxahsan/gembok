@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/alijayanet/gembok-simple/main/assets/demo-dashboard.png" alt="Gembok Dashboard" width="100%">
+  <img src="https://raw.githubusercontent.com/alijayanet/gembok-simple/main/assets/sim4.png" alt="Gembok Dashboard" width="100%">
 </p>
 
 ---
