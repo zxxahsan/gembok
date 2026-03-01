@@ -109,8 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $packageName = trim($data[3] ?? '');
             $isolationDate = trim($data[4] ?? '20');
             $address = trim($data[5] ?? '');
-            $lat = trim($data[6] ?? '');
-            $lng = trim($data[7] ?? '');
+            $lat = str_replace(',', '.', trim($data[6] ?? ''));
+            $lng = str_replace(',', '.', trim($data[7] ?? ''));
             
             // Validate required fields
             if (empty($name) || empty($phone) || empty($pppoeUsername)) {

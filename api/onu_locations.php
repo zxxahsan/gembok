@@ -8,7 +8,11 @@ header('Content-Type: application/json');
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 
-requireAdminLogin();
+// Allow Admin or Technician
+if (!isAdminLoggedIn() && !isTechnicianLoggedIn()) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    exit;
+}
 
 function ensureOdpSchema()
 {
@@ -107,8 +111,8 @@ if ($method === 'GET') {
         $id = $input['id'] ?? null;
         $name = trim($input['name'] ?? '');
         $code = trim($input['code'] ?? '');
-        $lat = ($input['lat'] === '' || $input['lat'] === null) ? null : $input['lat'];
-        $lng = ($input['lng'] === '' || $input['lng'] === null) ? null : $input['lng'];
+        $lat = ($input['lat'] === '' || $input['lat'] === null) ? null : str_replace(',', '.', trim($input['lat']));
+        $lng = ($input['lng'] === '' || $input['lng'] === null) ? null : str_replace(',', '.', trim($input['lng']));
 
         if ($name === '') {
             echo json_encode(['success' => false, 'message' => 'Nama ODP wajib diisi']);
@@ -228,8 +232,11 @@ if ($method === 'GET') {
 
     $serial = $input['serial'] ?? '';
     $name = $input['name'] ?? '';
-    $lat = ($input['lat'] === '' || $input['lat'] === null) ? null : $input['lat'];
-    $lng = ($input['lng'] === '' || $input['lng'] === null) ? null : $input['lng'];
+    // Debug Log
+    error_log("API onu_locations.php received: " . print_r($input, true));
+    
+    $lat = ($input['lat'] === '' || $input['lat'] === null) ? null : str_replace(',', '.', trim($input['lat']));
+    $lng = ($input['lng'] === '' || $input['lng'] === null) ? null : str_replace(',', '.', trim($input['lng']));
     $odpId = $input['odp_id'] ?? null;
 
     if (empty($serial)) {
@@ -247,6 +254,26 @@ if ($method === 'GET') {
             'odp_id' => $odpId,
             'updated_at' => date('Y-m-d H:i:s')
         ], 'serial_number = ?', [$serial]);
+        
+        // Also update customers table if serial matches (assuming we can link by pppoe/serial)
+        // Or try to match by serial number if we store it
+        // Since we don't strictly have serial in customers table yet (we use pppoe_username),
+        // we might need to look it up.
+        // But for now, let's assume onu_locations IS the source of truth for map.
+        
+        // However, the technician map uses `customers` table for coordinates.
+        // We MUST update `customers` table too if we can link them.
+        // Let's try to link via GenieACS pppoeUsername -> customers.pppoe_username
+        
+        $deviceInfo = genieacsGetDeviceInfo($serial);
+        if ($deviceInfo && !empty($deviceInfo['pppoe_username'])) {
+            update('customers', [
+                'lat' => $lat,
+                'lng' => $lng,
+                'updated_at' => date('Y-m-d H:i:s')
+            ], 'pppoe_username = ?', [$deviceInfo['pppoe_username']]);
+        }
+
         if ($updated) {
             echo json_encode(['success' => true, 'message' => 'ONU location updated']);
         } else {
@@ -261,6 +288,17 @@ if ($method === 'GET') {
             'odp_id' => $odpId,
             'created_at' => date('Y-m-d H:i:s')
         ]);
+        
+        // Sync to customers table
+        $deviceInfo = genieacsGetDeviceInfo($serial);
+        if ($deviceInfo && !empty($deviceInfo['pppoe_username'])) {
+            update('customers', [
+                'lat' => $lat,
+                'lng' => $lng,
+                'updated_at' => date('Y-m-d H:i:s')
+            ], 'pppoe_username = ?', [$deviceInfo['pppoe_username']]);
+        }
+        
         if ($inserted) {
             echo json_encode(['success' => true, 'message' => 'ONU location added']);
         } else {

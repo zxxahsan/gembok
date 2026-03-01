@@ -25,6 +25,24 @@ $checks = [
         'message' => 'JSON Extension: ' . (extension_loaded('json') ? 'Installed' : 'Not Installed'),
         'icon' => extension_loaded('json') ? 'fas fa-check-circle' : 'fas fa-times-circle'
     ],
+    'GD Extension' => [
+        'check' => extension_loaded('gd'),
+        'message' => 'GD Extension: ' . (extension_loaded('gd') ? 'Installed' : 'Not Installed (Optional)'),
+        'icon' => extension_loaded('gd') ? 'fas fa-check-circle' : 'fas fa-exclamation-circle',
+        'optional' => true
+    ],
+    'Intl Extension' => [
+        'check' => extension_loaded('intl'),
+        'message' => 'Intl Extension: ' . (extension_loaded('intl') ? 'Installed' : 'Not Installed (Optional)'),
+        'icon' => extension_loaded('intl') ? 'fas fa-check-circle' : 'fas fa-exclamation-circle',
+        'optional' => true
+    ],
+    'FileInfo Extension' => [
+        'check' => extension_loaded('fileinfo'),
+        'message' => 'FileInfo Extension: ' . (extension_loaded('fileinfo') ? 'Installed' : 'Not Installed (Optional)'),
+        'icon' => extension_loaded('fileinfo') ? 'fas fa-check-circle' : 'fas fa-exclamation-circle',
+        'optional' => true
+    ],
     'Session Support' => [
         'check' => function_exists('session_start'),
         'message' => 'Session Support: ' . (function_exists('session_start') ? 'Available' : 'Not Available'),
@@ -39,7 +57,7 @@ $checks = [
 
 $allPassed = true;
 foreach ($checks as $check) {
-    if (!$check['check']) {
+    if (!$check['check'] && !isset($check['optional'])) {
         $allPassed = false;
         break;
     }

@@ -343,11 +343,11 @@ ob_start();
             <div class="form-group" style="display: flex; gap: 10px;">
                 <div style="flex: 1;">
                     <label class="form-label">Latitude</label>
-                    <input type="text" id="mapLat" class="form-control" readonly style="font-size: 0.85rem;">
+                    <input type="text" id="mapLat" class="form-control" style="font-size: 0.85rem;" onchange="updateMarkerFromInput()">
                 </div>
                 <div style="flex: 1;">
                     <label class="form-label">Longitude</label>
-                    <input type="text" id="mapLng" class="form-control" readonly style="font-size: 0.85rem;">
+                    <input type="text" id="mapLng" class="form-control" style="font-size: 0.85rem;" onchange="updateMarkerFromInput()">
                 </div>
             </div>
         </div>
@@ -368,10 +368,22 @@ function initMap() {
     // Default Alijaya net
     map = L.map('map').setView([-6.252471, 107.920660], 16);
     
-    L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{
+    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    });
+
+    var googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{
         maxZoom: 20,
         subdomains:['mt0','mt1','mt2','mt3']
-    }).addTo(map);
+    });
+
+    googleSat.addTo(map);
+
+    var baseMaps = {
+        "Satelit": googleSat,
+        "OpenStreetMap": osm
+    };
+    L.control.layers(baseMaps).addTo(map);
 
     map.on('click', function(e) {
         setMarker(e.latlng.lat, e.latlng.lng);
@@ -397,6 +409,16 @@ function updateInputs(lat, lng) {
     document.getElementById('mapLng').value = lng;
 }
 
+function updateMarkerFromInput() {
+    const lat = parseFloat(document.getElementById('mapLat').value);
+    const lng = parseFloat(document.getElementById('mapLng').value);
+    
+    if (!isNaN(lat) && !isNaN(lng)) {
+        setMarker(lat, lng);
+        map.setView([lat, lng], 16);
+    }
+}
+
 function openMapModal(serial, lat, lng, name) {
     document.getElementById('mapModal').style.display = 'flex';
     document.getElementById('mapSerial').value = serial;
@@ -405,27 +427,42 @@ function openMapModal(serial, lat, lng, name) {
     // Initialize map if needed
     // We use setTimeout to ensure modal is visible so Leaflet can calculate size
     setTimeout(() => {
+        if (map) {
+            map.remove();
+            map = null;
+            marker = null;
+        }
+        
         initMap();
         map.invalidateSize();
         
-        if (lat && lng) {
+        if (lat && lng && lat != 0 && lng != 0) {
             setMarker(parseFloat(lat), parseFloat(lng));
         } else {
-            // Default center if no location set (Alijaya net)
-            map.setView([-6.252471, 107.920660], 16);
-            
-            if (marker) {
-                map.removeLayer(marker);
-                marker = null;
+            // Try geolocation or default
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    map.setView([position.coords.latitude, position.coords.longitude], 16);
+                }, function() {
+                    map.setView([-6.252471, 107.920660], 16);
+                });
+            } else {
+                map.setView([-6.252471, 107.920660], 16);
             }
+            
             document.getElementById('mapLat').value = '';
             document.getElementById('mapLng').value = '';
         }
-    }, 100);
+    }, 200);
 }
 
 function closeMapModal() {
     document.getElementById('mapModal').style.display = 'none';
+    if (map) {
+        map.remove();
+        map = null;
+        marker = null;
+    }
 }
 
 function saveLocation() {

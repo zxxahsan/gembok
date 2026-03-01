@@ -8,13 +8,40 @@ header('Content-Type: application/json');
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 
-// Allow both admin and customer
-if (!isCustomerLoggedIn() && !isAdminLoggedIn()) {
+// Allow admin, customer, and technician
+if (!isCustomerLoggedIn() && !isAdminLoggedIn() && !isTechnicianLoggedIn()) {
     echo json_encode(['success' => false, 'message' => 'Not authenticated']);
     exit;
 }
 
 try {
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $pppoeUsername = $_GET['pppoe_username'] ?? '';
+        
+        if (empty($pppoeUsername)) {
+            echo json_encode(['success' => false, 'message' => 'PPPoE Username required']);
+            exit;
+        }
+
+        // Get device info from GenieACS
+        // First find the device by PPPoE username
+        $device = genieacsFindDeviceByPppoe($pppoeUsername);
+        
+        if ($device) {
+            $deviceId = $device['_id'];
+            $deviceData = genieacsGetDeviceInfo($deviceId);
+            
+            if ($deviceData) {
+                echo json_encode(['success' => true, 'data' => $deviceData]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to retrieve device info']);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Device not found or offline']);
+        }
+        exit;
+    }
+
     $input = json_decode(file_get_contents('php://input'), true);
 
     $pppoeUsername = $input['pppoe_username'] ?? '';

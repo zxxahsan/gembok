@@ -436,7 +436,7 @@ ob_start();
 
 <script>
 let map, markers = [], odpMarkers = [], lines = [];
-let currentLayer = 'satellite'; // Default Hybrid
+let currentLayer = 'satellite'; // Default Satellite
 let osmLayer, satelliteLayer;
 let currentOnuSerial = null;
 let odpsCache = [];
@@ -446,7 +446,7 @@ let tempOdpMarker = null;
 function initMap() {
     map = L.map('map').setView([-6.252471, 107.920660], 16);
     
-    // Google Hybrid (Default)
+    // Google Satellite (Hybrid)
     satelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{
         maxZoom: 20,
         subdomains:['mt0','mt1','mt2','mt3']
@@ -458,11 +458,22 @@ function initMap() {
         subdomains:['mt0','mt1','mt2','mt3']
     });
     
+    // Add default layer
     satelliteLayer.addTo(map);
-    currentLayer = 'satellite'; // Match default to Satellite (Hybrid)
+
+    // Layer control
+    var baseMaps = {
+        "Satelit": satelliteLayer,
+        "Jalan (Street)": osmLayer
+    };
+    L.control.layers(baseMaps).addTo(map);
+    
+    // Handle manual toggle button if exists (for backward compatibility)
+    // but Layer Control is preferred
     
     map.on('click', function(e) {
-        setOdpPoint(e.latlng.lat, e.latlng.lng, true);
+        // Only set point if in add mode or similar context if needed
+        // For now kept simple
     });
     
     loadMarkers();
@@ -839,7 +850,13 @@ document.getElementById('addOdpForm').addEventListener('submit', function(e) {
     fetch('../api/onu_locations.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'odp', name, code, lat: lat ? parseFloat(lat) : null, lng: lng ? parseFloat(lng) : null })
+        body: JSON.stringify({
+            type: 'odp',
+            name,
+            code,
+            lat: lat ? parseFloat(lat.replace(',', '.')) : null,
+            lng: lng ? parseFloat(lng.replace(',', '.')) : null
+        })
     })
     .then(response => response.json())
     .then(result => {

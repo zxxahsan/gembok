@@ -782,6 +782,51 @@ function genieacsSetParameter($serial, $parameter, $value)
     return ['success' => false, 'message' => "GenieACS Error ($httpCode): " . ($response ?: 'Unknown error')];
 }
 
+function genieacsSetParameterValues($serial, $params)
+{
+    $genieacs = getGenieacsSettings();
+    if (empty($genieacs['url'])) {
+        return false;
+    }
+
+    // Get device first to find the actual device ID
+    $device = genieacsGetDevice($serial);
+    if (!$device) {
+        return false;
+    }
+
+    $deviceId = $device['_id'] ?? $serial;
+    $encodedId = rawurlencode($deviceId);
+    $url = rtrim($genieacs['url'], '/') . "/devices/{$encodedId}/tasks?timeout=3000&connection_request";
+
+    $parameterValues = [];
+    foreach ($params as $key => $value) {
+        $parameterValues[] = [$key, (string)$value, 'xsd:string'];
+    }
+
+    $data = [
+        'name' => 'setParameterValues',
+        'parameterValues' => $parameterValues
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+    if (!empty($genieacs['username']) && !empty($genieacs['password'])) {
+        curl_setopt($ch, CURLOPT_USERPWD, $genieacs['username'] . ':' . $genieacs['password']);
+    }
+
+    curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    return $httpCode === 200 || $httpCode === 201 || $httpCode === 202;
+}
+
 // Find device by PPPoE username in GenieACS
 function genieacsFindDeviceByPppoe($pppoeUsername)
 {

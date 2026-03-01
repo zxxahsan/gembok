@@ -8,6 +8,9 @@ requireAdminLogin();
 
 $pageTitle = 'Laporan Gangguan';
 
+// Get technicians
+$technicians = fetchAll("SELECT * FROM technician_users WHERE status = 'active' ORDER BY name ASC");
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
@@ -16,12 +19,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $customerId = (int)$_POST['customer_id'];
                 $description = sanitize($_POST['description']);
                 $priority = sanitize($_POST['priority']);
+                $technicianId = !empty($_POST['technician_id']) ? (int)$_POST['technician_id'] : null;
                 
                 $ticketData = [
                     'customer_id' => $customerId,
                     'description' => $description,
                     'priority' => $priority,
                     'status' => 'pending',
+                    'technician_id' => $technicianId,
                     'created_at' => date('Y-m-d H:i:s')
                 ];
                 
@@ -48,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ticketId = (int)$_POST['ticket_id'];
                 $status = sanitize($_POST['status']);
                 $notes = sanitize($_POST['notes'] ?? '');
+                $technicianId = !empty($_POST['technician_id']) ? (int)$_POST['technician_id'] : null;
                 
                 $ticket = fetchOne("SELECT * FROM trouble_tickets WHERE id = ?", [$ticketId]);
                 
@@ -55,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $updateData = [
                         'status' => $status,
                         'notes' => $notes,
+                        'technician_id' => $technicianId,
                         'updated_at' => date('Y-m-d H:i:s')
                     ];
                     
@@ -444,6 +451,28 @@ function closeViewModal() {
 function updateStatus(ticketId, currentStatus) {
     document.getElementById('status_ticket_id').value = ticketId;
     document.getElementById('status_select').value = currentStatus;
+    
+    // Reset notes
+    const notesField = document.querySelector('#statusModal textarea[name="notes"]');
+    if (notesField) notesField.value = '';
+    
+    document.getElementById('statusModal').style.display = 'flex';
+}
+
+// Edit ticket with full object (for future use)
+function editTicket(ticket) {
+    document.getElementById('status_ticket_id').value = ticket.id;
+    document.getElementById('status_select').value = ticket.status;
+    
+    const notesField = document.querySelector('#statusModal textarea[name="notes"]');
+    if (notesField) notesField.value = ticket.notes || '';
+    
+    // Set technician if field exists
+    const techSelect = document.getElementById('technician_id');
+    if (techSelect) {
+        techSelect.value = ticket.technician_id || '';
+    }
+    
     document.getElementById('statusModal').style.display = 'flex';
 }
 

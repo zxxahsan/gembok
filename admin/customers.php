@@ -27,13 +27,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'router_id' => (int)($_POST['router_id'] ?? 0),
                     'isolation_date' => (int)$_POST['isolation_date'],
                     'address' => sanitize($_POST['address']),
-                    'lat' => (!isset($_POST['lat']) || $_POST['lat'] === '') ? null : $_POST['lat'],
-                    'lng' => (!isset($_POST['lng']) || $_POST['lng'] === '') ? null : $_POST['lng'],
+                    'lat' => (!isset($_POST['lat']) || trim($_POST['lat']) === '') ? null : str_replace(',', '.', trim($_POST['lat'])),
+                    'lng' => (!isset($_POST['lng']) || trim($_POST['lng']) === '') ? null : str_replace(',', '.', trim($_POST['lng'])),
+                    'installed_by' => !empty($_POST['installed_by']) ? (int)$_POST['installed_by'] : null,
                     'portal_password' => password_hash('1234', PASSWORD_DEFAULT),
                     'created_at' => date('Y-m-d H:i:s')
                 ];
                 
                 if (insert('customers', $data)) {
+                    // Sync to onu_locations if requested
+                    $saveOnu = isset($_POST['save_onu']) && $_POST['save_onu'] == '1';
+                    $odpId = isset($_POST['odp_id']) && $_POST['odp_id'] !== '' ? (int) $_POST['odp_id'] : null;
+                    if ($saveOnu) {
+                        try {
+                            $serial = $data['pppoe_username']; // Use PPPoE username as identifier if serial not known yet
+                            $exists = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$serial]);
+                            $payload = [
+                                'name' => $data['name'],
+                                'lat' => $data['lat'],
+                                'lng' => $data['lng'],
+                                'odp_id' => $odpId,
+                                'updated_at' => date('Y-m-d H:i:s')
+                            ];
+                            if ($exists) {
+                                update('onu_locations', $payload, 'serial_number = ?', [$serial]);
+                            } else {
+                                $payload['serial_number'] = $serial;
+                                $payload['created_at'] = date('Y-m-d H:i:s');
+                                insert('onu_locations', $payload);
+                            }
+                        } catch (Exception $e) {
+                            // Do not block customer creation if ONU sync fails
+                            logError('ONU sync (add customer) failed: ' . $e->getMessage());
+                        }
+                    }
                     setFlash('success', 'Pelanggan berhasil ditambahkan');
                     logActivity('ADD_CUSTOMER', "Name: {$data['name']}");
                 } else {
@@ -51,12 +78,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'router_id' => (int)($_POST['router_id'] ?? 0),
                     'isolation_date' => (int)$_POST['isolation_date'],
                     'address' => sanitize($_POST['address']),
-                    'lat' => (!isset($_POST['lat']) || $_POST['lat'] === '') ? null : $_POST['lat'],
-                    'lng' => (!isset($_POST['lng']) || $_POST['lng'] === '') ? null : $_POST['lng'],
+                    'lat' => (!isset($_POST['lat']) || trim($_POST['lat']) === '') ? null : str_replace(',', '.', trim($_POST['lat'])),
+                    'lng' => (!isset($_POST['lng']) || trim($_POST['lng']) === '') ? null : str_replace(',', '.', trim($_POST['lng'])),
+                    'installed_by' => !empty($_POST['installed_by']) ? (int)$_POST['installed_by'] : null,
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
                 
                 if (update('customers', $data, 'id = ?', [$customerId])) {
+                    // Sync to onu_locations if requested
+                    $saveOnu = isset($_POST['save_onu']) && $_POST['save_onu'] == '1';
+                    $odpId = isset($_POST['odp_id']) && $_POST['odp_id'] !== '' ? (int) $_POST['odp_id'] : null;
+                    if ($saveOnu) {
+                        try {
+                            // Get PPPoE username for this customer
+                            $customer = fetchOne("SELECT pppoe_username FROM customers WHERE id = ?", [$customerId]);
+                            if ($customer && !empty($customer['pppoe_username'])) {
+                                $serial = $customer['pppoe_username'];
+                                $exists = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$serial]);
+                                $payload = [
+                                    'name' => $data['name'],
+                                    'lat' => $data['lat'],
+                                    'lng' => $data['lng'],
+                                    'odp_id' => $odpId,
+                                    'updated_at' => date('Y-m-d H:i:s')
+                                ];
+                                if ($exists) {
+                                    update('onu_locations', $payload, 'serial_number = ?', [$serial]);
+                                } else {
+                                    $payload['serial_number'] = $serial;
+                                    $payload['created_at'] = date('Y-m-d H:i:s');
+                                    insert('onu_locations', $payload);
+                                }
+                            }
+                        } catch (Exception $e) {
+                            logError('ONU sync (edit customer) failed: ' . $e->getMessage());
+                        }
+                    }
                     setFlash('success', 'Pelanggan berhasil diperbarui');
                     logActivity('UPDATE_CUSTOMER', "ID: {$customerId}");
                 } else {
@@ -98,6 +155,10 @@ $customersTableExists = tableExists('customers');
 $packagesTableExists = tableExists('packages');
 $routersTableExists = tableExists('routers');
 
+// Get technicians
+$technicians = fetchAll("SELECT * FROM technician_users WHERE status = 'active' ORDER BY name ASC");
+
+
 if ($customersTableExists) {
     $totalCustomers = fetchOne("SELECT COUNT(*) as total FROM customers")['total'] ?? 0;
     $totalPages = ceil($totalCustomers / $perPage);
@@ -106,7 +167,8 @@ if ($customersTableExists) {
         'c.*',
         $packagesTableExists ? 'p.name as package_name' : "'Tanpa Paket' as package_name",
         $packagesTableExists ? 'p.price as package_price' : '0 as package_price',
-        $routersTableExists ? 'r.name as router_name' : "'' as router_name"
+        $routersTableExists ? 'r.name as router_name' : "'' as router_name",
+        "(SELECT odp_id FROM onu_locations WHERE serial_number = c.pppoe_username LIMIT 1) as onu_odp_id"
     ];
 
     $joinParts = [];
@@ -281,6 +343,16 @@ ob_start();
                     <?php endforeach; ?>
                 </select>
             </div>
+
+            <div class="form-group">
+                <label class="form-label">Teknisi Instalasi (Opsional)</label>
+                <select name="installed_by" class="form-control" style="color: var(--text-primary); background: var(--bg-card);">
+                    <option value="">-- Pilih Teknisi --</option>
+                    <?php foreach ($technicians as $tech): ?>
+                        <option value="<?php echo $tech['id']; ?>"><?php echo htmlspecialchars($tech['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             
             <div class="form-group">
                 <label class="form-label">Tanggal Isolir (1-28)</label>
@@ -303,6 +375,25 @@ ob_start();
         </div>
         
         <div style="height: 300px; margin-top: 15px; border-radius: 8px; overflow: hidden;" id="map-picker"></div>
+
+        <div class="form-group" style="margin-top: 15px; background: var(--bg-card); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+            <label class="form-label" style="display: block; margin-bottom: 10px;">
+                Mapping ONU
+            </label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="save_onu" value="1" checked>
+                    <span>Sekaligus simpan titik ke ONU Locations</span>
+                </label>
+                <div>
+                    <label class="form-label">ODP (Opsional)</label>
+                    <select name="odp_id" id="add_odp_select" class="form-control" style="color: var(--text-primary); background: var(--bg-card);">
+                        <option value="">-- Pilih ODP --</option>
+                    </select>
+                    <small style="color: var(--text-muted);">Jika belum ada, tambah ODP di menu GenieACS Peta</small>
+                </div>
+            </div>
+        </div>
         
         <button type="submit" class="btn btn-primary" style="margin-top: 20px;">
             <i class="fas fa-save"></i> Simpan Pelanggan
@@ -512,6 +603,24 @@ ob_start();
             </div>
             
             <div style="height: 300px; margin-top: 15px; border-radius: 8px; overflow: hidden;" id="edit-map-picker"></div>
+
+            <div class="form-group" style="margin-top: 15px; background: var(--bg-card); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                <label class="form-label" style="display: block; margin-bottom: 10px;">
+                    Mapping ONU
+                </label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" name="save_onu" value="1" checked>
+                        <span>Perbarui titik pada ONU Locations</span>
+                    </label>
+                    <div>
+                        <label class="form-label">ODP (Opsional)</label>
+                        <select name="odp_id" id="edit_odp_select" class="form-control" style="color: var(--text-primary); background: var(--bg-card);">
+                            <option value="">-- Pilih ODP --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button type="submit" class="btn btn-primary" style="flex: 1;">
@@ -646,9 +755,25 @@ function initMap() {
     // Add map
     map = L.map('map-picker').setView([-6.200000, 106.816666], 13);
     
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Base layers
+    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
-    }).addTo(map);
+    });
+    
+    var googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    });
+
+    // Add default layer
+    osm.addTo(map);
+
+    // Layer control
+    var baseMaps = {
+        "OpenStreetMap": osm,
+        "Satelit": googleSat
+    };
+    L.control.layers(baseMaps).addTo(map);
     
     map.on('click', function(e) {
         if (marker) {
@@ -667,9 +792,25 @@ function initEditMap() {
     
     editMap = L.map('edit-map-picker').setView([-6.200000, 106.816666], 13);
     
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Base layers
+    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
-    }).addTo(editMap);
+    });
+    
+    var googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    });
+
+    // Add default layer
+    osm.addTo(editMap);
+
+    // Layer control
+    var baseMaps = {
+        "OpenStreetMap": osm,
+        "Satelit": googleSat
+    };
+    L.control.layers(baseMaps).addTo(editMap);
     
     editMap.on('click', function(e) {
         if (editMarker) {
@@ -720,10 +861,22 @@ function editCustomer(customer) {
     document.getElementById('edit_pppoe_username').value = customer.pppoe_username;
     document.getElementById('edit_package_id').value = customer.package_id;
     document.getElementById('edit_router_id').value = customer.router_id || 0;
-    document.getElementById('edit_isolation_date').value = customer.isolation_date;
+    document.getElementById('edit_isolation_date').value = customer.isolation_date || 20;
     document.getElementById('edit_address').value = customer.address || '';
     document.getElementById('edit_lat').value = customer.lat || '';
     document.getElementById('edit_lng').value = customer.lng || '';
+    
+    // Set technician
+    const techSelect = document.getElementById('edit_installed_by');
+    if (techSelect) {
+        techSelect.value = customer.installed_by || '';
+    }
+
+    // Set ODP
+    const odpSelect = document.getElementById('edit_odp_select');
+    if (odpSelect) {
+        odpSelect.value = customer.onu_odp_id || '';
+    }
     
     // Show modal
     document.getElementById('editCustomerModal').style.display = 'flex';
@@ -756,6 +909,34 @@ document.getElementById('editCustomerModal').addEventListener('click', function(
 
 // Initialize map when page loads
 setTimeout(initMap, 500);
+
+// Load ODP list for dropdowns
+function loadOdpOptions() {
+    fetch('../api/onu_locations.php')
+        .then(r => r.json())
+        .then(j => {
+            if (!j.success) return;
+            const odps = j.odps || [];
+            const addSel = document.getElementById('add_odp_select');
+            const editSel = document.getElementById('edit_odp_select');
+            const makeOptions = (sel) => {
+                if (!sel) return;
+                // keep first option
+                sel.innerHTML = '<option value=\"\">-- Pilih ODP --</option>';
+                odps.forEach(o => {
+                    const opt = document.createElement('option');
+                    opt.value = o.id;
+                    opt.textContent = o.name + (o.code ? (' (' + o.code + ')') : '');
+                    sel.appendChild(opt);
+                });
+            };
+            makeOptions(addSel);
+            makeOptions(editSel);
+        })
+        .catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', loadOdpOptions);
 </script>
 
 <?php

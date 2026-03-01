@@ -38,9 +38,14 @@ ob_start();
                         <span>Invoice</span>
                     </a>
                     
-                    <a href="pay.php" class="menu-grid-item">
-                        <i class="fas fa-money-bill-wave"></i>
-                        <span>Bayar</span>
+                    <a href="trouble.php" class="menu-grid-item">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Gangguan</span>
+                    </a>
+                    
+                    <a href="technicians.php" class="menu-grid-item">
+                        <i class="fas fa-tools"></i>
+                        <span>Teknisi</span>
                     </a>
                     
                     <hr style="width: 100%; border-color: var(--border-color); margin: 10px 0;">

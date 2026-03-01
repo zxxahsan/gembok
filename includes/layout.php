@@ -971,8 +971,14 @@ if (isset($_GET['switch_router'])) {
                     <span>Gangguan</span>
                 </a>
 
-                <a href="<?php echo APP_URL; ?>/admin/settings.php"
-                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'settings.php' ? 'active' : ''; ?>">
+                <a href="<?php echo APP_URL; ?>/admin/technicians.php"
+                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'technicians.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-tools"></i>
+                    <span>Teknisi</span>
+                </a>
+
+                <a href="<?php echo APP_URL; ?>/admin/map.php"
+                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'map.php' ? 'active' : ''; ?>">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
                 </a>

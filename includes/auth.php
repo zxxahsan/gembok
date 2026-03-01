@@ -237,3 +237,56 @@ function requireSalesLogin() {
 function getSalesUser($id) {
     return fetchOne("SELECT * FROM sales_users WHERE id = ?", [$id]);
 }
+
+// Technician Authentication
+function technicianLogin($username, $password) {
+    $tech = fetchOne("SELECT * FROM technician_users WHERE username = ?", [$username]);
+    
+    if (!$tech) {
+        return false;
+    }
+    
+    if ($tech['status'] !== 'active') {
+        return 'inactive';
+    }
+    
+    if (password_verify($password, $tech['password'])) {
+        session_regenerate_id(true); // Prevent session fixation
+        $_SESSION['technician'] = [
+            'id' => $tech['id'],
+            'name' => $tech['name'],
+            'username' => $tech['username'],
+            'phone' => $tech['phone'] ?? '',
+            'logged_in' => true,
+            'login_time' => time()
+        ];
+        
+        // Update last login
+        update('technician_users', ['last_login' => date('Y-m-d H:i:s')], 'id = ?', [$tech['id']]);
+        
+        logActivity('TECH_LOGIN', "Username: {$username}");
+        return true;
+    }
+    
+    return false;
+}
+
+function technicianLogout() {
+    logActivity('TECH_LOGOUT', "Username: " . ($_SESSION['technician']['username'] ?? 'unknown'));
+    
+    unset($_SESSION['technician']);
+    session_destroy();
+    
+    redirect(APP_URL . '/technician/login.php');
+}
+
+function isTechnicianLoggedIn() {
+    return isset($_SESSION['technician']) && isset($_SESSION['technician']['logged_in']) && $_SESSION['technician']['logged_in'] === true;
+}
+
+function requireTechnicianLogin() {
+    if (!isTechnicianLoggedIn()) {
+        setFlash('error', 'Silakan login terlebih dahulu');
+        redirect(APP_URL . '/technician/login.php');
+    }
+}
