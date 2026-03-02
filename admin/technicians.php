@@ -21,6 +21,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'add':
                 $username = sanitize($_POST['username']);
                 
+                // Validate username format
+                if (strlen($username) < 3 || !preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+                    setFlash('error', 'Username minimal 3 karakter, hanya huruf, angka, dan underscore');
+                    redirect('technicians.php');
+                }
+                
+                // Validate password length
+                if (strlen($_POST['password']) < 6) {
+                    setFlash('error', 'Password minimal 6 karakter');
+                    redirect('technicians.php');
+                }
+                
                 // Check if username exists
                 $existing = fetchOne("SELECT id FROM technician_users WHERE username = ?", [$username]);
                 if ($existing) {
@@ -57,6 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Update password only if provided
                 if (!empty($_POST['password'])) {
+                    if (strlen($_POST['password']) < 6) {
+                        setFlash('error', 'Password minimal 6 karakter');
+                        redirect('technicians.php');
+                    }
                     $data['password'] = password_hash($_POST['password'], PASSWORD_DEFAULT);
                 }
                 
@@ -134,22 +150,22 @@ ob_start();
             <?php else: ?>
                 <?php foreach ($technicians as $t): ?>
                 <tr>
-                    <td><strong><?php echo htmlspecialchars($t['name']); ?></strong></td>
-                    <td><?php echo htmlspecialchars($t['username']); ?></td>
-                    <td><?php echo htmlspecialchars($t['phone']); ?></td>
-                    <td>
+                    <td data-label="Nama"><strong><?php echo htmlspecialchars($t['name']); ?></strong></td>
+                    <td data-label="Username"><?php echo htmlspecialchars($t['username']); ?></td>
+                    <td data-label="No. HP"><?php echo htmlspecialchars($t['phone']); ?></td>
+                    <td data-label="Status">
                         <?php if ($t['status'] === 'active'): ?>
                             <span class="badge badge-success">Aktif</span>
                         <?php else: ?>
                             <span class="badge badge-danger">Nonaktif</span>
                         <?php endif; ?>
                     </td>
-                    <td>
+                    <td data-label="Beban Kerja">
                         <span class="badge badge-warning" title="Tiket Gangguan"><?php echo $t['active_tickets']; ?> Tiket</span>
                         <span class="badge badge-info" title="Pasang Baru"><?php echo $t['pending_installs']; ?> PSB</span>
                     </td>
-                    <td><?php echo $t['last_login'] ? formatDate($t['last_login']) : '-'; ?></td>
-                    <td>
+                    <td data-label="Login Terakhir"><?php echo $t['last_login'] ? formatDate($t['last_login']) : '-'; ?></td>
+                    <td data-label="Aksi">
                         <div style="display: flex; gap: 5px;">
                             <button class="btn btn-primary btn-sm" onclick='openEditModal(<?php echo json_encode($t); ?>)' title="Edit">
                                 <i class="fas fa-edit"></i>
@@ -195,22 +211,22 @@ ob_start();
             
             <div class="form-group">
                 <label class="form-label">Nama Lengkap</label>
-                <input type="text" name="name" class="form-control" required>
+                <input type="text" name="name" class="form-control" required minlength="3" placeholder="Nama teknisi">
             </div>
             
             <div class="form-group">
                 <label class="form-label">No. HP / WA</label>
-                <input type="text" name="phone" class="form-control" placeholder="08xxx">
+                <input type="tel" name="phone" class="form-control" placeholder="08xxxxxxxxxx" pattern="[0-9]{10,15}" title="Masukkan nomor HP 10-15 digit">
             </div>
             
             <div class="form-group">
                 <label class="form-label">Username</label>
-                <input type="text" name="username" class="form-control" required>
+                <input type="text" name="username" class="form-control" required minlength="3" pattern="[a-zA-Z0-9_]+" title="Hanya huruf, angka, dan underscore" autocomplete="username">
             </div>
             
             <div class="form-group">
                 <label class="form-label">Password</label>
-                <input type="password" name="password" class="form-control" required>
+                <input type="password" name="password" class="form-control" required minlength="6" autocomplete="new-password" placeholder="Minimal 6 karakter">
             </div>
             
             <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">Simpan</button>
@@ -242,7 +258,7 @@ ob_start();
             
             <div class="form-group">
                 <label class="form-label">No. HP / WA</label>
-                <input type="text" name="phone" id="edit_phone" class="form-control">
+                <input type="tel" name="phone" id="edit_phone" class="form-control" placeholder="08xxxxxxxxxx" pattern="[0-9]{10,15}" title="Masukkan nomor HP 10-15 digit">
             </div>
             
             <div class="form-group">
@@ -255,7 +271,7 @@ ob_start();
             
             <div class="form-group">
                 <label class="form-label">Password Baru (Kosongkan jika tidak diubah)</label>
-                <input type="password" name="password" class="form-control" placeholder="******">
+                <input type="password" name="password" class="form-control" placeholder="******" minlength="6" autocomplete="new-password">
             </div>
             
             <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">Simpan Perubahan</button>
@@ -288,10 +304,19 @@ ob_start();
     
     // Close modal when clicking outside
     window.onclick = function(event) {
-        if (event.target.className === 'modal') {
+        if (event.target.classList && event.target.classList.contains('modal')) {
             event.target.style.display = 'none';
         }
     }
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal').forEach(function(modal) {
+                modal.style.display = 'none';
+            });
+        }
+    });
 </script>
 
 <?php 

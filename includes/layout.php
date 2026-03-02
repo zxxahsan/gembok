@@ -842,6 +842,118 @@ if (isset($_GET['switch_router'])) {
                 display: flex !important;
             }
         }
+
+        /* ===== Modal Popup ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(-30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-lg);
+            padding: 30px;
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 245, 255, 0.1);
+            animation: modalSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .modal-header .close {
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+            line-height: 1;
+            border: none;
+            background: none;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .modal-header .close:hover {
+            color: var(--neon-red);
+            background: rgba(255, 71, 87, 0.15);
+            transform: rotate(90deg);
+        }
+
+        /* Modal scrollbar */
+        .modal-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        .modal-content::-webkit-scrollbar-thumb {
+            background: rgba(0, 245, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        /* Modal responsive */
+        @media (max-width: 768px) {
+            .modal {
+                padding: 15px;
+                align-items: flex-end;
+            }
+
+            .modal-content {
+                max-width: 100%;
+                max-height: 85vh;
+                border-radius: 18px 18px 0 0;
+                padding: 24px 20px;
+                animation: modalSlideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            @keyframes modalSlideUp {
+                from { opacity: 0; transform: translateY(100%); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        }
     </style>
     <script>
         // Apply theme immediately to prevent flash

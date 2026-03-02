@@ -4,6 +4,17 @@ $canWriteConfig = is_writable('includes/') && (!file_exists('includes/config.php
 $canWriteLock = is_writable('includes/') && (!file_exists('includes/installed.lock') || is_writable('includes/installed.lock'));
 $permissionsOk = is_writable('.') && $canWriteConfig && $canWriteLock;
 
+// Check logs and uploads directories
+$logsWritable = (is_dir('logs') && is_writable('logs')) || (!is_dir('logs') && is_writable('.'));
+$uploadsWritable = (is_dir('uploads') && is_writable('uploads')) || (!is_dir('uploads') && is_writable('.'));
+
+// Detect web server
+$webServer = php_sapi_name();
+$serverSoftware = $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown';
+$isNginx = stripos($serverSoftware, 'nginx') !== false;
+$isApache = stripos($serverSoftware, 'apache') !== false;
+$isLiteSpeed = stripos($serverSoftware, 'litespeed') !== false;
+
 $checks = [
     'PHP Version' => [
         'check' => version_compare(PHP_VERSION, '7.4', '>='),
@@ -24,6 +35,11 @@ $checks = [
         'check' => extension_loaded('json'),
         'message' => 'JSON Extension: ' . (extension_loaded('json') ? 'Installed' : 'Not Installed'),
         'icon' => extension_loaded('json') ? 'fas fa-check-circle' : 'fas fa-times-circle'
+    ],
+    'MBString Extension' => [
+        'check' => extension_loaded('mbstring'),
+        'message' => 'MBString Extension: ' . (extension_loaded('mbstring') ? 'Installed' : 'Not Installed — aktifkan di PHP Settings'),
+        'icon' => extension_loaded('mbstring') ? 'fas fa-check-circle' : 'fas fa-times-circle'
     ],
     'GD Extension' => [
         'check' => extension_loaded('gd'),
@@ -50,8 +66,19 @@ $checks = [
     ],
     'File Permissions' => [
         'check' => $permissionsOk,
-        'message' => 'File Permissions: ' . ($permissionsOk ? 'Writable' : 'Not Writable'),
+        'message' => 'File Permissions (includes/): ' . ($permissionsOk ? 'Writable' : 'Not Writable — chmod 755 atau 775'),
         'icon' => $permissionsOk ? 'fas fa-check-circle' : 'fas fa-times-circle'
+    ],
+    'Logs Directory' => [
+        'check' => $logsWritable,
+        'message' => 'Logs Directory: ' . ($logsWritable ? 'Writable' : 'Not Writable — akan dibuat otomatis saat install'),
+        'icon' => $logsWritable ? 'fas fa-check-circle' : 'fas fa-exclamation-circle',
+        'optional' => true
+    ],
+    'Web Server' => [
+        'check' => true,
+        'message' => 'Web Server: ' . htmlspecialchars($serverSoftware),
+        'icon' => 'fas fa-check-circle'
     ]
 ];
 
@@ -77,6 +104,24 @@ foreach ($checks as $check) {
     </div>
 <?php endforeach; ?>
 
+<?php if ($isNginx): ?>
+    <div style="margin-top: 15px; padding: 15px; background: rgba(255, 107, 53, 0.1); border: 1px solid #ff6b35; border-radius: 8px;">
+        <strong style="color: #ff6b35;">⚠️ Nginx Detected — Perlu Konfigurasi Tambahan</strong>
+        <p style="margin: 8px 0 0 0; color: #b0b0c0; font-size: 0.9rem;">
+            Nginx tidak support <code>.htaccess</code>. Tambahkan rewrite rules di konfigurasi site Nginx/aaPanel:
+        </p>
+        <pre style="margin: 10px 0 0 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 6px; color: #00f5ff; font-size: 0.8rem; overflow-x: auto;">location ~ /\.(htaccess|env|git) {
+    deny all;
+}
+location ~ ^/(logs|uploads)/ {
+    deny all;
+}
+location ~ ^/includes/ {
+    deny all;
+}</pre>
+    </div>
+<?php endif; ?>
+
 <?php if ($allPassed): ?>
     <div class="alert alert-success" style="margin-top: 20px; background: rgba(0, 255, 136, 0.1); border: 1px solid #00ff88; color: #00ff88; padding: 15px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
         <i class="fas fa-check-circle"></i>
@@ -95,10 +140,12 @@ foreach ($checks as $check) {
         <i class="fas fa-exclamation-circle"></i>
         <div>
             <strong>⚠️ Beberapa Requirements Tidak Terpenuhi</strong>
-            <p style="margin: 5px 0 0 0;">Silakan hubungi provider hosting Anda untuk mengaktifkan extension yang diperlukan.</p>
+            <p style="margin: 5px 0 0 0;">Silakan hubungi provider hosting Anda untuk mengaktifkan extension yang diperlukan.<br>
+            <small>Jika menggunakan aaPanel: Website → PHP → Extensions → Install yang dibutuhkan</small></p>
         </div>
     </div>
     <div style="text-align: right; margin-top: 20px;">
         <button class="btn btn-primary" style="padding: 12px 24px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; color: #ffffff; background: linear-gradient(135deg, #00f5ff 0%, #bf00ff 100%); transition: all 0.3s; box-shadow: 0 4px 20px rgba(191, 0, 255, 0.3); border: 1px solid transparent;" onclick="location.reload()">Cek Ulang</button>
     </div>
 <?php endif; ?>
+
