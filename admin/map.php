@@ -861,7 +861,10 @@ function renderOdpLists() {
             const coord = (odp.lat && odp.lng) ? (parseFloat(odp.lat).toFixed(6) + ', ' + parseFloat(odp.lng).toFixed(6)) : '-';
             return '<div style="display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border-color);">' +
                 '<div><strong>' + label + '</strong><br><small style="color: var(--text-muted);">' + coord + '</small></div>' +
-                '<button class="btn btn-danger btn-sm" onclick="deleteOdp(' + odp.id + ')"><i class="fas fa-trash"></i></button>' +
+                '<div style="display: flex; gap: 5px;">' +
+                    '<button class="btn btn-secondary btn-sm" onclick="editOdp(' + odp.id + ')"><i class="fas fa-edit"></i></button>' +
+                    '<button class="btn btn-danger btn-sm" onclick="deleteOdp(' + odp.id + ')"><i class="fas fa-trash"></i></button>' +
+                '</div>' +
             '</div>';
         }).join('');
     }
