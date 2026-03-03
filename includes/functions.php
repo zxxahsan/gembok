@@ -737,10 +737,12 @@ function genieacsGetDeviceInfo($serial)
 
     // PON Optical Power (for GPON/EPON ONUs)
     $info['rx_power'] =
+        genieacsGetValue($device, 'VirtualParameters.RXPower') ??
         genieacsGetValue($device, 'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.RxPower') ??
         genieacsGetValue($device, 'Device.Optical.Interface.1.RXPower');
 
     $info['tx_power'] =
+        genieacsGetValue($device, 'VirtualParameters.TXPower') ??
         genieacsGetValue($device, 'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.TxPower') ??
         genieacsGetValue($device, 'Device.Optical.Interface.1.TXPower');
 
