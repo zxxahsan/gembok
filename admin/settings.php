@@ -548,6 +548,26 @@ ob_start();
         
         <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">Payment Gateway (Tripay)</h4>
         
+        <!-- Tripay Webhook URL Info Box -->
+        <div style="background: rgba(0,200,255,0.08); border: 1px solid var(--neon-cyan); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <i class="fas fa-link" style="color: var(--neon-cyan);"></i>
+                <strong style="color: var(--neon-cyan);">URL Callback / Webhook Tripay</strong>
+            </div>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 10px;">
+                Paste URL ini ke menu <strong>Callback URL</strong> di pengaturan merchant Tripay Anda.
+            </p>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="tripay_webhook_url" readonly
+                    value="<?php echo APP_URL; ?>/webhooks/tripay.php"
+                    style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,200,255,0.3); color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 13px; cursor: pointer;"
+                    onclick="this.select()">
+                <button type="button" onclick="copyWebhookUrl('tripay_webhook_url', this)" style="background: var(--neon-cyan); color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap;">
+                    <i class="fas fa-copy"></i> Salin
+                </button>
+            </div>
+        </div>
+        
         <div class="form-group">
             <label class="form-label">Tripay API Key</label>
             <input type="text" name="tripay_api_key" class="form-control" value="<?php echo htmlspecialchars($settings['TRIPAY_API_KEY'] ?? ''); ?>" placeholder="Masukkan API Key Tripay">
@@ -568,6 +588,26 @@ ob_start();
         <hr style="margin: 30px 0; border-color: var(--border-color);">
         
         <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">Payment Gateway (Midtrans)</h4>
+        
+        <!-- Midtrans Webhook URL Info Box -->
+        <div style="background: rgba(0,200,255,0.08); border: 1px solid var(--neon-cyan); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <i class="fas fa-link" style="color: var(--neon-cyan);"></i>
+                <strong style="color: var(--neon-cyan);">URL Notification / Webhook Midtrans</strong>
+            </div>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 10px;">
+                Paste URL ini ke kolom <strong>Payment Notification URL</strong> di Midtrans Dashboard &rarr; Settings &rarr; Configuration.
+            </p>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="midtrans_webhook_url" readonly
+                    value="<?php echo APP_URL; ?>/webhooks/midtrans.php"
+                    style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,200,255,0.3); color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 13px; cursor: pointer;"
+                    onclick="this.select()">
+                <button type="button" onclick="copyWebhookUrl('midtrans_webhook_url', this)" style="background: var(--neon-cyan); color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap;">
+                    <i class="fas fa-copy"></i> Salin
+                </button>
+            </div>
+        </div>
         
         <div class="form-group">
             <label class="form-label">Midtrans API Key</label>
@@ -645,6 +685,31 @@ document.querySelectorAll('form').forEach(form => {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
     });
 });
+
+function copyWebhookUrl(inputId, btn) {
+    const input = document.getElementById(inputId);
+    input.select();
+    input.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(input.value).then(function() {
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Tersalin!';
+        btn.style.background = '#00ff88';
+        setTimeout(function() {
+            btn.innerHTML = original;
+            btn.style.background = 'var(--neon-cyan)';
+        }, 2000);
+    }).catch(function() {
+        // Fallback for older browsers
+        document.execCommand('copy');
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Tersalin!';
+        btn.style.background = '#00ff88';
+        setTimeout(function() {
+            btn.innerHTML = original;
+            btn.style.background = 'var(--neon-cyan)';
+        }, 2000);
+    });
+}
 </script>
 
 <?php
