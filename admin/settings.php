@@ -111,6 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'FONNTE_API_TOKEN' => sanitize($_POST['fonnte_api_token']),
                     'WABLAS_API_TOKEN' => sanitize($_POST['wablas_api_token']),
                     'MPWA_API_KEY' => sanitize($_POST['mpwa_api_key']),
+                    'MPWA_SENDER'  => sanitize($_POST['mpwa_sender']),
                     'TRIPAY_API_KEY' => sanitize($_POST['tripay_api_key']),
                     'TRIPAY_PRIVATE_KEY' => sanitize($_POST['tripay_private_key']),
                     'TRIPAY_MERCHANT_CODE' => sanitize($_POST['tripay_merchant_code']),
@@ -118,7 +119,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'MIDTRANS_MERCHANT_CODE' => sanitize($_POST['midtrans_merchant_code']),
                     'DEFAULT_PAYMENT_GATEWAY' => sanitize($_POST['default_payment_gateway']),
                     'WHATSAPP_ADMIN_NUMBER' => sanitize($_POST['whatsapp_admin_number']),
-                    'TELEGRAM_BOT_TOKEN' => sanitize($_POST['telegram_token'])
+                    'TELEGRAM_BOT_TOKEN' => sanitize($_POST['telegram_token']),
+                    'CRON_TOKEN' => sanitize($_POST['cron_token'])
                 ];
                 
                 foreach ($integrationSettings as $key => $value) {
@@ -145,10 +147,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-                $landingSettings = [
-                    'landing_template' => sanitize($_POST['landing_template']),
-                    'hero_title' => $_POST['hero_title'],
-                    'hero_description' => $_POST['hero_description'],
+        $landingSettings = [
+            'landing_template' => sanitize($_POST['landing_template']),
+            // Sanitize landing hero fields to prevent XSS
+            'hero_title' => sanitize($_POST['hero_title']),
+            'hero_description' => sanitize($_POST['hero_description']),
                     'contact_phone' => sanitize($_POST['contact_phone']),
                     'contact_email' => sanitize($_POST['contact_email']),
                     'contact_address' => sanitize($_POST['contact_address']),
@@ -512,6 +515,26 @@ ob_start();
         
         <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">WhatsApp Gateway</h4>
         
+        <!-- WhatsApp Webhook URL Info Box -->
+        <div style="background: rgba(0,200,255,0.08); border: 1px solid var(--neon-cyan); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <i class="fas fa-link" style="color: var(--neon-cyan);"></i>
+                <strong style="color: var(--neon-cyan);">URL Webhook / Callback WhatsApp</strong>
+            </div>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 10px;">
+                Paste URL ini ke kolom <strong>Webhook URL</strong> di dashboard gateway WhatsApp Anda (berlaku untuk Fonnte, Wablas, maupun MPWA).
+            </p>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="wa_webhook_url" readonly
+                    value="<?php echo APP_URL; ?>/webhooks/whatsapp.php"
+                    style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,200,255,0.3); color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 13px; cursor: pointer;"
+                    onclick="this.select()">
+                <button type="button" onclick="copyWebhookUrl('wa_webhook_url', this)" style="background: var(--neon-cyan); color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap;">
+                    <i class="fas fa-copy"></i> Salin
+                </button>
+            </div>
+        </div>
+        
         <div class="form-group">
             <label class="form-label">WhatsApp Gateway Default</label>
             <select name="default_whatsapp_gateway" class="form-control">
@@ -536,6 +559,12 @@ ob_start();
         <div class="form-group">
             <label class="form-label">MPWA API Key</label>
             <input type="password" name="mpwa_api_key" class="form-control" value="<?php echo htmlspecialchars($settings['MPWA_API_KEY'] ?? ''); ?>" placeholder="Masukkan API Key MPWA">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">MPWA Sender Number <span style="color: #ff6b6b;">*wajib</span></label>
+            <input type="text" name="mpwa_sender" class="form-control" value="<?php echo htmlspecialchars($settings['MPWA_SENDER'] ?? ''); ?>" placeholder="628xxxxxxxxxx">
+            <small style="color: var(--text-muted);">Nomor WhatsApp yang sudah di-scan QR di dashboard MPWA (format: 628...)</small>
         </div>
 
         <div class="form-group">
@@ -633,13 +662,54 @@ ob_start();
         
         <hr style="margin: 30px 0; border-color: var(--border-color);">
         
-        <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">Telegram Bot</h4>
+        <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">Cronjob & Task Scheduler</h4>
         
-        <div class="form-group">
-            <label class="form-label">Telegram Bot Token</label>
-            <input type="text" name="telegram_token" class="form-control" value="<?php echo htmlspecialchars($settings['TELEGRAM_BOT_TOKEN'] ?? ''); ?>" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+        <!-- Cronjob Info Box -->
+        <div style="background: rgba(0,255,136,0.08); border: 1px solid #00ff88; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <i class="fas fa-clock" style="color: #00ff88;"></i>
+                <strong style="color: #00ff88;">Konfigurasi Cronjob</strong>
+            </div>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 10px;">
+                Gunakan salah satu metode di bawah ini untuk menjalankan tugas otomatis (isolir otomatis, kirim invoice, dll). Sangat disarankan untuk menjalankan setiap <strong>1 menit</strong>.
+            </p>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-size: 12px; color: #00ff88; margin-bottom: 5px;">Metode 1: Script CLI (Direkomendasikan untuk VPS)</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="cron_cli_path" readonly
+                        value="* * * * * /usr/bin/php <?php echo str_replace('\\', '/', realpath(__DIR__ . '/../cron/scheduler.php')); ?>"
+                        style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,136,0.3); color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-family: monospace; cursor: pointer;"
+                        onclick="this.select()">
+                    <button type="button" onclick="copyWebhookUrl('cron_cli_path', this)" style="background: #00ff88; color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap;">
+                        <i class="fas fa-copy"></i> Salin
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 12px; color: #00ff88; margin-bottom: 5px;">Metode 2: URL Task (Untuk aaPanel / Cloud Hosting)</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <?php 
+                    $cronToken = getSettingValue('CRON_TOKEN');
+                    if (!$cronToken) {
+                        $cronToken = bin2hex(random_bytes(16));
+                        // This will be saved on next save_integrations or lazy sync in run.php
+                    }
+                    $cronUrl = APP_URL . "/cron/run.php?token=" . $cronToken;
+                    ?>
+                    <input type="text" id="cron_web_url" readonly
+                        value="<?php echo $cronUrl; ?>"
+                        style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,136,0.3); color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-family: monospace; cursor: pointer;"
+                        onclick="this.select()">
+                    <button type="button" onclick="copyWebhookUrl('cron_web_url', this)" style="background: #00ff88; color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap;">
+                        <i class="fas fa-copy"></i> Salin
+                    </button>
+                </div>
+                <input type="hidden" name="cron_token" value="<?php echo $cronToken; ?>">
+            </div>
         </div>
-        
+
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save"></i> Simpan
         </button>
