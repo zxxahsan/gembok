@@ -102,15 +102,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($rows as $rowNum => $data) {
             $actualRow = $rowNum + 2; // +2 because row 1 is header
             
-            // Map columns - expected order: Nama, No HP, PPPoE Username, Paket, Tgl Isolir, Alamat, Latitude, Longitude
+            // Map columns - expected order: Nama, No HP, PPPoE Username, Paket, Status, Tgl Isolir, Alamat, Latitude, Longitude
             $name = trim($data[0] ?? '');
             $phone = trim($data[1] ?? '');
             $pppoeUsername = trim($data[2] ?? '');
             $packageName = trim($data[3] ?? '');
-            $isolationDate = trim($data[4] ?? '20');
-            $address = trim($data[5] ?? '');
-            $lat = str_replace(',', '.', trim($data[6] ?? ''));
-            $lng = str_replace(',', '.', trim($data[7] ?? ''));
+            $statusText = trim($data[4] ?? 'Aktif');
+            $isolationDate = trim($data[5] ?? '20');
+            $address = trim($data[6] ?? '');
+            $lat = str_replace(',', '.', trim($data[7] ?? ''));
+            $lng = str_replace(',', '.', trim($data[8] ?? ''));
             
             // Validate required fields
             if (empty($name) || empty($phone) || empty($pppoeUsername)) {
@@ -139,6 +140,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errorCount++;
                 continue;
             }
+
+            // Map status
+            $status = (strtolower($statusText) === 'isolir' || strtolower($statusText) === 'isolated') ? 'isolated' : 'active';
             
             // Insert customer
             $customerData = [
@@ -146,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'phone' => sanitize($phone),
                 'pppoe_username' => sanitize($pppoeUsername),
                 'package_id' => $package['id'],
-                'status' => 'active',
+                'status' => $status,
                 'isolation_date' => (int)($isolationDate ?: 20),
                 'address' => sanitize($address),
                 'lat' => $lat ? (float)$lat : null,
@@ -254,6 +258,12 @@ ob_start();
                     <td>Nama paket (harus sama dengan di sistem)</td>
                     <td>Paket 10 Mbps</td>
                     <td><span class="badge badge-success">Ya</span></td>
+                </tr>
+                <tr>
+                    <td>Status</td>
+                    <td>Status pelanggan (Aktif / Isolir)</td>
+                    <td>Aktif</td>
+                    <td><span class="badge badge-info">Opsional</span></td>
                 </tr>
                 <tr>
                     <td>Tgl Isolir</td>

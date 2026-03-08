@@ -46,7 +46,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_excel') {
     
     // Header row
     echo '<Row>' . "\n";
-    $headers = ['ID', 'Nama', 'No HP', 'PPPoE Username', 'Paket', 'Harga Paket', 'Status', 'Tgl Isolir', 'Alamat', 'Latitude', 'Longitude', 'Terdaftar', 'Terakhir Update'];
+    $headers = ['Nama', 'No HP', 'PPPoE Username', 'Paket', 'Status', 'Tgl Isolir', 'Alamat', 'Latitude', 'Longitude'];
     foreach ($headers as $header) {
         echo '<Cell><Data ss:Type="String">' . htmlspecialchars($header) . '</Data></Cell>' . "\n";
     }
@@ -55,19 +55,15 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_excel') {
     // Data rows
     foreach ($customers as $customer) {
         echo '<Row>' . "\n";
-        echo '<Cell><Data ss:Type="Number">' . $customer['id'] . '</Data></Cell>' . "\n";
         echo '<Cell><Data ss:Type="String">' . htmlspecialchars($customer['name']) . '</Data></Cell>' . "\n";
         echo '<Cell><Data ss:Type="String">' . htmlspecialchars($customer['phone']) . '</Data></Cell>' . "\n";
         echo '<Cell><Data ss:Type="String">' . htmlspecialchars($customer['pppoe_username']) . '</Data></Cell>' . "\n";
         echo '<Cell><Data ss:Type="String">' . htmlspecialchars($customer['package_name'] ?? 'Tanpa Paket') . '</Data></Cell>' . "\n";
-        echo '<Cell><Data ss:Type="Number">' . ($customer['package_price'] ?? 0) . '</Data></Cell>' . "\n";
         echo '<Cell><Data ss:Type="String">' . ($customer['status'] == 'active' ? 'Aktif' : 'Isolir') . '</Data></Cell>' . "\n";
         echo '<Cell><Data ss:Type="Number">' . $customer['isolation_date'] . '</Data></Cell>' . "\n";
         echo '<Cell><Data ss:Type="String">' . htmlspecialchars($customer['address'] ?? '') . '</Data></Cell>' . "\n";
         echo '<Cell><Data ss:Type="String">' . ($customer['lat'] ?? '') . '</Data></Cell>' . "\n";
         echo '<Cell><Data ss:Type="String">' . ($customer['lng'] ?? '') . '</Data></Cell>' . "\n";
-        echo '<Cell><Data ss:Type="String">' . $customer['created_at'] . '</Data></Cell>' . "\n";
-        echo '<Cell><Data ss:Type="String">' . $customer['updated_at'] . '</Data></Cell>' . "\n";
         echo '</Row>' . "\n";
     }
     
@@ -110,37 +106,29 @@ if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
     
     // Write CSV header
     fputcsv($output, [
-        'ID',
         'Nama',
         'No HP',
         'PPPoE Username',
         'Paket',
-        'Harga Paket',
         'Status',
         'Tgl Isolir',
         'Alamat',
         'Latitude',
-        'Longitude',
-        'Terdaftar',
-        'Terakhir Update'
+        'Longitude'
     ]);
     
     // Write data rows
     foreach ($customers as $customer) {
         fputcsv($output, [
-            $customer['id'],
             $customer['name'],
             $customer['phone'],
             $customer['pppoe_username'],
             $customer['package_name'] ?? 'Tanpa Paket',
-            $customer['package_price'] ?? 0,
             $customer['status'] == 'active' ? 'Aktif' : 'Isolir',
             $customer['isolation_date'],
             $customer['address'] ?? '',
             $customer['lat'] ?? '',
-            $customer['lng'] ?? '',
-            $customer['created_at'],
-            $customer['updated_at']
+            $customer['lng'] ?? ''
         ]);
     }
     
@@ -243,6 +231,12 @@ ob_start();
                     <td>Nama paket (harus sama dengan di sistem)</td>
                     <td>Paket 10 Mbps</td>
                     <td><span class="badge badge-success">Ya</span></td>
+                </tr>
+                <tr>
+                    <td>Status</td>
+                    <td>Status pelanggan (Aktif / Isolir)</td>
+                    <td>Aktif</td>
+                    <td><span class="badge badge-info">Opsional</span></td>
                 </tr>
                 <tr>
                     <td>Tgl Isolir</td>
