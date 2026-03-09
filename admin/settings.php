@@ -187,9 +187,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $newPassword = $_POST['new_password'];
                 $confirmPassword = $_POST['confirm_password'];
                 
-                $admin = getCurrentAdmin();
+                $sessionAdmin = getCurrentAdmin();
+                $admin = getAdmin($sessionAdmin['id']);
                 
-                if (!password_verify($currentPassword, $admin['password'])) {
+                if (!$admin || !password_verify($currentPassword, $admin['password'])) {
                     setFlash('error', 'Password saat ini salah');
                     redirect('settings.php');
                 }
