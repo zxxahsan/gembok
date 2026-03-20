@@ -33,9 +33,10 @@ function runScheduler() {
             $pdo->prepare("INSERT IGNORE INTO cron_schedules (name, task_type, schedule_days, schedule_time, is_active) VALUES (?, ?, ?, ?, ?)")
                 ->execute(['System Heartbeat', 'system_ping', 'every_minute', '00:00', 1]);
         }
-        
-        // Self-heal: Force critical jobs to check continuously instead of daily, and reset the next_run cache so it doesn't wait until tomorrow!
-        $pdo->exec("UPDATE cron_schedules SET schedule_days = 'every_minute', next_run = NOW() WHERE task_type IN ('auto_isolir', 'auto_invoice') AND schedule_days != 'every_minute'");
+        // Self-heal: Force critical jobs to check continuously instead of daily
+        $pdo->exec("UPDATE cron_schedules SET schedule_days = 'every_minute' WHERE task_type IN ('auto_isolir', 'auto_invoice')");
+        // Self-heal: If any every_minute job is stuck more than 5 minutes in the future (due to old daily caching), pull it back to NOW
+        $pdo->exec("UPDATE cron_schedules SET next_run = NULL WHERE schedule_days = 'every_minute' AND next_run > DATE_ADD(NOW(), INTERVAL 5 MINUTE)");
 
         // Get all active schedules
         $schedules = fetchAll("
