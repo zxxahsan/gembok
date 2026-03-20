@@ -30,24 +30,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // ACTION: Create Backup
         if ($action === 'create') {
-            $backupFile = $backupDir . 'backup_' . date('Y-m-d_H-i-s') . '.zip';
+            $backupType = $_POST['backup_type'] ?? 'all';
             $dbDumpFile = $backupDir . 'database_dump.sql';
             
-            // 1. Database dump
             $dbHost = DB_HOST;
             $dbName = DB_NAME;
             $dbUser = DB_USER;
             $dbPass = DB_PASS;
             $passStr = empty($dbPass) ? "" : "-p" . escapeshellarg($dbPass);
             $command = sprintf("mysqldump -h %s -u %s %s %s > %s 2>&1", escapeshellarg($dbHost), escapeshellarg($dbUser), $passStr, escapeshellarg($dbName), escapeshellarg($dbDumpFile));
-            exec($command, $output, $returnCode);
             
-            if ($returnCode === 0 && file_exists($dbDumpFile)) {
-                // 2. Zip everything (Full System)
+            if ($backupType === 'db') {
+                $backupFile = $backupDir . 'backup_db_' . date('Y-m-d_H-i-s') . '.sql';
+                exec($command, $output, $returnCode);
+                if ($returnCode === 0 && file_exists($dbDumpFile)) {
+                    rename($dbDumpFile, $backupFile);
+                    setFlash('success', 'Backup Database berhasil dibuat.');
+                } else {
+                    @unlink($dbDumpFile);
+                    $errorMsg = empty($output) ? "mysqldump error" : implode(", ", $output);
+                    setFlash('error', "Gagal mem-backup database. Error: " . $errorMsg);
+                }
+            } else {
+                $backupFile = $backupDir . 'backup_' . $backupType . '_' . date('Y-m-d_H-i-s') . '.zip';
                 $zip = new ZipArchive();
                 if ($zip->open($backupFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
                     $rootPath = realpath(__DIR__ . '/../');
-                    $zip->addFile($dbDumpFile, 'database_dump.sql');
+                    
+                    if ($backupType === 'all') {
+                        exec($command, $output, $returnCode);
+                        if ($returnCode === 0 && file_exists($dbDumpFile)) {
+                            $zip->addFile($dbDumpFile, 'database_dump.sql');
+                        } else {
+                            @unlink($dbDumpFile);
+                            setFlash('error', 'Gagal mem-backup database, pembentukan file ZIP dihentikan.');
+                            header("Location: backup.php");
+                            exit;
+                        }
+                    }
                     
                     $files = new RecursiveIteratorIterator(
                         new RecursiveDirectoryIterator($rootPath),
@@ -58,7 +78,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $filePath = $file->getRealPath();
                             $relativePath = substr($filePath, strlen($rootPath) + 1);
                             
-                            // Prevent infinite loops or zipping huge unwanted directories
                             if (strpos($relativePath, 'backups') === 0 || strpos($relativePath, '.git') === 0 || strpos($relativePath, 'gembokneew-temp') === 0) {
                                 continue; 
                             }
@@ -67,14 +86,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     $zip->close();
                     @unlink($dbDumpFile);
-                    setFlash('success', 'Full Backup berhasil dbuat (Files + Database).');
+                    setFlash('success', 'Backup (' . ($backupType === 'all' ? 'Files+DB' : 'Files Only') . ') berhasil dbuat.');
                 } else {
                     @unlink($dbDumpFile);
                     setFlash('error', 'Gagal memproses ZipArchive. Pastikan ekstensi ZIP PHP aktif.');
                 }
-            } else {
-                $errorMsg = empty($output) ? "mysqldump error" : implode(", ", $output);
-                setFlash('error', "Gagal mem-backup database. Error: " . $errorMsg);
             }
             header("Location: backup.php");
             exit;
@@ -87,8 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $fileName = basename($_FILES['backup_file']['name']);
                 
                 $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-                if ($fileExtension !== 'zip') {
-                    setFlash('error', 'Hanya file .zip (Full System) yang diperbolehkan.');
+                if (!in_array($fileExtension, ['zip', 'sql'])) {
+                    setFlash('error', 'Hanya file .zip atau .sql yang diperbolehkan.');
                 } else {
                     $destPath = $backupDir . 'uploaded_' . time() . '_' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $fileName);
                     if (move_uploaded_file($fileTmpPath, $destPath)) {
@@ -98,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             } else {
-                setFlash('error', 'Pilih file backup (ZIP) terlebih dahulu.');
+                setFlash('error', 'Pilih file backup (ZIP/SQL) terlebih dahulu.');
             }
             header("Location: backup.php");
             exit;
@@ -108,38 +124,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'restore' && isset($_POST['file'])) {
             $fileName = basename($_POST['file']);
             $filePath = $backupDir . $fileName;
+            $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
 
-            if (file_exists($filePath) && pathinfo($fileName, PATHINFO_EXTENSION) === 'zip') {
-                $zip = new ZipArchive();
-                if ($zip->open($filePath) === TRUE) {
-                    $rootPath = realpath(__DIR__ . '/../');
-                    // Extract files 
-                    $zip->extractTo($rootPath);
-                    $zip->close();
-                    
-                    // Restore database
-                    $dbDumpFile = $rootPath . '/database_dump.sql';
-                    if (file_exists($dbDumpFile)) {
-                        $dbHost = DB_HOST;
-                        $dbName = DB_NAME;
-                        $dbUser = DB_USER;
-                        $dbPass = DB_PASS;
-                        $passStr = empty($dbPass) ? "" : "-p" . escapeshellarg($dbPass);
-                        $command = sprintf("mysql -h %s -u %s %s %s < %s 2>&1", escapeshellarg($dbHost), escapeshellarg($dbUser), $passStr, escapeshellarg($dbName), escapeshellarg($dbDumpFile));
-                        exec($command, $output, $returnCode);
+            if (file_exists($filePath)) {
+                if ($ext === 'zip') {
+                    $zip = new ZipArchive();
+                    if ($zip->open($filePath) === TRUE) {
+                        $rootPath = realpath(__DIR__ . '/../');
+                        $zip->extractTo($rootPath);
+                        $zip->close();
+                        
+                        $dbDumpFile = $rootPath . '/database_dump.sql';
+                        if (file_exists($dbDumpFile)) {
+                            $dbHost = DB_HOST;
+                            $dbName = DB_NAME;
+                            $dbUser = DB_USER;
+                            $dbPass = DB_PASS;
+                            $passStr = empty($dbPass) ? "" : "-p" . escapeshellarg($dbPass);
+                            $command = sprintf("mysql -h %s -u %s %s %s < %s 2>&1", escapeshellarg($dbHost), escapeshellarg($dbUser), $passStr, escapeshellarg($dbName), escapeshellarg($dbDumpFile));
+                            exec($command, $output, $returnCode);
 
-                        if ($returnCode === 0) {
-                            @unlink($dbDumpFile);
-                            setFlash('success', 'Seluruh file dan database berhasil di-restore!');
+                            if ($returnCode === 0) {
+                                @unlink($dbDumpFile);
+                                setFlash('success', 'Seluruh file dan database berhasil di-restore!');
+                            } else {
+                                $errorMsg = empty($output) ? "mysql error" : implode(", ", $output);
+                                setFlash('error', 'Gagal me-restore SQL. Error: ' . $errorMsg);
+                            }
                         } else {
-                            $errorMsg = empty($output) ? "mysql error" : implode(", ", $output);
-                            setFlash('error', 'Gagal me-restore SQL. Error: ' . $errorMsg);
+                            setFlash('success', 'Berhasil me-restore Files ke web, (File ZIP ini tidak memuat Database).');
                         }
                     } else {
-                        setFlash('error', 'File ZIP tidak berisi database_dump.sql.');
+                        setFlash('error', 'Gagal membuka file ZIP untuk di-restore.');
                     }
-                } else {
-                    setFlash('error', 'Gagal membuka file ZIP untuk di-restore.');
+                } elseif ($ext === 'sql') {
+                    $dbHost = DB_HOST;
+                    $dbName = DB_NAME;
+                    $dbUser = DB_USER;
+                    $dbPass = DB_PASS;
+                    $passStr = empty($dbPass) ? "" : "-p" . escapeshellarg($dbPass);
+                    $command = sprintf("mysql -h %s -u %s %s %s < %s 2>&1", escapeshellarg($dbHost), escapeshellarg($dbUser), $passStr, escapeshellarg($dbName), escapeshellarg($filePath));
+                    exec($command, $output, $returnCode);
+
+                    if ($returnCode === 0) {
+                        setFlash('success', 'Database berhasil di-restore!');
+                    } else {
+                        $errorMsg = empty($output) ? "mysql error" : implode(", ", $output);
+                        setFlash('error', 'Gagal me-restore database SQL. Error: ' . $errorMsg);
+                    }
                 }
             } else {
                 setFlash('error', 'File backup tidak valid atau tidak ditemukan.');
@@ -153,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fileName = basename($_POST['file']);
             $filePath = $backupDir . $fileName;
 
-            if (file_exists($filePath) && pathinfo($fileName, PATHINFO_EXTENSION) === 'zip') {
+            if (file_exists($filePath) && in_array(strtolower(pathinfo($fileName, PATHINFO_EXTENSION)), ['zip', 'sql'])) {
                 if (unlink($filePath)) {
                     setFlash('success', 'File backup berhasil dihapus.');
                 } else {
@@ -171,9 +203,10 @@ if (isset($_GET['download'])) {
     $fileName = basename($_GET['download']);
     $filePath = $backupDir . $fileName;
 
-    if (file_exists($filePath) && pathinfo($fileName, PATHINFO_EXTENSION) === 'zip') {
+    $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+    if (file_exists($filePath) && in_array($ext, ['zip', 'sql'])) {
         header('Content-Description: File Transfer');
-        header('Content-Type: application/zip');
+        header('Content-Type: ' . ($ext === 'zip' ? 'application/zip' : 'application/octet-stream'));
         header('Content-Disposition: attachment; filename="' . $fileName . '"');
         header('Expires: 0');
         header('Cache-Control: must-revalidate');
@@ -191,7 +224,9 @@ if (isset($_GET['download'])) {
 // Get list of backup files
 $backupFiles = [];
 if (is_dir($backupDir)) {
-    $files = glob($backupDir . '*.zip');
+    $filesZip = glob($backupDir . '*.zip') ?: [];
+    $filesSql = glob($backupDir . '*.sql') ?: [];
+    $files = array_merge($filesZip, $filesSql);
     foreach ($files as $file) {
         $backupFiles[] = [
             'name' => basename($file),
@@ -224,30 +259,37 @@ ob_start();
     <div class="col-md-4" style="flex: 1; min-width: 300px;">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-plus-circle"></i> Buat Backup Full System</h3>
+                <h3 class="card-title"><i class="fas fa-plus-circle"></i> Buat Backup</h3>
             </div>
             <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.95rem;">
-                Sistem akan membuat file <code>.zip</code> yang membungkus 100% keseluruhan file proyek beserta Dump Database sebagai "full system backup". Proses ini mungkin memerlukan waktu sesaat.
+                Pilih cakupan backup yang ingin Anda buat untuk proyek ini.
             </p>
-            <form method="POST" onsubmit="return confirm('Mulai proses full sistem backup?');">
+            <form method="POST" onsubmit="return confirm('Mulai proses backup?');">
                 <input type="hidden" name="action" value="create">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <select name="backup_type" class="form-control" style="background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--border-color); padding: 8px;">
+                        <option value="all" style="color: #000;">Full System (Files + Database)</option>
+                        <option value="db" style="color: #000;">Database Only (.sql)</option>
+                        <option value="files" style="color: #000;">Source Code Only (.zip)</option>
+                    </select>
+                </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
-                    <i class="fas fa-download"></i> Backup Sekarang
+                    <i class="fas fa-download"></i> Buat Backup Sekarang
                 </button>
             </form>
         </div>
 
         <div class="card" style="margin-top: 20px;">
             <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-upload"></i> Upload Backup ZIP</h3>
+                <h3 class="card-title"><i class="fas fa-upload"></i> Upload Backup</h3>
             </div>
             <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.95rem;">
-                Upload file <code>.zip</code> Full Backup dari komputer Anda untuk dipulihkan secara penuh (Files & Database).
+                Upload file <code>.zip</code> atau <code>.sql</code> Backup Anda untuk dipulihkan secara instan.
             </p>
             <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="upload">
                 <div class="form-group">
-                    <input type="file" name="backup_file" class="form-control" accept=".zip" required style="padding: 10px;">
+                    <input type="file" name="backup_file" class="form-control" accept=".zip,.sql" required style="padding: 10px;">
                 </div>
                 <button type="submit" class="btn btn-success" style="width: 100%; justify-content: center;">
                     <i class="fas fa-cloud-upload-alt"></i> Upload
