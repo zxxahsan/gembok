@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($action === 'check') {
         // Fallback URL if not defined in config
-        $defaultUpdateUrl = 'https://raw.githubusercontent.com/alijayanet/gembok-simple/main/version.txt';
+        $defaultUpdateUrl = 'https://raw.githubusercontent.com/zxxahsan/gembok/main/version.txt';
         $remoteUrl = defined('GEMBOK_UPDATE_VERSION_URL') ? GEMBOK_UPDATE_VERSION_URL : $defaultUpdateUrl;
         
         if ($remoteUrl === '') {
@@ -183,6 +183,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $statusMessage = implode("\n", $output);
         $statusType = $returnVar === 0 ? 'success' : 'error';
+    } elseif ($action === 'bump_version') {
+        $newVersion = trim($_POST['new_version'] ?? '');
+        if ($newVersion !== '') {
+            if (file_put_contents($localVersionFile, $newVersion) !== false) {
+                $statusMessage = 'Versi aplikasi berhasil dinaikkan menjadi ' . htmlspecialchars($newVersion) . '. Jangan lupa Commit dan Push ke GitHub!';
+                $statusType = 'success';
+                $localVersion = $newVersion;
+            } else {
+                $statusMessage = 'Gagal menyimpan versi baru. Pastikan folder dapat ditulis.';
+                $statusType = 'error';
+            }
+        }
     }
 }
 
@@ -220,9 +232,21 @@ ob_start();
             Catatan:
             <br>- Update akan menjalankan perintah <code>git pull</code> di folder aplikasi.
             <br>- Pastikan server memiliki akses git dan izin file yang benar.
-            <br>- Untuk cek versi terbaru, aplikasi otomatis menggunakan <code>GEMBOK_UPDATE_VERSION_URL</code> dari config.php yang mengarah ke file <code>version.txt</code> di GitHub.
-            <br>- Setelah instalasi awal, hapus file <code>install.sh</code> dari server jika pernah digunakan, agar tidak dijalankan ulang dan mengganggu data yang sudah ada.
+            <br>- Mengecek ke repositori GitHub <code>zxxahsan/gembok</code>.
+            <br>- Setelah instalasi awal, hapus file <code>install.sh</code> dari server jika pernah digunakan.
         </p>
+
+        <div style="margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+            <h4><i class="fas fa-code"></i> Developer Mode: Set Versi Baru</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">
+                Ubah angka versi di sini <strong>SEBELUM</strong> Anda melakukan Commit & Push ke GitHub. <br>Dengan begitu, server klien yang menggunakan aplikasi ini akan mendeteksi update baru.
+            </p>
+            <form method="POST" style="display: flex; gap: 10px; align-items: center;">
+                <input type="hidden" name="action" value="bump_version">
+                <input type="text" name="new_version" value="<?php echo htmlspecialchars($localVersion); ?>" class="form-control" style="width: 150px; padding: 8px;">
+                <button type="submit" class="btn btn-warning" style="padding: 8px 15px;">Set Versi Baru</button>
+            </form>
+        </div>
     </div>
 </div>
 
