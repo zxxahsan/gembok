@@ -14,6 +14,13 @@ $totalOnu = count($onuLocations);
 $onlineOnu = 0;
 $offlineOnu = 0;
 
+$mapCenter = ['lat' => -6.252471, 'lng' => 107.920660];
+$centerQuery = fetchOne("SELECT AVG(lat) as avg_lat, AVG(lng) as avg_lng FROM onu_locations WHERE lat IS NOT NULL AND lng IS NOT NULL");
+if ($centerQuery && $centerQuery['avg_lat']) {
+    $mapCenter['lat'] = $centerQuery['avg_lat'];
+    $mapCenter['lng'] = $centerQuery['avg_lng'];
+}
+
 $onuData = [];
 foreach ($onuLocations as $onu) {
     $deviceInfo = genieacsGetDeviceInfo($onu['serial_number']);
@@ -486,7 +493,7 @@ let odpLinksCache = [];
 let tempOdpMarker = null;
 
 function initMap() {
-    map = L.map('map').setView([-6.252471, 107.920660], 16);
+    map = L.map('map').setView([<?php echo $mapCenter['lat']; ?>, <?php echo $mapCenter['lng']; ?>], 15);
     
     // Google Satellite (Hybrid)
     satelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{
@@ -834,7 +841,7 @@ function toggleLayer() {
 }
 
 function resetMap() {
-    map.setView([-6.252471, 107.920660], 16);
+    map.setView([<?php echo $mapCenter['lat']; ?>, <?php echo $mapCenter['lng']; ?>], 15);
 }
 
 function useMapCenter() {

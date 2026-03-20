@@ -202,6 +202,16 @@ $customersTableExists = tableExists('customers');
 $packagesTableExists = tableExists('packages');
 $routersTableExists = tableExists('routers');
 
+// Calculate map center from onu_locations or fallback
+$mapCenter = ['lat' => -6.200000, 'lng' => 106.816666];
+if (tableExists('onu_locations')) {
+    $centerQuery = fetchOne("SELECT AVG(lat) as avg_lat, AVG(lng) as avg_lng FROM onu_locations WHERE lat IS NOT NULL AND lng IS NOT NULL");
+    if ($centerQuery && $centerQuery['avg_lat']) {
+        $mapCenter['lat'] = $centerQuery['avg_lat'];
+        $mapCenter['lng'] = $centerQuery['avg_lng'];
+    }
+}
+
 // Get technicians
 $technicians = fetchAll("SELECT * FROM technician_users WHERE status = 'active' ORDER BY name ASC");
 
@@ -879,7 +889,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initMap() {
     // Add map
-    map = L.map('map-picker').setView([-6.200000, 106.816666], 13);
+    map = L.map('map-picker').setView([<?php echo $mapCenter['lat']; ?>, <?php echo $mapCenter['lng']; ?>], 14);
     
     // Base layers
     var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -916,7 +926,7 @@ function initMap() {
 function initEditMap() {
     if (editMap) return;
     
-    editMap = L.map('edit-map-picker').setView([-6.200000, 106.816666], 13);
+    editMap = L.map('edit-map-picker').setView([<?php echo $mapCenter['lat']; ?>, <?php echo $mapCenter['lng']; ?>], 14);
     
     // Base layers
     var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

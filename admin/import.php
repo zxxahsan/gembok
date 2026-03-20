@@ -162,6 +162,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (insert('customers', $customerData)) {
                 $successCount++;
+                
+                // Sync to onu_locations if lat/lng present
+                if (!empty($lat) && !empty($lng)) {
+                    $exists = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$pppoeUsername]);
+                    $payload = [
+                        'name' => sanitize($name),
+                        'lat' => (float)$lat,
+                        'lng' => (float)$lng,
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ];
+                    if ($exists) {
+                        update('onu_locations', $payload, 'serial_number = ?', [$pppoeUsername]);
+                    } else {
+                        $payload['serial_number'] = sanitize($pppoeUsername);
+                        $payload['created_at'] = date('Y-m-d H:i:s');
+                        insert('onu_locations', $payload);
+                    }
+                }
             } else {
                 $errors[] = "Baris {$actualRow}: Gagal menyimpan pelanggan!";
                 $errorCount++;
