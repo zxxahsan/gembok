@@ -383,6 +383,9 @@ function isolateCustomer($customerId)
     if ($package && !empty($customer['pppoe_username'])) {
         // Call MikroTik API to change profile on assigned router
         mikrotikSetProfile($customer['pppoe_username'], $package['profile_isolir'], $customer['router_id']);
+        
+        // Kick active session so they get the new isolated profile immediately
+        mikrotikRemoveActivePppoe($customer['pppoe_username'], $customer['router_id']);
 
         // Send WhatsApp notification
         $message = "Halo {$customer['name']},\n\nPembayaran internet Anda sudah melewati tanggal jatuh tempo.\n\nMohon segera lakukan pembayaran untuk mengaktifkan kembali koneksi internet Anda.\n\nTerima kasih.";
@@ -421,6 +424,9 @@ function unisolateCustomer($customerId)
     if ($package && !empty($customer['pppoe_username'])) {
         // Call MikroTik API to change profile on assigned router
         mikrotikSetProfile($customer['pppoe_username'], $package['profile_normal'], $customer['router_id']);
+        
+        // Kick active session so they instantly get reconnect and regain normal internet access
+        mikrotikRemoveActivePppoe($customer['pppoe_username'], $customer['router_id']);
     }
 
     logActivity('UNISOLATE_CUSTOMER', "Customer ID: {$customerId}");
