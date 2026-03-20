@@ -61,7 +61,7 @@ try {
     echo "4. Update tabel trouble_tickets (foto bukti)... ";
     $check4 = $pdo->query("SHOW COLUMNS FROM trouble_tickets LIKE 'photo_proof'");
     if ($check4->rowCount() == 0) {
-        $sql4 = "ALTER TABLE trouble_tickets ADD COLUMN photo_proof VARCHAR(255) DEFAULT NULL";
+        $sql4 = "ALTER TABLE trouble_tickets ADD COLUMN photo_proof TEXT DEFAULT NULL";
         $pdo->exec($sql4);
         echo "<span style='color:green'>OK</span><br>";
     } else {
@@ -72,7 +72,7 @@ try {
     echo "5. Update tabel customers (foto bukti instalasi)... ";
     $check5 = $pdo->query("SHOW COLUMNS FROM customers LIKE 'installation_photo'");
     if ($check5->rowCount() == 0) {
-        $sql5 = "ALTER TABLE customers ADD COLUMN installation_photo VARCHAR(255) DEFAULT NULL";
+        $sql5 = "ALTER TABLE customers ADD COLUMN installation_photo TEXT DEFAULT NULL";
         $pdo->exec($sql5);
         echo "<span style='color:green'>OK</span><br>";
     } else {

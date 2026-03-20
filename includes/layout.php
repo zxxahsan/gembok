@@ -1148,6 +1148,12 @@ if (isset($_GET['switch_router'])) {
                     <span>Update</span>
                 </a>
 
+                <a href="<?php echo APP_URL; ?>/admin/backup.php"
+                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'backup.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-database"></i>
+                    <span>Backup & Restore</span>
+                </a>
+
                 <a href="<?php echo APP_URL; ?>/admin/routers.php"
                     class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'routers.php' ? 'active' : ''; ?>">
                     <i class="fas fa-server"></i>

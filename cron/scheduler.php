@@ -173,6 +173,12 @@ function runAutoIsolir($pdo)
         // Isolate customer
         if (isolateCustomer($invoice['id'])) {
             echo "  ✓ Customer isolated\n";
+            
+            // Kick the user so they reconnect to the isolated profile immediately
+            if (!empty($invoice['pppoe_username'])) {
+                mikrotikRemoveActivePppoe($invoice['pppoe_username']);
+                echo "  ✓ Dropped active PPPoE connection\n";
+            }
 
             // Send WhatsApp notification
             $message = "Halo {$invoice['name']},\n\nPembayaran internet Anda sudah melewati tanggal jatuh tempo.\n\nTagihan: " . formatCurrency($invoice['amount']) . "\nInvoice: {$invoice['invoice_number']}\n\nMohon segera lakukan pembayaran untuk mengaktifkan kembali koneksi internet Anda.\n\nTerima kasih.";

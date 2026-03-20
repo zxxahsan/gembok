@@ -80,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             require_once '../includes/whatsapp.php';
                             $msg = "🔔 *TUGAS INSTALASI BARU*\n\n";
                             $msg .= "Pelanggan: {$data['name']}\n";
+                            $msg .= "Kontak (WA): {$data['phone']}\n";
                             $msg .= "Alamat: " . ($data['address'] ?: '-') . "\n";
                             $msg .= "Paket: " . fetchOne("SELECT name FROM packages WHERE id = ?", [$data['package_id']])['name'] . "\n";
                             $msg .= "Maps: https://www.google.com/maps?q={$data['lat']},{$data['lng']}\n\n";
@@ -378,15 +379,45 @@ ob_start();
                 </select>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Teknisi Instalasi (Opsional)</label>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label" style="font-weight: bold; color: var(--neon-cyan);">Status Pemasangan</label>
+                <div style="display: flex; gap: 20px; margin-top: 5px;">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="install_status" value="installed" checked onchange="toggleTechDropdown()">
+                        <span>Sudah Terpasang</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="install_status" value="pending" onchange="toggleTechDropdown()">
+                        <span>Belum Terpasang (Tugaskan Teknisi)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group" id="techDropdownContainer" style="display: none; padding: 15px; background: rgba(0,255,136,0.1); border: 1px solid var(--neon-green); border-radius: 8px; grid-column: 1 / -1;">
+                <label class="form-label">Tugaskan Teknisi Instalasi</label>
                 <select name="installed_by" class="form-control" style="color: var(--text-primary); background: var(--bg-card);">
                     <option value="">-- Pilih Teknisi --</option>
                     <?php foreach ($technicians as $tech): ?>
                         <option value="<?php echo $tech['id']; ?>"><?php echo htmlspecialchars($tech['name']); ?></option>
                     <?php endforeach; ?>
                 </select>
+                <small style="color: var(--text-muted); display: block; margin-top: 5px;">
+                    <i class="fab fa-whatsapp"></i> Teknisi otomatis akan mendapat tugas via WhatsApp dengan detail kontak dan lokasi maps.
+                </small>
             </div>
+            
+            <script>
+                function toggleTechDropdown() {
+                    const status = document.querySelector('input[name="install_status"]:checked').value;
+                    const container = document.getElementById('techDropdownContainer');
+                    if (status === 'pending') {
+                        container.style.display = 'block';
+                    } else {
+                        container.style.display = 'none';
+                        document.querySelector('select[name="installed_by"]').value = '';
+                    }
+                }
+            </script>
             
             <div class="form-group">
                 <label class="form-label">Tanggal Isolir (1-28)</label>

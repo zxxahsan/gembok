@@ -137,6 +137,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         setFlash('success', "Pembayaran berhasil untuk $monthsCount bulan.");
         
+        // Check if customer was isolated and unisolate them
+        $wasIsolated = fetchOne("SELECT status FROM customers WHERE id = ?", [$id]);
+        if ($wasIsolated && $wasIsolated['status'] === 'isolated') {
+            unisolateCustomer($id);
+            if (!empty($customer['pppoe_username'])) {
+                mikrotikRemoveActivePppoe($customer['pppoe_username'], $customer['router_id']);
+            }
+        }
+
         // Redirect to Print Page
         $ids = implode(',', $generatedInvoiceIds);
         redirect("print_invoice.php?ids=$ids");

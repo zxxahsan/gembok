@@ -748,12 +748,12 @@ function insertDefaultData() {
                 
                 <?php
                 switch ($currentStep) {
-                    case 1: include 'install_steps/step1_server.php'; break;
-                    case 2: include 'install_steps/step2_database.php'; break;
-                    case 3: include 'install_steps/step3_admin.php'; break;
-                    case 4: include 'install_steps/step4_mikrotik.php'; break;
-                    case 5: include 'install_steps/step5_integrations.php'; break;
-                    case 6: include 'install_steps/step6_finish.php'; break;
+                    case 1: include __DIR__ . '/install_steps/step1_server.php'; break;
+                    case 2: include __DIR__ . '/install_steps/step2_database.php'; break;
+                    case 3: include __DIR__ . '/install_steps/step3_admin.php'; break;
+                    case 4: include __DIR__ . '/install_steps/step4_mikrotik.php'; break;
+                    case 5: include __DIR__ . '/install_steps/step5_integrations.php'; break;
+                    case 6: include __DIR__ . '/install_steps/step6_finish.php'; break;
                 }
                 ?>
             <?php endif; ?>

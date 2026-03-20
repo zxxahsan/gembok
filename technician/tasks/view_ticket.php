@@ -5,6 +5,11 @@ requireTechnicianLogin();
 $tech = $_SESSION['technician'];
 $ticketId = $_GET['id'] ?? 0;
 
+try {
+    $pdo = getDB();
+    $pdo->exec("ALTER TABLE trouble_tickets MODIFY photo_proof TEXT;");
+} catch(Exception $e) {}
+
 // Fetch Ticket Detail
 $ticket = fetchOne("
     SELECT t.*, c.name as customer_name, c.address, c.phone, c.lat, c.lng 
@@ -31,70 +36,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect("view_ticket.php?id=$ticketId");
         }
         
-        // Handle Photo Upload (Wajib jika resolved)
-        if (!empty($_FILES['photo']['name'])) {
+        // Handle Multiple Photo Upload (Wajib jika resolved)
+        if (!empty($_FILES['photos']['name'][0])) {
             $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-            $filename = $_FILES['photo']['name'];
-            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            $uploadedPhotos = [];
             
-            if (in_array($ext, $allowed)) {
-                $newName = "ticket_{$ticketId}_" . time() . ".jpg"; // Convert all to jpg
-                $targetDir = "../../uploads/tickets/";
-                $targetFile = $targetDir . $newName;
-                
-                // Resize & Compress Image
-                $source = $_FILES['photo']['tmp_name'];
-                $imageInfo = @getimagesize($source);
-                
-                if (!$imageInfo) {
-                    setFlash('error', 'File bukan gambar valid.');
-                    redirect("view_ticket.php?id=$ticketId");
+            $fileCount = count($_FILES['photos']['name']);
+            for ($i = 0; $i < $fileCount; $i++) {
+                if ($_FILES['photos']['error'][$i] === UPLOAD_ERR_OK) {
+                    $filename = $_FILES['photos']['name'][$i];
+                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                    
+                    if (in_array($ext, $allowed)) {
+                        $newName = "ticket_{$ticketId}_" . time() . "_{$i}.jpg";
+                        $targetDir = "../../uploads/tickets/";
+                        if (!is_dir($targetDir)) @mkdir($targetDir, 0777, true);
+                        $targetFile = $targetDir . $newName;
+                        
+                        $source = $_FILES['photos']['tmp_name'][$i];
+                        $imageInfo = @getimagesize($source);
+                        
+                        if ($imageInfo) {
+                            list($width, $height) = $imageInfo;
+                            $newWidth = 800; // Compress
+                            $newHeight = ($height / $width) * $newWidth;
+                            
+                            $tmpImg = imagecreatetruecolor($newWidth, $newHeight);
+                            $sourceImg = null;
+                            
+                            switch ($ext) {
+                                case 'jpg': case 'jpeg': $sourceImg = @imagecreatefromjpeg($source); break;
+                                case 'png': $sourceImg = @imagecreatefrompng($source); break;
+                                case 'webp': $sourceImg = @imagecreatefromwebp($source); break;
+                            }
+                            
+                            if ($sourceImg) {
+                                if ($ext == 'png' || $ext == 'webp') {
+                                    imagecolortransparent($tmpImg, imagecolorallocatealpha($tmpImg, 0, 0, 0, 127));
+                                    imagealphablending($tmpImg, false);
+                                    imagesavealpha($tmpImg, true);
+                                }
+                                
+                                imagecopyresampled($tmpImg, $sourceImg, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                                
+                                if (imagejpeg($tmpImg, $targetFile, 70)) {
+                                    $uploadedPhotos[] = "uploads/tickets/" . $newName;
+                                    imagedestroy($tmpImg);
+                                    imagedestroy($sourceImg);
+                                }
+                            }
+                        }
+                    }
                 }
-                
-                list($width, $height) = $imageInfo;
-                
-                // Target width 800px
-                $newWidth = 800;
-                $newHeight = ($height / $width) * $newWidth;
-                
-                $tmpImg = imagecreatetruecolor($newWidth, $newHeight);
-                $sourceImg = null;
-                
-                switch ($ext) {
-                    case 'jpg': case 'jpeg': $sourceImg = @imagecreatefromjpeg($source); break;
-                    case 'png': $sourceImg = @imagecreatefrompng($source); break;
-                    case 'webp': $sourceImg = @imagecreatefromwebp($source); break;
-                }
-                
-                if (!$sourceImg) {
-                    setFlash('error', 'Gagal memproses gambar. File mungkin rusak.');
-                    redirect("view_ticket.php?id=$ticketId");
-                }
-                
-                // Handle transparency for PNG/WEBP
-                if ($ext == 'png' || $ext == 'webp') {
-                    imagecolortransparent($tmpImg, imagecolorallocatealpha($tmpImg, 0, 0, 0, 127));
-                    imagealphablending($tmpImg, false);
-                    imagesavealpha($tmpImg, true);
-                }
-                
-                imagecopyresampled($tmpImg, $sourceImg, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-                
-                // Save as JPG with 70% quality
-                if (imagejpeg($tmpImg, $targetFile, 70)) {
-                    $photoPath = "uploads/tickets/" . $newName;
-                    imagedestroy($tmpImg);
-                    imagedestroy($sourceImg);
-                } else {
-                    setFlash('error', 'Gagal memproses gambar.');
-                    redirect("view_ticket.php?id=$ticketId");
-                }
+            }
+            
+            if (!empty($uploadedPhotos)) {
+                $photoPath = implode(',', $uploadedPhotos);
             } else {
-                setFlash('error', 'Format foto harus JPG/PNG/WEBP.');
+                setFlash('error', 'Gagal memproses gambar apa pun. Pastikan format valid.');
                 redirect("view_ticket.php?id=$ticketId");
             }
         } elseif (empty($ticket['photo_proof'])) {
-            setFlash('error', 'Wajib upload foto bukti perbaikan!');
+            setFlash('error', 'Wajib upload foto bukti perbaikan (bisa lebih dari satu)!');
             redirect("view_ticket.php?id=$ticketId");
         }
     }
@@ -343,19 +346,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <textarea name="notes" class="form-control" rows="3" placeholder="Tulis tindakan yang dilakukan..."><?php echo htmlspecialchars($ticket['notes'] ?? ''); ?></textarea>
                 
                 <div id="photo-section" style="display: <?php echo $ticket['status'] === 'resolved' ? 'block' : 'none'; ?>;">
-                    <span class="label">Foto Bukti (Wajib jika Selesai)</span>
-                    <div class="photo-preview" onclick="document.getElementById('photo-input').click()">
-                        <?php if (!empty($ticket['photo_proof'])): ?>
-                            <img src="../../<?php echo htmlspecialchars($ticket['photo_proof']); ?>" id="preview-img">
-                        <?php else: ?>
-                            <div id="placeholder" style="text-align: center; color: var(--text-secondary);">
+                    <span class="label">Foto Bukti (Wajib jika Selesai, bisa lebih dari satu)</span>
+                    <div class="photo-preview" onclick="document.getElementById('photo-input').click()" style="flex-wrap: wrap; height: auto; min-height: 200px; padding: 10px; gap: 10px;">
+                        <?php if (!empty($ticket['photo_proof'])): 
+                            $photos = explode(',', $ticket['photo_proof']);
+                            foreach($photos as $p):
+                        ?>
+                            <img src="../../<?php echo htmlspecialchars(trim($p)); ?>" class="preview-img" style="width: calc(50% - 5px); height: 150px; object-fit: cover; border-radius: 8px;">
+                        <?php endforeach; else: ?>
+                            <div id="placeholder" style="text-align: center; color: var(--text-secondary); width: 100%;">
                                 <i class="fas fa-camera" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
-                                Klik untuk ambil foto
+                                Klik untuk pilih banyak foto
                             </div>
-                            <img id="preview-img" style="display: none;">
                         <?php endif; ?>
                     </div>
-                    <input type="file" name="photo" id="photo-input" accept="image/*" capture="environment" style="display: none;" onchange="previewImage(this)">
+                    <input type="file" name="photos[]" id="photo-input" accept="image/*" multiple capture="environment" style="display: none;" onchange="previewImages(this)">
                 </div>
                 
                 <button type="submit" class="btn-submit">Simpan Perubahan</button>
@@ -378,18 +383,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         });
 
-        // Image Preview
-        function previewImage(input) {
-            if (input.files && input.files[0]) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('preview-img').src = e.target.result;
-                    document.getElementById('preview-img').style.display = 'block';
-                    if(document.getElementById('placeholder')) {
-                        document.getElementById('placeholder').style.display = 'none';
+        // Multiple Images Preview
+        function previewImages(input) {
+            if (input.files && input.files.length > 0) {
+                const container = document.querySelector('.photo-preview');
+                container.innerHTML = ''; // Clear placeholder or existing images
+                
+                for (let i = 0; i < input.files.length; i++) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'preview-img';
+                        img.style.width = 'calc(50% - 5px)';
+                        img.style.height = '150px';
+                        img.style.objectFit = 'cover';
+                        img.style.borderRadius = '8px';
+                        container.appendChild(img);
                     }
+                    reader.readAsDataURL(input.files[i]);
                 }
-                reader.readAsDataURL(input.files[0]);
             }
         }
     </script>

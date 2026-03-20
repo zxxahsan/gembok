@@ -690,6 +690,11 @@ ob_start();
                 <span>Pembayaran</span>
             </a>
             
+            <a href="trouble.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'trouble.php' ? 'active' : ''; ?>">
+                <i class="fas fa-ticket-alt"></i>
+                <span>Lapor Gangguan</span>
+            </a>
+            
             <div style="margin-top: 20px; border-top: 1px solid var(--border-color);"></div>
             
             <a href="logout.php" class="menu-item">
@@ -710,7 +715,7 @@ ob_start();
                 <i class="fas fa-wifi"></i>
                 <span>WiFi</span>
             </a>
-            <a href="dashboard.php#lapor-gangguan" class="mobile-nav-item">
+            <a href="trouble.php" class="mobile-nav-item <?php echo basename($_SERVER['PHP_SELF']) === 'trouble.php' ? 'active' : ''; ?>">
                 <i class="fas fa-ticket-alt"></i>
                 <span>Lapor</span>
             </a>

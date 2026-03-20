@@ -100,6 +100,9 @@ function handlePaidInvoice($invoiceNumber, $paymentData) {
             // Unisolate customer
             if (unisolateCustomer($invoice['customer_id'])) {
                 logActivity('AUTO_UNISOLATE', "Customer ID: {$invoice['customer_id']}");
+                if (!empty($customer['pppoe_username'])) {
+                    mikrotikRemoveActivePppoe($customer['pppoe_username'], $customer['router_id']);
+                }
             }
         }
     }

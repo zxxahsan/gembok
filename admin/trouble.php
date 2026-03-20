@@ -63,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $msg = "🚨 *TUGAS GANGGUAN BARU*\n\n";
                             $msg .= "Ticket: #{$ticketId}\n";
                             $msg .= "Pelanggan: " . ($customer['name'] ?? 'N/A') . "\n";
+                            $msg .= "Kontak (WA): " . ($customer['phone'] ?? '-') . "\n";
                             $msg .= "Alamat: " . ($customer['address'] ?? '-') . "\n";
                             $msg .= "Masalah: {$description}\n";
                             $msg .= "Prioritas: " . strtoupper($priority) . "\n\n";
@@ -102,6 +103,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     update('trouble_tickets', $updateData, 'id = ?', [$ticketId]);
                     
+                    // Check if technician changed or status updated, send WA
+                    if ($technicianId) {
+                        $notifyTech = false;
+                        if ($ticket['technician_id'] != $technicianId) {
+                            $notifyTech = true; // New tech assigned
+                        } elseif ($status != $ticket['status']) {
+                            $notifyTech = true; // Status changed, let tech know
+                        }
+                        
+                        if ($notifyTech) {
+                            $tech = fetchOne("SELECT phone, name FROM technician_users WHERE id = ?", [$technicianId]);
+                            if ($tech && !empty($tech['phone'])) {
+                                $customerDetails = fetchOne("SELECT name, phone, address FROM customers WHERE id = ?", [$ticket['customer_id']]);
+                                require_once '../includes/whatsapp.php';
+                                $msg = "🚨 *UPDATE TUGAS GANGGUAN*\n\n";
+                                $msg .= "Ticket: #{$ticketId}\n";
+                                $msg .= "Status: " . strtoupper($status) . "\n";
+                                $msg .= "Pelanggan: " . ($customerDetails['name'] ?? 'N/A') . "\n";
+                                $msg .= "Kontak (WA): " . ($customerDetails['phone'] ?? '-') . "\n";
+                                $msg .= "Alamat: " . ($customerDetails['address'] ?? '-') . "\n";
+                                $msg .= "Masalah: {$ticket['description']}\n";
+                                $msg .= "Catatan Admin: " . ($notes ?: '-') . "\n\n";
+                                $msg .= "Mohon untuk segera ditindaklanjuti. Terima kasih.";
+                                sendWhatsAppMessage($tech['phone'], $msg);
+                            }
+                        }
+                    }
+
                     // Send WhatsApp notification to customer
                     $customer = fetchOne("SELECT * FROM customers WHERE id = ?", [$ticket['customer_id']]);
                     if ($customer && $customer['phone']) {
@@ -254,6 +283,16 @@ ob_start();
         </div>
         
         <div class="form-group">
+            <label class="form-label">Tugaskan Teknisi (Opsional)</label>
+            <select name="technician_id" class="form-control" style="color: var(--text-primary); background: var(--bg-card);">
+                <option value="">-- Pilih Teknisi --</option>
+                <?php foreach ($technicians as $tech): ?>
+                    <option value="<?php echo $tech['id']; ?>"><?php echo htmlspecialchars($tech['name']); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        
+        <div class="form-group">
             <label class="form-label">Deskripsi Masalah</label>
             <textarea name="description" class="form-control" rows="3" required placeholder="Jelaskan masalah yang dialami..."></textarea>
         </div>
@@ -334,7 +373,7 @@ ob_start();
                                 <i class="fas fa-eye"></i>
                             </button>
                             <?php if ($ticket['status'] !== 'resolved'): ?>
-                                <button class="btn btn-primary btn-sm" onclick="updateStatus(<?php echo $ticket['id']; ?>, '<?php echo $ticket['status']; ?>')" title="Update Status">
+                                <button class="btn btn-primary btn-sm" onclick="updateStatus(<?php echo $ticket['id']; ?>, '<?php echo $ticket['status']; ?>', '<?php echo $ticket['technician_id'] ?? ''; ?>')" title="Update Status">
                                     <i class="fas fa-edit"></i>
                                 </button>
                             <?php endif; ?>
@@ -392,6 +431,12 @@ ob_start();
                     <strong>Catatan Teknisi:</strong>
                     <p id="view_notes" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">-</p>
                 </div>
+                <div>
+                    <strong>Foto Bukti Penyelesaian:</strong>
+                    <div id="view_photos" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                        <span style="color: var(--text-secondary); font-size: 0.9em;">Belum ada foto</span>
+                    </div>
+                </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div>
                         <strong>Dibuat:</strong>
@@ -428,6 +473,16 @@ ob_start();
                     <option value="pending">Pending</option>
                     <option value="in_progress">In Progress</option>
                     <option value="resolved">Resolved</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Tugaskan Teknisi</label>
+                <select name="technician_id" id="status_technician_id" class="form-control" style="color: var(--text-primary); background: var(--bg-card);">
+                    <option value="">-- Tidak Ada/Hapus Teknisi --</option>
+                    <?php foreach ($technicians as $tech): ?>
+                        <option value="<?php echo $tech['id']; ?>"><?php echo htmlspecialchars($tech['name']); ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             
@@ -482,6 +537,20 @@ function viewTicket(ticket) {
     document.getElementById('view_created').textContent = ticket.created_at || '-';
     document.getElementById('view_resolved').textContent = ticket.resolved_at || '-';
     
+    // Render photos
+    const photoContainer = document.getElementById('view_photos');
+    photoContainer.innerHTML = '';
+    if (ticket.photo_proof) {
+        const photos = ticket.photo_proof.split(',');
+        photos.forEach(p => {
+            if(p.trim()) {
+                photoContainer.innerHTML += `<a href="../${p.trim()}" target="_blank"><img src="../${p.trim()}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);"></a>`;
+            }
+        });
+    } else {
+        photoContainer.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.9em;">Belum ada foto</span>';
+    }
+    
     document.getElementById('viewModal').style.display = 'flex';
 }
 
@@ -490,9 +559,14 @@ function closeViewModal() {
 }
 
 // Update status
-function updateStatus(ticketId, currentStatus) {
+function updateStatus(ticketId, currentStatus, currentTechId) {
     document.getElementById('status_ticket_id').value = ticketId;
     document.getElementById('status_select').value = currentStatus;
+    
+    const techSelect = document.getElementById('status_technician_id');
+    if (techSelect) {
+        techSelect.value = currentTechId || '';
+    }
     
     // Reset notes
     const notesField = document.querySelector('#statusModal textarea[name="notes"]');

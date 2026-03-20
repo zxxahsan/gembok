@@ -5,6 +5,11 @@ requireTechnicianLogin();
 $tech = $_SESSION['technician'];
 $customerId = $_GET['id'] ?? 0;
 
+try {
+    $pdo = getDB();
+    $pdo->exec("ALTER TABLE customers MODIFY installation_photo TEXT;");
+} catch(Exception $e) {}
+
 // Fetch Customer Detail
 $customer = fetchOne("
     SELECT c.*, p.name as package_name 
@@ -31,48 +36,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect("view_install.php?id=$customerId");
     }
     
-    // Handle Photo Upload (Wajib)
-    if (!empty($_FILES['photo']['name'])) {
+    // Handle Multiple Photo Upload (Wajib)
+    if (!empty($_FILES['photos']['name'][0])) {
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-        $filename = $_FILES['photo']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        $uploadedPhotos = [];
         
-        if (in_array($ext, $allowed)) {
-            $newName = "install_{$customerId}_" . time() . ".jpg";
-            $targetDir = "../../uploads/installations/";
-            $targetFile = $targetDir . $newName;
-            
-            // Resize Image
-            $source = $_FILES['photo']['tmp_name'];
-            list($width, $height) = getimagesize($source);
-            
-            $newWidth = 800;
-            $newHeight = ($height / $width) * $newWidth;
-            
-            $tmpImg = imagecreatetruecolor($newWidth, $newHeight);
-            
-            switch ($ext) {
-                case 'jpg': case 'jpeg': $sourceImg = imagecreatefromjpeg($source); break;
-                case 'png': $sourceImg = imagecreatefrompng($source); break;
-                case 'webp': $sourceImg = imagecreatefromwebp($source); break;
+        $fileCount = count($_FILES['photos']['name']);
+        for ($i = 0; $i < $fileCount; $i++) {
+            if ($_FILES['photos']['error'][$i] === UPLOAD_ERR_OK) {
+                $filename = $_FILES['photos']['name'][$i];
+                $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                
+                if (in_array($ext, $allowed)) {
+                    $newName = "install_{$customerId}_" . time() . "_{$i}.jpg";
+                    $targetDir = "../../uploads/installations/";
+                    if (!is_dir($targetDir)) @mkdir($targetDir, 0777, true);
+                    $targetFile = $targetDir . $newName;
+                    
+                    $source = $_FILES['photos']['tmp_name'][$i];
+                    $imageInfo = @getimagesize($source);
+                    
+                    if ($imageInfo) {
+                        list($width, $height) = $imageInfo;
+                        $newWidth = 800;
+                        $newHeight = ($height / $width) * $newWidth;
+                        
+                        $tmpImg = imagecreatetruecolor($newWidth, $newHeight);
+                        $sourceImg = null;
+                        
+                        switch ($ext) {
+                            case 'jpg': case 'jpeg': $sourceImg = @imagecreatefromjpeg($source); break;
+                            case 'png': $sourceImg = @imagecreatefrompng($source); break;
+                            case 'webp': $sourceImg = @imagecreatefromwebp($source); break;
+                        }
+                        
+                        if ($sourceImg) {
+                            if ($ext == 'png' || $ext == 'webp') {
+                                imagecolortransparent($tmpImg, imagecolorallocatealpha($tmpImg, 0, 0, 0, 127));
+                                imagealphablending($tmpImg, false);
+                                imagesavealpha($tmpImg, true);
+                            }
+                            
+                            imagecopyresampled($tmpImg, $sourceImg, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                            
+                            if (imagejpeg($tmpImg, $targetFile, 70)) {
+                                $uploadedPhotos[] = "uploads/installations/" . $newName;
+                                imagedestroy($tmpImg);
+                                imagedestroy($sourceImg);
+                            }
+                        }
+                    }
+                }
             }
-            
-            imagecopyresampled($tmpImg, $sourceImg, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-            
-            if (imagejpeg($tmpImg, $targetFile, 70)) {
-                $photoPath = "uploads/installations/" . $newName;
-                imagedestroy($tmpImg);
-                imagedestroy($sourceImg);
-            } else {
-                setFlash('error', 'Gagal memproses gambar.');
-                redirect("view_install.php?id=$customerId");
-            }
+        }
+        
+        if (!empty($uploadedPhotos)) {
+            $photoPath = implode(',', $uploadedPhotos);
         } else {
-            setFlash('error', 'Format foto harus JPG/PNG/WEBP.');
+            setFlash('error', 'Gagal memproses gambar apa pun. Pastikan format valid.');
             redirect("view_install.php?id=$customerId");
         }
     } elseif (empty($customer['installation_photo'])) {
-        setFlash('error', 'Wajib upload foto bukti instalasi!');
+        setFlash('error', 'Wajib upload foto bukti instalasi (bisa lebih dari satu)!');
         redirect("view_install.php?id=$customerId");
     }
     
@@ -270,9 +295,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <i class="fas fa-check-circle" style="font-size: 3rem; color: #00ff88; margin-bottom: 15px;"></i>
                 <h3>Instalasi Selesai</h3>
                 <p style="color: var(--text-secondary);">Pelanggan ini sudah aktif.</p>
-                <?php if ($customer['installation_photo']): ?>
-                    <img src="../../<?php echo htmlspecialchars($customer['installation_photo']); ?>" style="width: 100%; border-radius: 8px; margin-top: 15px;">
-                <?php endif; ?>
+                <?php if ($customer['installation_photo']): 
+                    $photos = explode(',', $customer['installation_photo']);
+                    foreach($photos as $p):
+                ?>
+                    <img src="../../<?php echo htmlspecialchars(trim($p)); ?>" style="width: 100%; border-radius: 8px; margin-top: 15px; object-fit: cover;">
+                <?php endforeach; endif; ?>
             </div>
         <?php else: ?>
             <!-- Action Form -->
@@ -290,15 +318,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="text" name="lng" id="lng" class="form-control" placeholder="Longitude" value="<?php echo htmlspecialchars($customer['lng'] ?? ''); ?>">
                     </div>
                     
-                    <span class="label">Foto Bukti Instalasi (Wajib)</span>
-                    <div class="photo-preview" onclick="document.getElementById('photo-input').click()">
-                        <div id="placeholder" style="text-align: center; color: var(--text-secondary);">
+                    <span class="label">Foto Bukti Instalasi (Wajib, bisa lebih dari satu)</span>
+                    <div class="photo-preview" onclick="document.getElementById('photo-input').click()" style="flex-wrap: wrap; height: auto; min-height: 200px; padding: 10px; gap: 10px;">
+                        <div id="placeholder" style="text-align: center; color: var(--text-secondary); width: 100%;">
                             <i class="fas fa-camera" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
-                            Foto Perangkat Terpasang
+                            Pilih banyak foto peralatan
                         </div>
-                        <img id="preview-img" style="display: none;">
                     </div>
-                    <input type="file" name="photo" id="photo-input" accept="image/*" capture="environment" style="display: none;" onchange="previewImage(this)" required>
+                    <input type="file" name="photos[]" id="photo-input" accept="image/*" multiple capture="environment" style="display: none;" onchange="previewImages(this)">
                     
                     <button type="submit" class="btn-submit" onclick="return confirm('Pastikan semua data sudah benar. Aktifkan pelanggan?');">Simpan & Aktifkan</button>
                 </form>
@@ -307,16 +334,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
-        // Image Preview
-        function previewImage(input) {
-            if (input.files && input.files[0]) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('preview-img').src = e.target.result;
-                    document.getElementById('preview-img').style.display = 'block';
-                    document.getElementById('placeholder').style.display = 'none';
+        // Multiple Images Preview
+        function previewImages(input) {
+            if (input.files && input.files.length > 0) {
+                const container = document.querySelector('.photo-preview');
+                container.innerHTML = ''; // Clear placeholder or existing images
+                
+                for (let i = 0; i < input.files.length; i++) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'preview-img';
+                        img.style.width = 'calc(50% - 5px)';
+                        img.style.height = '150px';
+                        img.style.objectFit = 'cover';
+                        img.style.borderRadius = '8px';
+                        container.appendChild(img);
+                    }
+                    reader.readAsDataURL(input.files[i]);
                 }
-                reader.readAsDataURL(input.files[0]);
             }
         }
 

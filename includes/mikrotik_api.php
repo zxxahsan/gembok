@@ -607,6 +607,93 @@ function mikrotikDeleteSecret($id)
     return ['success' => false, 'message' => 'Unknown response'];
 }
 
+// Remove Active PPPoE Session (kick user)
+function mikrotikRemoveActivePppoe($username, $routerId = null)
+{
+    $socket = getMikrotikConnection($routerId);
+    if (!$socket) {
+        return false;
+    }
+
+    // First find the active session by username
+    mikrotikWrite($socket, '/ppp/active/print');
+    mikrotikWrite($socket, '?name=' . $username);
+    mikrotikWrite($socket, ''); // End sentence
+    
+    // Read ALL sentences until !done
+    $allWords = [];
+    $done = false;
+    $timeout = time() + 10;
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words))
+            break;
+        foreach ($words as $word) {
+            $allWords[] = $word;
+            if ($word === '!done') {
+                $done = true;
+                break;
+            }
+        }
+    }
+
+    // Parse to find the internal .id
+    $sessions = [];
+    $currentSession = [];
+
+    foreach ($allWords as $word) {
+        if ($word === '!done') {
+            if (!empty($currentSession)) {
+                $sessions[] = $currentSession;
+            }
+            break;
+        }
+
+        if ($word === '!re') {
+            if (!empty($currentSession)) {
+                $sessions[] = $currentSession;
+                $currentSession = [];
+            }
+        } elseif (strpos($word, '=') === 0) {
+            $word = substr($word, 1);
+            $parts = explode('=', $word, 2);
+            if (count($parts) === 2) {
+                $currentSession[$parts[0]] = $parts[1];
+            }
+        }
+    }
+
+    if (empty($sessions)) {
+        return false; // User not currently connected
+    }
+
+    $activeId = $sessions[0]['.id'] ?? null;
+    if (!$activeId) {
+        return false;
+    }
+
+    // Now remove the active session by .id
+    mikrotikWrite($socket, '/ppp/active/remove');
+    mikrotikWrite($socket, '=.id=' . $activeId);
+    mikrotikWrite($socket, ''); // End sentence
+
+    // Read response
+    $done = false;
+    $timeout = time() + 5;
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words)) break;
+        foreach ($words as $word) {
+            if ($word === '!done') {
+                $done = true;
+                break;
+            }
+        }
+    }
+
+    return true;
+}
+
 // Get Active PPPoE Sessions (users currently connected)
 function mikrotikGetActiveSessions()
 {
