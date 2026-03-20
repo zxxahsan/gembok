@@ -136,6 +136,13 @@ Kini server ISP Anda telah mandiri dan siap melayani!
    **`http://IP_SERVER_ANDA/update_db_technician.php`** 
    Langkah ini menjamin infrastruktur struktur tabel fitur **Multi-Foto** milik teknisi tereksekusi tanpa keluhan *error* di masa depan.
 
+### 8. Pemasangan Otomatisasi Mikrotik (Cronjob)
+Agar penagihan otomatis dan sistem tendang (*Kick/Isolir*) pelanggan via Mikrotik berjalan mulus tanpa campur tangan manusia, silakan jalankan *script* pemasang cron bawaan Gembok:
+```bash
+sudo bash /var/www/gembok/install_cron.sh
+```
+*(Script ini akan menanamkan perintah ke sistem Ubuntu Anda untuk mengeksekusi `scheduler.php` secara stabil 1x setiap menit).*
+
 > **PENTING**: Ketika segala fitur telah dites berjalan lancar, Anda berkewajiban menghapus file instalasi untuk mencegah penyusup mereset *database* Anda.
 > `sudo rm -f /var/www/gembok/install.php`
 
