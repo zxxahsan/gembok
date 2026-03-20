@@ -18,6 +18,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
+            case 'import_csv':
+                if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+                    $handle = fopen($_FILES['file']['tmp_name'], 'r');
+                    if ($handle) {
+                        fgetcsv($handle); // skip header
+                        $success = 0;
+                        while (($data = fgetcsv($handle)) !== false) {
+                            if (count($data) >= 4) {
+                                $name = trim($data[0]);
+                                if (empty($name)) continue;
+                                $price = (float)str_replace(['Rp', '.', ','], '', $data[1]);
+                                $pn = trim($data[2]);
+                                $pi = trim($data[3]);
+                                $desc = isset($data[4]) ? trim($data[4]) : '';
+                                
+                                $existing = fetchOne("SELECT id FROM packages WHERE name = ?", [$name]);
+                                if (!$existing) {
+                                    insert('packages', [
+                                        'name' => $name, 'price' => $price,
+                                        'profile_normal' => $pn, 'profile_isolir' => $pi,
+                                        'description' => $desc, 'created_at' => date('Y-m-d H:i:s')
+                                    ]);
+                                    $success++;
+                                }
+                            }
+                        }
+                        fclose($handle);
+                        setFlash('success', "$success Paket Layanan berhasil diimport dari CSV!");
+                        logActivity('IMPORT_PACKAGES', "Imported $success packages");
+                    }
+                }
+                redirect('packages.php');
+                break;
             case 'add':
                 $data = [
                     'name' => sanitize($_POST['name']),
@@ -77,6 +110,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
         }
     }
+}
+
+// Handle Export CSV
+if (isset($_GET['action']) && $_GET['action'] === 'export_csv') {
+    $packagesInfo = fetchAll("SELECT name, price, profile_normal, profile_isolir, description FROM packages ORDER BY name");
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="export_paket_layanan.csv"');
+    $output = fopen('php://output', 'w');
+    // Header
+    fputcsv($output, ['Nama Paket', 'Harga (Rp)', 'Profile Normal', 'Profile Isolir', 'Deskripsi']);
+    foreach ($packagesInfo as $p) {
+        fputcsv($output, [$p['name'], $p['price'], $p['profile_normal'], $p['profile_isolir'], $p['description']]);
+    }
+    fclose($output);
+    exit;
 }
 
 // Get data
@@ -223,8 +271,22 @@ ob_start();
 
 <!-- Add Package Form -->
 <div class="card">
-    <div class="card-header">
+    <div class="card-header" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;">
         <h3 class="card-title"><i class="fas fa-plus-circle"></i> Tambah Paket Baru</h3>
+        
+        <div style="display: flex; gap: 10px;">
+            <a href="?action=export_csv" class="btn btn-secondary btn-sm">
+                <i class="fas fa-download"></i> Export CSV
+            </a>
+            <button onclick="document.getElementById('importPackageFile').click()" class="btn btn-secondary btn-sm">
+                <i class="fas fa-file-import"></i> Import CSV
+            </button>
+            <form id="importPackageForm" method="POST" enctype="multipart/form-data" style="display:none;">
+                <input type="hidden" name="action" value="import_csv">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                <input type="file" name="file" id="importPackageFile" accept=".csv" onchange="if(confirm('Import data paket dari CSV? Paket dengan nama sama akan dilewati.')) document.getElementById('importPackageForm').submit();">
+            </form>
+        </div>
     </div>
     
     <form method="POST">

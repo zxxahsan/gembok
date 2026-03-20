@@ -169,21 +169,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         if ($errorCount > 0) {
-            setFlash('warning', "Import selesai. Berhasil: {$successCount}, Gagal: {$errorCount}");
-            if (!empty($errors)) {
-                logActivity('IMPORT_CUSTOMERS', "Success: {$successCount}, Failed: {$errorCount}");
-            }
+            $importResult = [
+                'success' => $successCount,
+                'failed' => $errorCount,
+                'errors' => $errors
+            ];
+            // Do not redirect so we can display the detailed error box below.
         } else {
             setFlash('success', "Import berhasil! {$successCount} pelanggan berhasil diimport.");
             logActivity('IMPORT_CUSTOMERS', "Imported {$successCount} customers");
+            redirect('customers.php');
         }
-        
-        redirect('customers.php');
     }
 }
 
 ob_start();
 ?>
+
+<?php if (isset($importResult)): ?>
+<div style="max-width: 800px; margin: 20px auto;">
+    <div class="alert alert-warning" style="border-radius: 8px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+        <h4 style="color: #ff9800; font-weight: bold; margin-bottom: 10px;">
+            <i class="fas fa-exclamation-triangle"></i> Import Selesai dengan Beberapa Kendala
+        </h4>
+        <p style="font-size: 1.05rem; margin-bottom: 5px;">
+            Berhasil Di-import: <strong style="color: #4caf50;"><?php echo $importResult['success']; ?></strong> baris.<br>
+            Gagal Di-import: <strong style="color: #f44336;"><?php echo $importResult['failed']; ?></strong> baris.
+        </p>
+        
+        <p style="margin-top: 15px; font-weight: bold;">Rincian Error (Baris pada file Excell/CSV):</p>
+        <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; max-height: 250px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; border: 1px solid rgba(255,255,255,0.1);">
+            <?php foreach ($importResult['errors'] as $err): ?>
+                <div style="color: #ffaaaa; margin-bottom: 6px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 4px;">
+                    <i class="fas fa-times-circle" style="margin-right: 5px;"></i> <?php echo htmlspecialchars($err); ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <a href="customers.php" class="btn btn-success"><i class="fas fa-users"></i> Lanjut Lihat Data Pelanggan</a>
+            <a href="import.php" class="btn btn-secondary"><i class="fas fa-redo"></i> Coba Import Lagi</a>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
     <div class="card">
