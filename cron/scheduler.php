@@ -221,10 +221,10 @@ function runAutoInvoice($pdo)
     $currentMonth = date('Y-m');
     $generatedCount = 0;
 
-    // Get all active customers
-    $customers = fetchAll("SELECT * FROM customers WHERE status = 'active'");
+    // Get all active and isolated customers
+    $customers = fetchAll("SELECT * FROM customers WHERE status IN ('active', 'isolated')");
 
-    echo "Found " . count($customers) . " active customers\n";
+    echo "Found " . count($customers) . " active/isolated customers\n";
 
     foreach ($customers as $customer) {
         // Check if invoice already exists for this month

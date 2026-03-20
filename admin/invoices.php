@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
             case 'generate':
-                // Generate invoices for all active customers
-                $customers = fetchAll("SELECT * FROM customers WHERE status = 'active'");
+                // Generate invoices for both active and isolated customers
+                $customers = fetchAll("SELECT * FROM customers WHERE status IN ('active', 'isolated')");
                 $generatedCount = 0;
                 $currentMonth = date('Y-m');
                 
