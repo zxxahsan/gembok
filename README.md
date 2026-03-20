@@ -1,221 +1,141 @@
-# 🚀 GEMBOK - Modern ISP Management System
+# Gembok - Simple ISP & Hotspot Management
 
-<p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.0-blue?style=for-the-badge" alt="Version">
-  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/badge/php-%3E%3D7.4-8892BF?style=for-the-badge&logo=php" alt="PHP">
-  <img src="https://img.shields.io/badge/mysql-%3E%3D5.7-4479A1?style=for-the-badge&logo=mysql" alt="MySQL">
-</p>
+Gembok adalah aplikasi pengelolaan ISP RT/RW Net dan layanan WiFi Hotspot yang ringan, modern, dan canggih. Gembok mendukung manajemen tiket teknisi (laporan gangguan), pembuatan *voucher*, notifikasi *WhatsApp*, integrasi otomatis ke Mikrotik (Isolir/Unisolir), pengelolaan PPOE pelanggan, portal pembayaran (Payment Gateway Tripay/Midtrans), dan Sistem *Full Backup* terpusat.
 
-<p align="center">
-  <strong>All-in-one solution for Internet Service Providers with seamless MikroTik and GenieACS integration</strong>
-</p>
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/alijayanet/gembok-simple/main/assets/sim4.png" alt="Gembok Dashboard" width="100%">
-</p>
+Didesain agar sangat mudah dijalankan di atas **Ubuntu Server** dengan **Nginx** sebagai web server.
 
 ---
 
-## ✨ Features Overview
-
-### 🛠️ Core Management
-- **Customer Management** - Complete customer lifecycle
-- **Package Management** - Flexible internet packages
-- **Billing System** - Automated invoicing and payments
-- **Sales Portal** - Dedicated agent dashboard with deposit system
-- **MikroTik Integration** - PPPoE and Hotspot management
-- **GenieACS Integration** - ONU/ONT monitoring and control
-
-### 📊 Advanced Features
-- **Real-time Monitoring** - Live status and statistics
-- **Interactive Map** - Location-based customer visualization
-- **Trouble Ticket System** - Issue tracking and resolution
-- **Voucher Generator** - MikroTik hotspot voucher creation
-- **Sales Deposit System** - Prepaid balance for agents
-- **Mobile Responsive** - Works on all devices
-
-### 🔗 Integrations
-- **WhatsApp API** - Instant notifications
-- **Tripay Payment** - Multiple payment gateways
-- **Telegram Bot** - Automated alerts
-- **GenieACS TR-069** - Device management
+## 🌟 Fitur Utama
+1. **Otomatisasi Mikrotik**: Integrasi langsung dengan API Mikrotik untuk tendang (*kick*) dan ubah profil Isolir / Aktif saat pembayaran lunas.
+2. **Dashboard Admin**: Pengelolaan pelanggan, sinkronisasi data *voucher*, manajemen *router*, dan konfigurasi master server.
+3. **Portal Pelanggan & Teknisi**: Fitur khusus bagi pelanggan untuk memantau tagihan dan mengajukan lapor gangguan. Portal teknisi bertugas mengirim foto bukti lapangan.
+4. **Notifikasi WhatsApp**: Pemberitahuan otomatis ketika tagihan keluar, tiket teknisi ditugaskan, hingga konfirmasi pembayaran.
+5. **Full System Backup**: Menu cerdas untuk membungkus 100% kode + *database* menjadi ekstensi Zip yang dapat langsung dipulihkan (Restore) dengan sekali klik.
+6. **Smart Updater**: Integrasi langsung auto-update yang memungkinkan Anda menarik (*pull*) pembaruan GitHub hanya lewat ketukan tombol di Panel Admin.
 
 ---
 
-## 🚀 Quick Installation
+## 🛠️ Persyaratan Sistem
+Aplikasi ini kompatibel dengan lingkungan berbasis Linux (LEMP Stack):
+- **OS**: Ubuntu Server 20.04 LTS / 22.04 LTS (Disarankan)
+- **Web Server**: Nginx
+- **Database**: MySQL atau MariaDB
+- **PHP**: PHP 7.4 / 8.1 / 8.2 beserta paket ekstensinya (gd, pdo_mysql, curl, mbstring, zip)
 
-### Prerequisites
-- PHP 7.4 or higher
-- MySQL 5.7 or higher
-- Web server (Apache/Nginx)
-- MikroTik router (optional)
-- GenieACS server (optional)
+---
 
-### Installation Steps
+## 🚀 Panduan Instalasi (Ubuntu Server Fresh)
 
-#### 1. Clone or Download
+Langkah-langkah berikut akan menuntun Anda menginstal Gembok pada server Ubuntu yang baru. Disarankan masuk sebagai pengguna `root` atau menggunakan perintah `sudo`.
+
+### 1. Update Server & Instalasi Komponen Inti
 ```bash
-git clone https://github.com/alijayanet/gembok-simple.git
-# Or download ZIP file from GitHub
+sudo apt update && sudo apt upgrade -y
+
+# Instalasi Nginx, MariaDB, Git, Unzip, dan PHP beserta ekstensinya
+sudo apt install -y nginx mariadb-server git unzip php-fpm \
+php-mysql php-gd php-curl php-mbstring php-xml php-zip \
+php-cli
 ```
 
-#### 2. Upload to Server
-Upload all files to your web directory (public_html/www)
-
-#### 3. Run Web Installer
+### 2. Konfigurasi MariaDB (Database)
+Amankan instalasi MySQL/MariaDB:
 ```bash
-http://your-domain.com/install.php
+sudo mysql_secure_installation
+```
+Selanjutnya, buat database dan user baru untuk Gembok:
+```bash
+sudo mysql -u root
+```
+Di dalam konsol MySQL teks layar berganti, salin ini:
+```sql
+CREATE DATABASE gembok_db;
+CREATE USER 'gembok_user'@'localhost' IDENTIFIED BY 'passwordKuat123';
+GRANT ALL PRIVILEGES ON gembok_db.* TO 'gembok_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
 ```
 
-#### 4. Follow Installation Wizard
-1. **Server Check** - Verify requirements
-2. **Database Setup** - Configure database connection
-3. **Admin Account** - Create admin credentials
-4. **MikroTik Config** - Connect to MikroTik (optional)
-5. **Integrations** - Set up WhatsApp, Payment, etc. (optional)
+### 3. Mengunduh Aplikasi (Clone)
+Hapus file bawaan Nginx dan *clone* repositori Gembok langsung ke direktori publik Nginx:
+```bash
+cd /var/www/html
+sudo rm -f index.html index.nginx-debian.html
 
-#### 5. Complete Setup
-- Access admin panel: `http://your-domain.com/admin/login`
-- Access customer portal: `http://your-domain.com/portal/login`
-- Access sales portal: `http://your-domain.com/sales/login`
+# Clone Gembok dari Github
+sudo git clone https://github.com/zxxahsan/gembok.git .
+```
+*(Catatan: Tanda titik `.` pada akhir perintah bertujuan agar file diekstrak langsung dan tidak membuat sub-folder baru).*
 
----
-
-## 🎨 Admin Dashboard Preview
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/alijayanet/gembok-simple/main/assets/sim5.png" alt="Admin Dashboard" width="800">
-</p>
-
-### Dashboard Features:
-- 📈 Real-time statistics and charts
-- 👥 Customer status overview
-- 💰 Revenue tracking
-- 📋 Active invoices monitoring
-- 🌐 MikroTik device status
-- 📡 GenieACS ONU monitoring
-
----
-
-## 🖥️ Customer Portal
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/alijayanet/gembok-simple/main/assets/customer-portal.png" alt="Customer Portal" width="800">
-</p>
-
-### Portal Features:
-- 🔐 Login with phone number
-- 📦 Package information
-- 💳 Payment status & history
-- 📶 ONU/ONT status and signal
-- 🌐 WiFi SSID & Password management
-- 🎫 Trouble ticket submission
-
----
-
-## 🔧 Configuration
-
-### Environment Variables
-The system uses a simple configuration file located at `includes/config.php`:
-
+### 4. Mengatur File Konfigurasi Gembok
+Duplikasi file `config.sample.php` menjadi `config.php` dan edit informasinya:
+```bash
+sudo cp includes/config.sample.php includes/config.php
+sudo nano includes/config.php
+```
+Carilah bagian konfigurasi Database dan ubah nilainya persis seperti yang Anda atur di Tahap 2:
 ```php
-<?php
-// Database Configuration
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'gembok_db');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-
-// MikroTik Configuration
-define('MIKROTIK_HOST', '192.168.1.1');
-define('MIKROTIK_USER', 'admin');
-define('MIKROTIK_PASS', '');
-define('MIKROTIK_PORT', 8728);
-
-// Application Configuration
-define('APP_NAME', 'GEMBOK');
-define('APP_URL', 'http://localhost/gembok-simple');
-define('APP_VERSION', '2.0.0');
-
-// GenieACS Configuration
-define('GENIEACS_URL', 'http://localhost:7557');
-define('GENIEACS_USERNAME', '');
-define('GENIEACS_PASSWORD', '');
-?>
+define('DB_USER', 'gembok_user');
+define('DB_PASS', 'passwordKuat123');
 ```
+*(Tekan `CTRL+O`, `Enter`, lalu `CTRL+X` untuk menyimpan).*
 
----
-
-## 📊 API Endpoints
-
-| Endpoint | Purpose | Methods |
-|----------|---------|---------|
-| `/api/dashboard.php` | Dashboard statistics | GET |
-| `/api/customers.php` | Customer management | GET, POST, PUT, DELETE |
-| `/api/invoices.php` | Invoice operations | GET, POST, PUT, DELETE |
-| `/api/mikrotik.php` | MikroTik operations | GET, POST |
-| `/api/genieacs.php` | GenieACS operations | GET, POST |
-| `/api/onu_locations.php` | ONU location management | GET, POST |
-| `/api/onu_wifi.php` | WiFi settings control | POST |
-| `/api/portal_password.php` | Portal password management | POST |
-
----
-
-## 🤖 Cron Jobs Setup
-
-To enable automated features, set up cron jobs on your server:
-
-### Linux/CPanel
+### 5. Memberikan Izin Akses (Permissions)
+Langkah ini sangat krusial agar Nginx dan PHP memiliki wewenang untuk menulis log, membuat file .zip backup, dan mengolah foto instalasi buatan Teknisi.
 ```bash
-# Run scheduler every 5 minutes
-*/5 * * * * /usr/bin/php /path/to/your/gembok-simple/cron/scheduler.php
+sudo chown -R www-data:www-data /var/www/html
+sudo chmod -R 755 /var/www/html
 ```
 
-### Windows (Task Scheduler)
-- Create scheduled task
-- Run `php.exe` with path to `cron\scheduler.php`
-- Schedule every 5 minutes
+### 6. Mentautkan Nginx dengan PHP-FPM
+Agar Nginx bisa membaca file `.php`, kita perlu mengubah konfigurasi *Virtual Host* bawaannya:
+```bash
+sudo nano /etc/nginx/sites-available/default
+```
+Cari pengaturan berikut dan modifikasi agar tampak seperti ini (sesuaikan angka versi PHP-FPM Anda, misal `8.1` atau `7.4`):
+```nginx
+server {
+    ...
+    # Tambahkan index.php pada prioritas utama
+    index index.php index.html index.htm index.nginx-debian.html;
 
-### Automated Tasks:
-- 🔄 Auto invoice generation
-- 🔒 Auto isolation for unpaid bills
-- 📬 Payment reminder notifications
-- 📊 Daily activity reports
-- 💾 Automatic backups
+    ...
+    
+    # Hapus tanda pagar (#) pada blok pembacaan php:
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        
+        # Opsi ini wajib disamakan dengan versi instalasi PHP Anda
+        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+    }
+    
+    # Mencegah akses publik ke folder internal (Keamanan ekstra)
+    location ~ /\.ht {
+        deny all;
+    }
+}
+```
+Cek apakah konfigurasi Nginx aman dari salah ketik, kemudian *restart* Nginx:
+```bash
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### 7. Tahap Penyelesaian (Web Installer)
+Kini server ISP Anda telah mandiri dan siap melayani!
+1. Buka Google Chrome di perangkat mana pun dan akses IP Server Ubuntu Anda.
+   **`http://IP_SERVER_ANDA/install.php`**
+2. Ikuti instruksi pendaftaran akun Admin, sistem otomatis akan menuangkan seluruh isi *database* aplikasi.
+3. Setelah *dashboard* Admin tebuka, pastikan Anda juga mengakses URL ini minimal 1x:
+   **`http://IP_SERVER_ANDA/update_db_technician.php`** 
+   Langkah ini menjamin infrastruktur struktur tabel fitur **Multi-Foto** milik teknisi tereksekusi tanpa keluhan *error* di masa depan.
+
+> **PENTING**: Ketika segala fitur telah dites berjalan lancar, Anda berkewajiban menghapus file instalasi untuk mencegah penyusup mereset *database* Anda.
+> `sudo rm -f /var/www/html/install.php`
 
 ---
 
-## 🔐 Security Features
-
-- 🔑 Strong password hashing (bcrypt)
-- 🛡️ SQL injection prevention (prepared statements)
-- 🚫 XSS protection (output encoding)
-- 🏷️ CSRF tokens for forms
-- 🕵️ Session management with timeout
-- 📝 Activity logging
-- 🔍 Input validation and sanitization
-
----
-
-## 📱 Mobile Responsive
-
-The application is fully responsive and optimized for mobile devices.
-
----
-
-## 💼 Sales Portal (New)
-
-A dedicated portal for sales agents/resellers to sell hotspot vouchers.
-
-- **Access**: `http://your-domain.com/sales/login.php`
-- **Features**:
-  - Deposit System (Topup by Admin)
-  - Sell Vouchers (Deduct from Deposit)
-  - Transaction History
-  - Mobile Responsive UI
-
-### For Admins:
-1. Go to **Sales Users** menu to create sales accounts.
-2. Go to **Sales Users > Paket** to assign which profiles a sales agent can sell and set their prices.
-3. Topup their deposit balance.
+✨ **Selamat, Gembok telah sukses di-deploy dan siap dikelola 100%!** ✨
