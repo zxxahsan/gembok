@@ -226,7 +226,7 @@ if (php_sapi_name() !== 'cli' && isset(\$_SERVER['HTTP_HOST'])) {
     define('APP_URL', 'http://localhost');
 }
 define('APP_VERSION', '2.0.6');
-define('GEMBOK_UPDATE_VERSION_URL', 'https://raw.githubusercontent.com/alijayanet/gembok-simple/main/version.txt');
+define('GEMBOK_UPDATE_VERSION_URL', 'https://raw.githubusercontent.com/zxxahsan/gembok/main/version.txt');
 
 // Pagination
 define('ITEMS_PER_PAGE', 20);

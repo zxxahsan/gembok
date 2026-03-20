@@ -20,7 +20,7 @@ define('MIKROTIK_PORT', 8728);
 define('APP_NAME', 'GEMBOK');
 define('APP_URL', 'http://localhost/gembok-simple2');
 define('APP_VERSION', '2.0.6');
-define('GEMBOK_UPDATE_VERSION_URL', 'https://raw.githubusercontent.com/alijayanet/gembok-simple/main/version.txt');
+define('GEMBOK_UPDATE_VERSION_URL', 'https://raw.githubusercontent.com/zxxahsan/gembok/main/version.txt');
 
 // Pagination and currency
 define('ITEMS_PER_PAGE', 20);
