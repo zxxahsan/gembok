@@ -194,6 +194,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect('invoices.php');
                 break;
                 
+            case 'delete_all':
+                if ($_POST['confirm_text'] !== 'HAPUS SEMUA') {
+                    setFlash('error', 'Konfirmasi gagal. Ketik "HAPUS SEMUA" untuk menghapus semua invoice.');
+                } else {
+                    $pdo = getDB();
+                    // Delete all invoices
+                    $pdo->exec("DELETE FROM invoices");
+                    // Reset auto increment so IDs climb from 1 again
+                    $pdo->exec("ALTER TABLE invoices AUTO_INCREMENT = 1");
+                    
+                    setFlash('success', 'Seluruh data invoice berhasil dihapus secara permanen.');
+                    logActivity('DELETE_ALL_INVOICES', 'Admin executed a total master clear of the invoices table.');
+                }
+                redirect('invoices.php');
+                break;
+                
             case 'create_manual':
                 // Create manual invoice for specific customer
                 $customerId = (int)$_POST['customer_id'];
@@ -328,9 +344,14 @@ ob_start();
 
 <!-- Invoices Table -->
 <div class="card">
-    <div class="card-header">
-        <h3 class="card-title"><i class="fas fa-history"></i> Riwayat Tagihan</h3>
-        <input type="text" id="searchInvoice" class="form-control" placeholder="Cari invoice..." style="width: 250px;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h3 class="card-title" style="margin: 0;"><i class="fas fa-history"></i> Riwayat Tagihan</h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="searchInvoice" class="form-control" placeholder="Cari invoice..." style="width: 250px;">
+            <button class="btn btn-danger" onclick="openDeleteAllModal()" title="Hapus Semua Invoice" style="white-space: nowrap;">
+                <i class="fas fa-trash-alt"></i> Hapus Semua
+            </button>
+        </div>
     </div>
     
     <table class="data-table" id="invoiceTable">
@@ -545,6 +566,40 @@ ob_start();
     </div>
 </div>
 
+<!-- Delete All Modal -->
+<div id="deleteAllModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 400px; max-width: 90%; margin: 2rem; border-top: 4px solid #ff4757;">
+        <div class="card-header">
+            <h3 class="card-title" style="color: #ff4757;"><i class="fas fa-exclamation-triangle"></i> Peringatan Bahaya</h3>
+            <button onclick="closeDeleteAllModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.25rem;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="card-body">
+            <p style="margin-bottom: 15px; color: var(--text-primary);">
+                Anda yakin ingin menghapus <strong>SELURUH</strong> data invoice pelanggan? Tindakan ini <strong>TIDAK BISA DIBATALKAN</strong> dan semua riwayat pembayaran akan dikosongkan secara permanen.
+            </p>
+            <form method="POST">
+                <input type="hidden" name="action" value="delete_all">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                
+                <div class="form-group">
+                    <label class="form-label">Ketik <strong>HAPUS SEMUA</strong> untuk konfirmasi:</label>
+                    <input type="text" name="confirm_text" class="form-control" required autocomplete="off" placeholder="HAPUS SEMUA">
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeleteAllModal()" style="flex: 1;">Batal</button>
+                    <button type="submit" class="btn btn-danger" style="flex: 1;">
+                        <i class="fas fa-trash-alt"></i> Eksekusi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 // Search functionality
 document.getElementById('searchInvoice').addEventListener('input', function(e) {
@@ -580,6 +635,15 @@ function closeManualModal() {
     document.getElementById('manualModal').style.display = 'none';
 }
 
+// Delete All Modal
+function openDeleteAllModal() {
+    document.getElementById('deleteAllModal').style.display = 'flex';
+}
+
+function closeDeleteAllModal() {
+    document.getElementById('deleteAllModal').style.display = 'none';
+}
+
 // Send WhatsApp
 function sendWhatsApp(phone, invoiceNumber, amount) {
     if (!phone) {
@@ -607,11 +671,16 @@ document.getElementById('manualModal').addEventListener('click', function(e) {
     if (e.target === this) closeManualModal();
 });
 
+document.getElementById('deleteAllModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteAllModal();
+});
+
 // Close on Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeEditModal();
         closeManualModal();
+        closeDeleteAllModal();
     }
 });
 </script>
