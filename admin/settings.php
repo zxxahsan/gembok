@@ -695,7 +695,8 @@ ob_start();
                     $cronToken = getSettingValue('CRON_TOKEN');
                     if (!$cronToken) {
                         $cronToken = bin2hex(random_bytes(16));
-                        // This will be saved on next save_integrations or lazy sync in run.php
+                        // Save immediately so run.php can validate it
+                        insert('settings', ['setting_key' => 'CRON_TOKEN', 'setting_value' => $cronToken]);
                     }
                     $cronUrl = APP_URL . "/cron/run.php?token=" . $cronToken;
                     ?>
