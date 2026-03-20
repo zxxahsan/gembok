@@ -1162,6 +1162,14 @@ if (isset($_GET['switch_router'])) {
 
                 <div style="margin-top: 20px; border-top: 1px solid var(--border-color);"></div>
 
+                <a href="<?php echo APP_URL; ?>/admin/cron_logs.php"
+                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'cron_logs.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-microchip"></i>
+                    <span>Log Cronjob</span>
+                </a>
+
+                <div style="margin-top: 20px; border-top: 1px solid var(--border-color);"></div>
+
                 <a href="<?php echo APP_URL; ?>/admin/logout.php" class="menu-item">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
@@ -1296,6 +1304,96 @@ if (isset($_GET['switch_router'])) {
                 }
             });
         });
+
+        // Realtime Payment Notification System
+        <?php if (isAdminLoggedIn()): ?>
+        function playNotificationSound() {
+            try {
+                // Play a generic success bleep
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                function playTone(freq, type, duration, startTime) {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.type = type;
+                    oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    
+                    gainNode.gain.setValueAtTime(0, startTime);
+                    gainNode.gain.linearRampToValueAtTime(0.5, startTime + 0.05);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    oscillator.start(startTime);
+                    oscillator.stop(startTime + duration);
+                }
+                
+                playTone(523.25, 'sine', 0.2, audioCtx.currentTime); // C5
+                playTone(659.25, 'sine', 0.4, audioCtx.currentTime + 0.1); // E5
+            } catch (e) { console.log("Audio not supported"); }
+        }
+
+        function showPaymentNotification(payment) {
+            playNotificationSound();
+            
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: -100px;
+                right: 20px;
+                background: linear-gradient(135deg, rgba(20,20,35,0.95), rgba(0,255,136,0.1));
+                border: 1px solid var(--neon-green);
+                color: #fff;
+                padding: 15px 25px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,255,136,0.3);
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                transform: translateY(0);
+            `;
+            
+            toast.innerHTML = `
+                <div style="background: var(--neon-green); color: #000; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div>
+                    <strong style="display:block; color: var(--neon-green); font-size: 1.1rem; line-height: 1.2; margin-bottom: 2px;">Pembayaran Masuk!</strong>
+                    <span>${payment.customer_name} membayar Rp ${parseInt(payment.amount).toLocaleString('id-ID')}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Slide up
+            setTimeout(() => {
+                toast.style.transform = 'translateY(-120px)';
+            }, 100);
+            
+            // Remove after 8 seconds
+            setTimeout(() => {
+                toast.style.transform = 'translateY(100px)';
+                setTimeout(() => toast.remove(), 500);
+            }, 8000);
+        }
+
+        setInterval(() => {
+            fetch('<?php echo APP_URL; ?>/api/check_new_payments.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.payments && data.payments.length > 0) {
+                        data.payments.forEach((payment, index) => {
+                            setTimeout(() => showPaymentNotification(payment), index * 1000);
+                        });
+                    }
+                })
+                .catch(err => console.error("Poll error:", err));
+        }, 5000); // Check every 5 seconds
+        <?php endif; ?>
     </script>
 </body>
 
