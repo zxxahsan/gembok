@@ -50,10 +50,11 @@ try {
             }
         }
     } elseif ($method === 'POST') {
-        $action = $_POST['action'] ?? '';
+        $action = $_GET['action'] ?? $_POST['action'] ?? '';
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
         
         if ($action === 'reboot') {
-            $deviceId = $_POST['device_id'] ?? '';
+            $deviceId = $_POST['device_id'] ?? $input['serial'] ?? $input['device_id'] ?? '';
             
             // If device_id is username, we need to find serial number first
             // But genieacsReboot usually takes device ID (serial or _id)

@@ -111,6 +111,20 @@ try {
         }
     }
 
+    // --- SEND WHATSAPP ALERT TO CUSTOMER ---
+    $customerQuery = fetchOne("SELECT * FROM customers WHERE pppoe_username = ?", [$serial]);
+    if ($customerQuery && !empty($customerQuery['phone'])) {
+        require_once '../includes/whatsapp.php';
+        $msg = "🔧 *UPDATE PENGATURAN WIFI*\n\n";
+        $msg .= "Yth. " . $customerQuery['name'] . ",\n";
+        $msg .= "Pengaturan WiFi Anda baru saja diperbarui oleh sistem:\n\n";
+        if (!empty($ssid)) $msg .= "📶 *SSID (Nama WiFi):* $ssid\n";
+        if (!empty($password)) $msg .= "🔑 *Password WiFi:* $password\n";
+        $msg .= "\nMohon sambungkan perangkat Anda dengan informasi WiFi terbaru tersebut.";
+        
+        sendWhatsAppMessage($customerQuery['phone'], $msg);
+    }
+
     echo json_encode(['success' => true, 'message' => 'WiFi settings updated successfully']);
 
 } catch (Exception $e) {
