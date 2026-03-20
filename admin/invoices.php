@@ -389,7 +389,7 @@ ob_start();
                     <td data-label="Aksi">
                         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                             <?php if ($inv['status'] === 'unpaid'): ?>
-                                <form method="POST" style="display: inline;">
+                                <form method="POST" style="display: inline;" onsubmit="return confirm('Tandai tagihan ini sebagai Lunas?');">
                                     <input type="hidden" name="action" value="pay">
                                     <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                                     <input type="hidden" name="invoice_id" value="<?php echo $inv['id']; ?>">
@@ -399,7 +399,7 @@ ob_start();
                                     </button>
                                 </form>
                                 
-                                <form method="POST" style="display: inline;">
+                                <form method="POST" style="display: inline;" onsubmit="return confirm('Yakin ingin membuka isolir pelanggan ini tanpa melunasi tagihannya?');">
                                     <input type="hidden" name="action" value="unisolate_only">
                                     <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                                     <input type="hidden" name="invoice_id" value="<?php echo $inv['id']; ?>">
