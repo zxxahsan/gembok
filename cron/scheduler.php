@@ -27,6 +27,13 @@ function runScheduler() {
     try {
         $pdo = getDB();
 
+        // Self-heal: Ensure System Heartbeat exists
+        $hasHeartbeat = fetchOne("SELECT id FROM cron_schedules WHERE task_type = 'system_ping'");
+        if (!$hasHeartbeat) {
+            $pdo->prepare("INSERT IGNORE INTO cron_schedules (name, task_type, schedule_days, schedule_time, is_active) VALUES (?, ?, ?, ?, ?)")
+                ->execute(['System Heartbeat', 'system_ping', 'every_minute', '00:00', 1]);
+        }
+
         // Get all active schedules
         $schedules = fetchAll("
             SELECT * FROM cron_schedules 
@@ -68,6 +75,10 @@ function runScheduler() {
 
                     case 'custom_script':
                         runCustomScript($pdo, $schedule);
+                        break;
+
+                    case 'system_ping':
+                        runSystemPing();
                         break;
 
                     default:
@@ -112,6 +123,10 @@ function runScheduler() {
  */
 function calculateNextRun($schedule)
 {
+    if ($schedule['schedule_days'] === 'every_minute') {
+        return date('Y-m-d H:i:s', strtotime('+1 minute'));
+    }
+
     $scheduleTime = explode(':', $schedule['schedule_time']);
     $hour = (int) $scheduleTime[0];
     $minute = (int) $scheduleTime[1];
@@ -339,6 +354,15 @@ function runCustomScript($pdo, $schedule)
     echo "Running custom script...\n";
     // Placeholder for custom scripts
     echo "  Custom script execution not implemented yet.\n";
+}
+
+/**
+ * Run system heartbeat ping
+ */
+function runSystemPing()
+{
+    // Silently succeed to leave a trace in the logs that the cron daemon is healthy.
+    echo "  System Heartbeat OK\n";
 }
 
 echo "\n";

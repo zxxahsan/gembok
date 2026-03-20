@@ -576,7 +576,8 @@ function insertDefaultData() {
     $cronSchedules = [
         ['Auto Invoice', 'auto_invoice', 'monthly', '00:00', 1],
         ['Auto Isolir', 'auto_isolir', 'daily', '00:00', 1],
-        ['Payment Reminder', 'send_reminders', 'daily', '08:00', 1]
+        ['Payment Reminder', 'send_reminders', 'daily', '08:00', 1],
+        ['System Heartbeat', 'system_ping', 'every_minute', '00:00', 1]
     ];
     
     foreach ($cronSchedules as $schedule) {
