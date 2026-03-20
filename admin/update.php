@@ -66,41 +66,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
-    } elseif ($action === 'update') {
-        $output = [];
-        $returnVar = 0;
-        $projectRoot = realpath(dirname(__DIR__));
+    } elseif ($action === 'do_update_stream') {
+        if (ob_get_level()) ob_end_clean();
+        header('Content-Encoding: none');
+        header('Cache-Control: no-cache');
+        header('X-Accel-Buffering: no');
         
-        // 1. Run git pull
+        echo str_repeat(" ", 1024); // Pad to bypass early browser buffers
+        
+        function sendLog($percent, $msg) {
+            $msgJs = json_encode(nl2br(htmlspecialchars($msg)));
+            echo "<script>window.parent.updateProgress($percent, $msgJs);</script>\n";
+            flush();
+            usleep(400000); // 400ms delay for visual animation
+        }
+        
+        sendLog(5, "[*] Memulai Inisialisasi Update...");
+        
+        $projectRoot = realpath(dirname(__DIR__));
+        sendLog(10, "[*] Target Direktori: " . $projectRoot);
+        sendLog(20, "[*] Mengeksekusi: git pull origin main...");
+        
         $cmd = 'cd ' . escapeshellarg($projectRoot) . ' && git pull 2>&1';
         exec($cmd, $output, $returnVar);
         
+        $gitOutput = implode("\n", $output);
+        sendLog(50, "[+] Output Git:\n" . $gitOutput);
+        
         if ($returnVar === 0) {
-            // 2. Run Database Migration if successful
+            sendLog(60, "[*] Sinkronisasi Git Berhasil! Menyiapkan Migrasi Database...");
+            
             require_once '../includes/db.php';
             try {
                 $pdo = getDB();
+                sendLog(70, "[*] Menjalankan pengecekan skema tabel...");
                 
-                // --- Sales Portal Migration ---
-                
-                // Add bill_discount to sales_users
                 try {
                     $pdo->query("SELECT bill_discount FROM sales_users LIMIT 1");
                 } catch (Exception $e) {
                     $pdo->exec("ALTER TABLE sales_users ADD COLUMN bill_discount DECIMAL(15,2) DEFAULT 2000 AFTER status");
-                    $output[] = "Added column: bill_discount to sales_users";
+                    sendLog(72, " -> Added column: bill_discount");
                 }
                 
-                // Fix sales_transactions type
                 try {
                     $stmt = $pdo->query("SHOW COLUMNS FROM sales_transactions LIKE 'type'");
                     $col = $stmt->fetch(PDO::FETCH_ASSOC);
                     if (strpos($col['Type'], 'enum') !== false) {
                         $pdo->exec("ALTER TABLE sales_transactions MODIFY type VARCHAR(50) NOT NULL");
-                        $output[] = "Updated column type: sales_transactions.type to VARCHAR";
+                        sendLog(75, " -> Updated column: sales_transactions.type");
                     }
                 } catch (Exception $e) {
-                    // Table might not exist yet, create it
                     $pdo->exec("CREATE TABLE IF NOT EXISTS sales_transactions (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         sales_user_id INT NOT NULL,
@@ -112,39 +127,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         FOREIGN KEY (sales_user_id) REFERENCES sales_users(id) ON DELETE CASCADE
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                    $output[] = "Created table: sales_transactions";
+                    sendLog(75, " -> Created table: sales_transactions");
                 }
                 
-                // Ensure updated_at exists
                 $tables = ['sales_transactions', 'hotspot_sales', 'sales_users'];
                 foreach($tables as $tbl) {
                     try {
                         $pdo->query("SELECT updated_at FROM $tbl LIMIT 1");
                     } catch (Exception $e) {
                         $pdo->exec("ALTER TABLE $tbl ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-                        $output[] = "Added column: updated_at to $tbl";
+                        sendLog(80, " -> Added column updated_at to $tbl");
                     }
                 }
                 
-                // Ensure voucher columns exist on sales_users
-                try {
-                    $pdo->query("SELECT voucher_mode FROM sales_users LIMIT 1");
-                } catch (Exception $e) {
-                    $pdo->exec("ALTER TABLE sales_users ADD COLUMN voucher_mode VARCHAR(20) DEFAULT 'mix' AFTER status");
-                    $output[] = "Added column: voucher_mode to sales_users";
-                }
-                try {
-                    $pdo->query("SELECT voucher_length FROM sales_users LIMIT 1");
-                } catch (Exception $e) {
-                    $pdo->exec("ALTER TABLE sales_users ADD COLUMN voucher_length INT DEFAULT 6 AFTER voucher_mode");
-                    $output[] = "Added column: voucher_length to sales_users";
-                }
-                try {
-                    $pdo->query("SELECT voucher_type FROM sales_users LIMIT 1");
-                } catch (Exception $e) {
-                    $pdo->exec("ALTER TABLE sales_users ADD COLUMN voucher_type VARCHAR(20) DEFAULT 'upp' AFTER voucher_length");
-                    $output[] = "Added column: voucher_type to sales_users";
-                }
+                try { $pdo->query("SELECT voucher_mode FROM sales_users LIMIT 1"); } 
+                catch (Exception $e) { $pdo->exec("ALTER TABLE sales_users ADD COLUMN voucher_mode VARCHAR(20) DEFAULT 'mix' AFTER status"); }
+                
+                try { $pdo->query("SELECT voucher_length FROM sales_users LIMIT 1"); } 
+                catch (Exception $e) { $pdo->exec("ALTER TABLE sales_users ADD COLUMN voucher_length INT DEFAULT 6 AFTER voucher_mode"); }
+                
+                try { $pdo->query("SELECT voucher_type FROM sales_users LIMIT 1"); } 
+                catch (Exception $e) { $pdo->exec("ALTER TABLE sales_users ADD COLUMN voucher_type VARCHAR(20) DEFAULT 'upp' AFTER voucher_length"); }
+                sendLog(85, " -> Migrated Voucher table settings");
                 
                 try {
                     $pdo->query("SELECT id FROM site_settings LIMIT 1");
@@ -156,33 +160,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                    $output[] = "Created table: site_settings";
                     
-                    // Insert default data for site_settings
                     $siteSettings = [
                         ['hero_title', 'Internet Cepat <br>Tanpa Batas'],
                         ['hero_description', 'Nikmati koneksi internet fiber optic super cepat, stabil, dan unlimited untuk kebutuhan rumah maupun bisnis Anda. Gabung sekarang!'],
                         ['contact_phone', '+62 812-3456-7890'],
                         ['contact_email', 'info@gembok.net'],
                         ['contact_address', 'Jakarta, Indonesia'],
-                        ['footer_about', 'Penyedia layanan internet terpercaya dengan jaringan fiber optic berkualitas untuk menunjang aktivitas digital Anda.']
+                        ['footer_about', 'Penyedia layanan internet terpercaya.']
                     ];
                     
                     foreach ($siteSettings as $ss) {
                         $stmt = $pdo->prepare("INSERT IGNORE INTO site_settings (setting_key, setting_value) VALUES (?, ?)");
                         $stmt->execute($ss);
                     }
+                    sendLog(90, " -> Created table: site_settings");
                 }
                 
-                $output[] = "Database migration completed.";
-                
+                sendLog(95, "[*] Migrasi struktur Database telah selesai!");
             } catch (Exception $e) {
-                $output[] = "Database migration failed: " . $e->getMessage();
+                sendLog(90, "[!] Ada peringatan Database: " . $e->getMessage());
             }
+            sendLog(100, "[*] PROSES UPDATE SELESAI SELURUHNYA!");
+        } else {
+            sendLog(60, "[!] ERROR KEPARAHAN: Pull Gagal. Cek koneksi internet/GitHub.");
+            echo "<script>alert('Update Terhenti!');</script>\n";
         }
-        
-        $statusMessage = implode("\n", $output);
-        $statusType = $returnVar === 0 ? 'success' : 'error';
+        exit;
     } elseif ($action === 'bump_version') {
         $newVersion = trim($_POST['new_version'] ?? '');
         if ($newVersion !== '') {
@@ -221,12 +225,64 @@ ob_start();
             </button>
         </form>
         
-        <form method="POST" onsubmit="return confirm('Jalankan git pull untuk update aplikasi?\nPastikan sudah backup terlebih dahulu.');">
-            <input type="hidden" name="action" value="update">
-            <button type="submit" class="btn btn-primary">
+        <div id="update-ui" style="display:none; margin-top:20px;">
+            <h4>Memproses Update...</h4>
+            <!-- Setup simple bootstrap compatible progress bar dynamically injected styles in case no bootstrap -->
+            <div style="background: rgba(255,255,255,0.1); border-radius: 8px; height: 26px; width: 100%; margin-bottom: 15px; overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);">
+                <div id="update-progress" style="background: linear-gradient(90deg, #17a2b8, #28a745); height: 100%; width: 0%; transition: width 0.4s ease; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; font-weight:bold;">0%</div>
+            </div>
+            
+            <div id="update-log" style="background: #0d1117; color: #58a6ff; font-family: 'Courier New', monospace; font-size: 13px; padding: 15px; border-radius: 8px; height: 350px; overflow-y: auto; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); border: 1px solid #30363d; line-height: 1.5;">
+                <span style="color:#8b949e;">Menunggu inisialisasi...</span><br>
+            </div>
+            <iframe id="update-frame" name="update_frame" style="display:none;"></iframe>
+        </div>
+
+        <div id="action-buttons">
+            <button type="button" class="btn btn-primary" onclick="startUpdate()">
                 <i class="fas fa-download"></i> Jalankan Update (git pull)
             </button>
-        </form>
+        </div>
+        
+        <script>
+        function startUpdate() {
+            if(!confirm('Jalankan proses UPDATE SEKARANG?\nPastikan Anda sudah memiliki Full Backup dari menu Backup & Restore.')) return;
+            
+            document.getElementById('action-buttons').style.display = 'none';
+            document.getElementById('update-ui').style.display = 'block';
+            document.getElementById('update-log').innerHTML = '';
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.target = 'update_frame';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'action';
+            input.value = 'do_update_stream';
+            form.appendChild(input);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function updateProgress(percent, msg) {
+            const bar = document.getElementById('update-progress');
+            bar.style.width = percent + '%';
+            bar.innerText = percent + '%';
+            if (msg) {
+                const log = document.getElementById('update-log');
+                log.innerHTML += msg + '<br>';
+                log.scrollTop = log.scrollHeight;
+            }
+            if (percent >= 100) {
+                setTimeout(() => {
+                    alert("PROSES UPDATE SUKSES! Aplikasi akan direfresh ulang.");
+                    window.location.reload();
+                }, 2000);
+            }
+        }
+        </script>
         
         <p style="margin-top: 15px; color: var(--text-muted); font-size: 0.9rem;">
             Catatan:
