@@ -18,6 +18,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
+            case 'delete_all':
+                if (isset($_POST['confirm_text']) && $_POST['confirm_text'] === 'HAPUS SEMUA') {
+                    if (query("DELETE FROM customers")) {
+                        try { query("ALTER TABLE customers AUTO_INCREMENT = 1"); } catch (Exception $e) {}
+                        logActivity('DELETE_ALL_CUSTOMERS', "Berhasil menghapus seluruh data pelanggan di sistem");
+                        setFlash('success', 'Seluruh data pelanggan berhasil dihapus secara permanen!');
+                    } else {
+                        setFlash('error', 'Gagal menghapus seluruh pelanggan');
+                    }
+                } else {
+                    setFlash('error', 'Kata kunci konfirmasi salah. Penghapusan dibatalkan.');
+                }
+                redirect('customers.php');
+                break;
+
             case 'add':
                 $pppoePassword = isset($_POST['pppoe_password']) ? trim((string) $_POST['pppoe_password']) : '';
                 $data = [
@@ -177,7 +192,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get data with pagination
 $page = (int)($_GET['page'] ?? 1);
-$perPage = defined('ITEMS_PER_PAGE') ? ITEMS_PER_PAGE : 20;
+$perPageLimit = isset($_GET['limit']) ? (int)$_GET['limit'] : (defined('ITEMS_PER_PAGE') ? ITEMS_PER_PAGE : 20);
+$allowedLimits = [10, 25, 50, 100, 500, 1000];
+if (!in_array($perPageLimit, $allowedLimits)) $perPageLimit = 20;
+$perPage = $perPageLimit;
 $offset = ($page - 1) * $perPage;
 
 $customersTableExists = tableExists('customers');
@@ -468,13 +486,21 @@ ob_start();
 
 <!-- Customers Table -->
 <div class="card">
-    <div class="card-header">
-        <h3 class="card-title"><i class="fas fa-users"></i> Daftar Pelanggan</h3>
-        <div style="display: flex; gap: 10px;">
-            <input type="text" id="searchCustomer" class="form-control" placeholder="Cari pelanggan..." style="width: 250px;">
-            <a href="export.php" class="btn btn-primary btn-sm">
+    <div class="card-header" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
+        <h3 class="card-title" style="margin: 0;"><i class="fas fa-users"></i> Daftar Pelanggan</h3>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <select onchange="window.location.href='?limit='+this.value;" class="form-control" style="width: auto; height: 32px; padding: 0 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-primary);">
+                <?php foreach ([10, 25, 50, 100, 500, 1000] as $l): ?>
+                    <option value="<?php echo $l; ?>" <?php echo $perPage === $l ? 'selected' : ''; ?>>Tampil <?php echo $l; ?></option>
+                <?php endforeach; ?>
+            </select>
+            <input type="text" id="searchCustomer" class="form-control" placeholder="Cari pelanggan..." style="width: 200px; height: 32px;">
+            <a href="export.php" class="btn btn-primary btn-sm" style="height: 32px; display: flex; align-items: center;">
                 <i class="fas fa-file-excel"></i> Export/Import
             </a>
+            <button onclick="document.getElementById('deleteAllModal').style.display='flex';" class="btn btn-danger btn-sm" style="height: 32px; display: flex; align-items: center;">
+                <i class="fas fa-trash-alt"></i> Hapus Semua
+            </button>
         </div>
     </div>
     
@@ -561,10 +587,10 @@ ob_start();
     <!-- Pagination -->
     <?php if ($totalPages > 1): ?>
     <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;">
-        <a href="?page=1" class="btn btn-secondary btn-sm" <?php echo $page === 1 ? 'disabled style="opacity: 0.5;"' : ''; ?>>
+        <a href="?page=1&limit=<?php echo $perPage; ?>" class="btn btn-secondary btn-sm" <?php echo $page === 1 ? 'disabled style="opacity: 0.5;"' : ''; ?>>
             <i class="fas fa-angle-double-left"></i>
         </a>
-        <a href="?page=<?php echo max(1, $page - 1); ?>" class="btn btn-secondary btn-sm" <?php echo $page === 1 ? 'disabled style="opacity: 0.5;"' : ''; ?>>
+        <a href="?page=<?php echo max(1, $page - 1); ?>&limit=<?php echo $perPage; ?>" class="btn btn-secondary btn-sm" <?php echo $page === 1 ? 'disabled style="opacity: 0.5;"' : ''; ?>>
             <i class="fas fa-angle-left"></i>
         </a>
         
@@ -573,16 +599,43 @@ ob_start();
             (Total: <?php echo $totalCustomers; ?> pelanggan)
         </span>
         
-        <a href="?page=<?php echo min($totalPages, $page + 1); ?>" class="btn btn-secondary btn-sm" <?php echo $page === $totalPages ? 'disabled style="opacity: 0.5;"' : ''; ?>>
+        <a href="?page=<?php echo min($totalPages, $page + 1); ?>&limit=<?php echo $perPage; ?>" class="btn btn-secondary btn-sm" <?php echo $page === $totalPages ? 'disabled style="opacity: 0.5;"' : ''; ?>>
             <i class="fas fa-angle-right"></i>
         </a>
-        <a href="?page=<?php echo $totalPages; ?>" class="btn btn-secondary btn-sm" <?php echo $page === $totalPages ? 'disabled style="opacity: 0.5;"' : ''; ?>>
+        <a href="?page=<?php echo $totalPages; ?>&limit=<?php echo $perPage; ?>" class="btn btn-secondary btn-sm" <?php echo $page === $totalPages ? 'disabled style="opacity: 0.5;"' : ''; ?>>
             <i class="fas fa-angle-double-right"></i>
         </a>
     </div>
     <?php endif; ?>
 </div>
         
+<!-- Delete All Modal -->
+<div id="deleteAllModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 450px; max-width: 90%; border: 1px solid var(--danger); box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);">
+        <div class="card-header" style="border-bottom-color: rgba(255, 71, 87, 0.2);">
+            <h3 class="card-title" style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> PERINGATAN BAHAYA</h3>
+            <button onclick="document.getElementById('deleteAllModal').style.display='none';" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.25rem;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding: 20px 0;">
+            <p style="color: #ffaaaa;">Anda akan <strong>MENGHAPUS SEMUA DATA PELANGGAN</strong> di sistem. Tindakan darurat ini tidak dapat dibatalkan!</p>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Untuk melanjutkan, ketik kata <strong>HAPUS SEMUA</strong> pada kolom di bawah ini:</p>
+            <form method="POST">
+                <input type="hidden" name="action" value="delete_all">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                <div class="form-group">
+                    <input type="text" name="confirm_text" class="form-control" placeholder="Ketik HAPUS SEMUA" required autocomplete="off" style="text-align: center; font-weight: bold; letter-spacing: 2px;">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="document.getElementById('deleteAllModal').style.display='none';">Batal</button>
+                    <button type="submit" class="btn btn-danger" style="flex: 1;"><i class="fas fa-trash-alt"></i> Eksekusi Hapus</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- PPPoE User Modal -->
 <div id="pppoeUserModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000;">
     <div class="card" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 360px; max-height: 80vh; overflow-y: auto;">
