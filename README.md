@@ -58,15 +58,15 @@ EXIT;
 ```
 
 ### 3. Mengunduh Aplikasi (Clone)
-Hapus file bawaan Nginx dan *clone* repositori Gembok langsung ke direktori publik Nginx:
+Dianjurkan untuk menaruh file aplikasi pada *root* direktori buatan sendiri (`/var/www/gembok`) agar lebih terbebas dari file bawaan *default* web server:
 ```bash
-cd /var/www/html
-sudo rm -f index.html index.nginx-debian.html
+sudo mkdir -p /var/www/gembok
+cd /var/www/gembok
 
 # Clone Gembok dari Github
 sudo git clone https://github.com/zxxahsan/gembok.git .
 ```
-*(Catatan: Tanda titik `.` pada akhir perintah bertujuan agar file diekstrak langsung dan tidak membuat sub-folder baru).*
+*(Catatan: Tanda titik `.` pada akhir perintah bertujuan agar file diekstrak ke dalam folder saat ini dan tidak menciptakan grup sub-folder lagi).*
 
 ### 4. Mengatur File Konfigurasi Gembok
 Duplikasi file `config.sample.php` menjadi `config.php` dan edit informasinya:
@@ -86,8 +86,8 @@ define('DB_PASS', 'passwordKuat123');
 ### 5. Memberikan Izin Akses (Permissions)
 Langkah ini sangat krusial agar Nginx dan PHP memiliki wewenang untuk menulis log, membuat file .zip backup, dan mengolah foto instalasi buatan Teknisi.
 ```bash
-sudo chown -R www-data:www-data /var/www/html
-sudo chmod -R 755 /var/www/html
+sudo chown -R www-data:www-data /var/www/gembok
+sudo chmod -R 755 /var/www/gembok
 ```
 
 ### 6. Mentautkan Nginx dengan PHP-FPM
@@ -99,6 +99,9 @@ Cari pengaturan berikut dan modifikasi agar tampak seperti ini (sesuaikan angka 
 ```nginx
 server {
     ...
+    # Tunjuk direktori file web utama (root) ke gembok
+    root /var/www/gembok;
+
     # Tambahkan index.php pada prioritas utama
     index index.php index.html index.htm index.nginx-debian.html;
 
@@ -134,7 +137,7 @@ Kini server ISP Anda telah mandiri dan siap melayani!
    Langkah ini menjamin infrastruktur struktur tabel fitur **Multi-Foto** milik teknisi tereksekusi tanpa keluhan *error* di masa depan.
 
 > **PENTING**: Ketika segala fitur telah dites berjalan lancar, Anda berkewajiban menghapus file instalasi untuk mencegah penyusup mereset *database* Anda.
-> `sudo rm -f /var/www/html/install.php`
+> `sudo rm -f /var/www/gembok/install.php`
 
 ---
 
