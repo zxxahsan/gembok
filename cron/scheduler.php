@@ -34,8 +34,8 @@ function runScheduler() {
                 ->execute(['System Heartbeat', 'system_ping', 'every_minute', '00:00', 1]);
         }
         
-        // Self-heal: Force critical jobs to check continuously instead of daily
-        $pdo->exec("UPDATE cron_schedules SET schedule_days = 'every_minute' WHERE task_type IN ('auto_isolir', 'auto_invoice')");
+        // Self-heal: Force critical jobs to check continuously instead of daily, and reset the next_run cache so it doesn't wait until tomorrow!
+        $pdo->exec("UPDATE cron_schedules SET schedule_days = 'every_minute', next_run = NOW() WHERE task_type IN ('auto_isolir', 'auto_invoice') AND schedule_days != 'every_minute'");
 
         // Get all active schedules
         $schedules = fetchAll("
@@ -179,7 +179,7 @@ function runAutoIsolir($pdo)
         FROM customers c
         INNER JOIN invoices i ON c.id = i.customer_id
         WHERE i.status = 'unpaid'
-        AND i.due_date < CURDATE()
+        AND i.due_date <= CURDATE()
         AND c.status = 'active'
     ");
 
