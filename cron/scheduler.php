@@ -33,6 +33,9 @@ function runScheduler() {
             $pdo->prepare("INSERT IGNORE INTO cron_schedules (name, task_type, schedule_days, schedule_time, is_active) VALUES (?, ?, ?, ?, ?)")
                 ->execute(['System Heartbeat', 'system_ping', 'every_minute', '00:00', 1]);
         }
+        
+        // Self-heal: Force critical jobs to check continuously instead of daily
+        $pdo->exec("UPDATE cron_schedules SET schedule_days = 'every_minute' WHERE task_type IN ('auto_isolir', 'auto_invoice')");
 
         // Get all active schedules
         $schedules = fetchAll("
