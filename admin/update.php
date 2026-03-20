@@ -85,9 +85,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $projectRoot = realpath(dirname(__DIR__));
         sendLog(10, "[*] Target Direktori: " . $projectRoot);
-        sendLog(20, "[*] Mengeksekusi: git pull origin main...");
+        sendLog(20, "[*] Mengeksekusi: git fetch & reset --hard (Force Update)...");
         
-        $cmd = 'cd ' . escapeshellarg($projectRoot) . ' && git pull 2>&1';
+        // Use fetch + reset --hard to always safely overwrite any local changes
+        $cmd = 'cd ' . escapeshellarg($projectRoot) . ' && git fetch --all 2>&1 && git reset --hard origin/main 2>&1';
         exec($cmd, $output, $returnVar);
         
         $gitOutput = implode("\n", $output);
