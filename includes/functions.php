@@ -402,8 +402,19 @@ function unisolateCustomer($customerId)
         return false;
     }
 
+    // Flexible Billing Cycle: If they were isolated, shift their billing cycle forwards to today
+    $newIsolationDate = $customer['isolation_date'];
+    if ($customer['status'] === 'isolated') {
+        $today = (int)date('d');
+        if ($today > 28) $today = 28; // Cap at 28 to avoid February leap issues
+        $newIsolationDate = $today;
+    }
+
     // Update status
-    update('customers', ['status' => 'active'], 'id = ?', [$customerId]);
+    update('customers', [
+        'status' => 'active',
+        'isolation_date' => $newIsolationDate
+    ], 'id = ?', [$customerId]);
 
     // Update MikroTik profile
     $package = fetchOne("SELECT * FROM packages WHERE id = ?", [$customer['package_id']]);
