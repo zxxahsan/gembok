@@ -702,9 +702,13 @@ function genieacsGetValue($device, $path)
         if (isset($current[0]) && is_string($current[0])) {
             return $current[0];
         }
+        
+        // If it lacks a specific value leaf, it is a structural tree (like Hosts.Host)
+        // Return the array intact for the caller to parse!
+        return $current;
     }
 
-    return is_string($current) ? $current : null;
+    return $current;
 }
 
 // Get device info summary from GenieACS
