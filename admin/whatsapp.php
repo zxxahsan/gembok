@@ -52,7 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         ['invoice_created', "Halo *{customer_name}*,\n\nTagihan internet periode *{period}* telah terbit.\n\n- Nomor: {invoice_number}\n- Total: Rp {amount}\n- Jatuh Tempo: {due_date}\n\nBayar sekarang via Portal:\n{payment_url}", '{customer_name}, {period}, {invoice_number}, {amount}, {due_date}, {payment_url}, {app_name}'],
         ['invoice_reminder', "⚠️ *PENGINGAT TAGIHAN* ⚠️\n\nHalo *{customer_name}*,\nTagihan internet sebesar *Rp {amount}* akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nTerima kasih.", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
         ['isolation_warning', "🔴 *KONEKSI TERPUTUS* 🔴\n\nMaaf *{customer_name}*, layanan internet telah diisolir karena tagihan *Rp {amount}* melewati batas ({due_date}).\n\nAktifkan kembali dalam 1 menit dengan pembayaran di:\n{payment_url}\n\nCheckout Cepat:\n{tripay_url}", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
-        ['payment_success', "✅ *PEMBAYARAN DITERIMA* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nLayanan internet Anda sudah aktif dan dapat digunakan.\nTerima kasih atas pembayaran Anda.", '{customer_name}, {amount}, {period}, {invoice_number}']
+        ['payment_success_normal', "✅ *PEMBAYARAN DITERIMA* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah kami terima.\n\nTerima kasih atas pembayaran Anda.", '{customer_name}, {amount}, {period}, {invoice_number}'],
+        ['payment_success_isolated', "✅ *PEMBAYARAN DITERIMA & KONEKSI DIPULIHKAN* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nStatus Isolasi Anda telah DIBUKA otomatis. Layanan internet Anda segera aktif kembali dalam hitungan 1-2 menit ke depan.\nTerima kasih.", '{customer_name}, {amount}, {period}, {invoice_number}']
     ];
     foreach ($waTemplates as $watmp) {
         $stmt = $pdo->prepare("INSERT IGNORE INTO whatsapp_templates (type, message, variables_hint) VALUES (?, ?, ?)");
@@ -88,6 +89,24 @@ $templates = [];
 try {
     $stmt = $pdo->query("SELECT * FROM whatsapp_templates");
     $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Auto-seed missing core templates silently!
+    $coreTemplates = [
+        ['new_customer', "Halo *{customer_name}*,\n\nSelamat datang di Layanan Internet *{app_name}*!\nBerikut detail layanan Anda:\n- Paket: {package_name}\n- Harga: Rp {package_price}/bulan\n... (Edit via Portal) ...", ''],
+        ['invoice_created', "Halo *{customer_name}*,\n\nTagihan internet periode *{period}* telah terbit.\n\n- Nomor: {invoice_number}\n- Total: Rp {amount}\n- Jatuh Tempo: {due_date}\n\nBayar sekarang via Portal:\n{payment_url}", ''],
+        ['invoice_reminder', "⚠️ *PENGINGAT TAGIHAN* ⚠️\n\nHalo *{customer_name}*,\nTagihan internet sebesar *Rp {amount}* akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nTerima kasih.", ''],
+        ['isolation_warning', "🔴 *KONEKSI TERPUTUS* 🔴\n\nMaaf *{customer_name}*, layanan internet telah diisolir karena tagihan *Rp {amount}* melewati batas ({due_date}).\n\nAktifkan kembali dalam 1 menit dengan pembayaran di:\n{payment_url}\n\nCheckout Cepat:\n{tripay_url}", ''],
+        ['payment_success_normal', "✅ *PEMBAYARAN DITERIMA* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah kami terima.\n\nTerima kasih atas pembayaran Anda.", '{customer_name}, {amount}, {period}, {invoice_number}'],
+        ['payment_success_isolated', "✅ *PEMBAYARAN DITERIMA & KONEKSI DIPULIHKAN* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nStatus Isolasi Anda telah DIBUKA otomatis. Layanan internet Anda terhubung kembali dalam waktu 1-2 menit.\nTerima kasih.", '{customer_name}, {amount}, {period}, {invoice_number}']
+    ];
+    foreach($coreTemplates as $ct) {
+        $stmt = $pdo->prepare("INSERT IGNORE INTO whatsapp_templates (type, message, variables_hint) VALUES (?, ?, ?)");
+        $stmt->execute($ct);
+    }
+    
+    // Re-fetch after seeding
+    $stmt = $pdo->query("SELECT * FROM whatsapp_templates");
+    $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     // Expected on first load without DB Migration!
     $templates = null;
@@ -99,7 +118,8 @@ $typeNames = [
     'invoice_created' => 'Informasi Penagihan Baru',
     'invoice_reminder' => 'Reminder Tagihan (H-3 / H-1)',
     'isolation_warning' => 'Peringatan Isolir (PPPoE Terputus)',
-    'payment_success' => 'Pembayaran Berhasil / Lunas'
+    'payment_success_normal' => 'Pembayaran Berhasil (Status Aktif)',
+    'payment_success_isolated' => 'Pembayaran Berhasil & Buka Isolir'
 ];
 ?>
 

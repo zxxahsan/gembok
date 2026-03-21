@@ -82,8 +82,10 @@ function handlePaidInvoice($invoiceNumber, $paymentData) {
     
     // Check if customer should be unisolated
     $customer = fetchOne("SELECT * FROM customers WHERE id = ?", [$invoice['customer_id']]);
+    $wasIsolated = false;
     
     if ($customer && $customer['status'] === 'isolated') {
+        $wasIsolated = true;
         // Check if all invoices are paid
         $unpaidCount = fetchOne("
             SELECT COUNT(*) as total 
@@ -107,7 +109,10 @@ function handlePaidInvoice($invoiceNumber, $paymentData) {
     // Broadcast Payment Success WhatsApp
     if ($customer && !empty($customer['phone'])) {
         require_once __DIR__ . '/../includes/whatsapp.php';
-        $message = buildWhatsAppMessage('payment_success', [
+        
+        $templateKey = $wasIsolated ? 'payment_success_isolated' : 'payment_success_normal';
+        
+        $message = buildWhatsAppMessage($templateKey, [
             'customer_name' => $customer['name'],
             'amount' => formatCurrency($invoice['amount']),
             'period' => date('F Y', strtotime($invoice['created_at'])),

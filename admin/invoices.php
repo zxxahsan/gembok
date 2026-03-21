@@ -71,16 +71,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'updated_at' => date('Y-m-d H:i:s')
                     ], 'id = ?', [$invoiceId]);
                     
+                    // Retrieve customer BEFORE unisolate code below runs so we know their prior state!
+                    $customer = fetchOne("SELECT * FROM customers WHERE id = ?", [$invoice['customer_id']]);
+                    $wasIsolated = ($customer && $customer['status'] === 'isolated');
+                    
                     // Unisolate customer
-                    if (isCustomerIsolated($invoice['customer_id'])) {
+                    if ($wasIsolated) {
                         unisolateCustomer($invoice['customer_id']);
                     }
                     
                     // Broadcast WhatsApp Payment Success
-                    $customer = fetchOne("SELECT name, phone FROM customers WHERE id = ?", [$invoice['customer_id']]);
                     if ($customer && !empty($customer['phone'])) {
                         require_once __DIR__ . '/../includes/whatsapp.php';
-                        $message = buildWhatsAppMessage('payment_success', [
+                        $templateKey = $wasIsolated ? 'payment_success_isolated' : 'payment_success_normal';
+                        $message = buildWhatsAppMessage($templateKey, [
                             'customer_name' => $customer['name'],
                             'amount' => formatCurrency($invoice['amount']),
                             'period' => date('F Y', strtotime($invoice['created_at'])),
@@ -174,16 +178,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $updateData['paid_at'] = date('Y-m-d H:i:s');
                         $updateData['payment_method'] = 'Manual';
                         
+                        $customer = fetchOne("SELECT * FROM customers WHERE id = ?", [$invoice['customer_id']]);
+                        $wasIsolated = ($customer && $customer['status'] === 'isolated');
+                        
                         // Unisolate customer if was isolated
-                        if (isCustomerIsolated($invoice['customer_id'])) {
+                        if ($wasIsolated) {
                             unisolateCustomer($invoice['customer_id']);
                         }
                         
                         // Broadcast WhatsApp Payment Success
-                        $customer = fetchOne("SELECT name, phone FROM customers WHERE id = ?", [$invoice['customer_id']]);
                         if ($customer && !empty($customer['phone'])) {
                             require_once __DIR__ . '/../includes/whatsapp.php';
-                            $message = buildWhatsAppMessage('payment_success', [
+                            $templateKey = $wasIsolated ? 'payment_success_isolated' : 'payment_success_normal';
+                            $message = buildWhatsAppMessage($templateKey, [
                                 'customer_name' => $customer['name'],
                                 'amount' => formatCurrency($amount),
                                 'period' => date('F Y', strtotime($invoice['created_at'])),
