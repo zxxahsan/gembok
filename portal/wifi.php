@@ -132,24 +132,27 @@ if ($customerDevice) {
                 }
                 
                 // MAC Address parsing
-                $macFound = '-';
-                if (isset($hostData['MACAddress'])) {
-                    $macFound = is_array($hostData['MACAddress']) ? ($hostData['MACAddress']['_value'] ?? '') : $hostData['MACAddress'];
-                } elseif (isset($hostData['AssociatedDeviceMACAddress'])) {
-                    $macFound = is_array($hostData['AssociatedDeviceMACAddress']) ? ($hostData['AssociatedDeviceMACAddress']['_value'] ?? '') : $hostData['AssociatedDeviceMACAddress'];
+                $candidateMac = '';
+                // Look for MAC explicitly:
+                $macSource = $hostData['MACAddress'] ?? $hostData['PhysAddress'] ?? $hostData['AssociatedDeviceMACAddress'] ?? null;
+                $macRaw = is_array($macSource) ? ($macSource['_value'] ?? '') : $macSource;
+                if (!empty($macRaw)) {
+                    $candidateMac = strtoupper(trim((string)$macRaw));
                 }
                 
-                // Brutal Regex Scanner: If FiberHome hides the MAC under a bizarre alias (like 'PhysAddress')
-                if (empty($macFound) || $macFound === '-') {
-                    foreach ($hostData as $k => $v) {
-                        $valCheck = is_array($v) ? ($v['_value'] ?? '') : $v;
-                        if (is_string($valCheck) && preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $valCheck)) {
-                            $macFound = strtoupper($valCheck);
-                            break; // Seize the first valid hardware MAC
+                // Brutal fallback: Find ANY string that looks like a MAC if standard keys fail
+                if (empty($candidateMac)) {
+                    $macRegex = '/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/';
+                    foreach ($hostData as $k => $val) {
+                        $valCheck = is_array($val) ? ($val['_value'] ?? (is_string($val[0] ?? null) ? $val[0] : '')) : (is_string($val) ? $val : '');
+                        if (is_string($valCheck) && preg_match($macRegex, trim($valCheck))) {
+                            $candidateMac = strtoupper(trim($valCheck));
+                            break;
                         }
                     }
                 }
-                $host['MACAddress'] = $macFound;
+                
+                $host['MACAddress'] = !empty($candidateMac) ? $candidateMac : 'UNKNOWN-' . $key;
                 
                 // Active status parsing
                 if (isset($hostData['Active'])) {
