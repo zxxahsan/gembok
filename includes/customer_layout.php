@@ -737,20 +737,6 @@ ob_start();
 
     <!-- Main Content -->
     <div class="main-content">
-        <div class="header">
-            <div class="header-title">
-                <h1>Selamat Datang</h1>
-            </div>
-            <div class="header-actions">
-                <button class="menu-toggle" onclick="toggleSidebar()" style="display: none; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <span style="color: var(--text-secondary);">
-                    <i class="fas fa-user"></i>
-                    <?php echo htmlspecialchars($customer['name']); ?>
-                </span>
-            </div>
-        </div>
         
         <!-- Flash Messages -->
         <?php if (hasFlash('success')): ?>
