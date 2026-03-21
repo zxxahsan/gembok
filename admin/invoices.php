@@ -49,6 +49,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             
                             insert('invoices', $invoiceData);
                             $generatedCount++;
+                            
+                            // Dispatch via WhatsApp Gateway
+                            if (!empty($customer['phone'])) {
+                                $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+                                require_once __DIR__ . '/../includes/whatsapp.php';
+                                $message = buildWhatsAppMessage('invoice_created', [
+                                    'customer_name' => $customer['name'],
+                                    'period' => date('F Y'),
+                                    'invoice_number' => $invoiceData['invoice_number'],
+                                    'amount' => formatCurrency($invoiceData['amount']),
+                                    'due_date' => formatDate($invoiceData['due_date']),
+                                    'payment_url' => $paymentUrl,
+                                    'app_name' => APP_NAME
+                                ]);
+                                if (!empty($message)) sendWhatsAppMessage($customer['phone'], $message);
+                            }
                         }
                     }
                 }
@@ -264,10 +280,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ];
                     
                     insert('invoices', $invoiceData);
-                    setFlash('success', 'Invoice manual berhasil dibuat');
+                    
+                    // Dispatch via WhatsApp Gateway
+                    if (!empty($customer['phone'])) {
+                        $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+                        require_once __DIR__ . '/../includes/whatsapp.php';
+                        $message = buildWhatsAppMessage('invoice_created', [
+                            'customer_name' => $customer['name'],
+                            'period' => date('F Y'),
+                            'invoice_number' => $invoiceData['invoice_number'],
+                            'amount' => formatCurrency($invoiceData['amount']),
+                            'due_date' => formatDate($invoiceData['due_date']),
+                            'payment_url' => $paymentUrl,
+                            'app_name' => APP_NAME
+                        ]);
+                        if (!empty($message)) sendWhatsAppMessage($customer['phone'], $message);
+                    }
+                    
+                    setFlash('success', 'Invoice manual berhasil dibuat dan WA terkirim');
                     logActivity('CREATE_INVOICE', "Manual invoice for customer: {$customer['name']}");
                 } else {
                     setFlash('error', 'Pelanggan tidak ditemukan');
+                }
+                redirect('invoices.php');
+                break;
+                
+            case 'send_wa':
+                $invoiceId = (int)$_POST['invoice_id'];
+                $invoice = fetchOne("
+                    SELECT i.*, c.name, c.phone 
+                    FROM invoices i 
+                    JOIN customers c ON i.customer_id = c.id 
+                    WHERE i.id = ?
+                ", [$invoiceId]);
+                
+                if ($invoice && !empty($invoice['phone'])) {
+                    $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+                    $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
+                    
+                    require_once __DIR__ . '/../includes/whatsapp.php';
+                    $message = buildWhatsAppMessage('invoice_reminder', [
+                        'customer_name' => $invoice['name'],
+                        'amount' => formatCurrency($invoice['amount']),
+                        'due_date' => formatDate($invoice['due_date']),
+                        'payment_url' => $paymentUrl,
+                        'tripay_url' => $tripayUrl
+                    ]);
+                    
+                    $res = sendWhatsAppMessage($invoice['phone'], $message);
+                    if (isset($res['success']) && $res['success']) {
+                        setFlash('success', 'WhatsApp Reminder berhasil dikirim via Gateway API!');
+                    } else {
+                        setFlash('error', 'Gagal kirim WA: ' . ($res['message'] ?? 'Unknown Gateway Error'));
+                    }
+                } else {
+                    setFlash('error', 'Invoice atau Nomor HP pelanggan tidak valid.');
                 }
                 redirect('invoices.php');
                 break;
@@ -487,9 +554,14 @@ ob_start();
                                 </form>
                             <?php endif; ?>
                             
-                            <button class="btn btn-secondary btn-sm" onclick="sendWhatsApp('<?php echo htmlspecialchars($inv['phone']); ?>', '<?php echo htmlspecialchars($inv['invoice_number']); ?>', '<?php echo htmlspecialchars(formatCurrency($inv['amount'])); ?>')" title="Kirim WA">
-                                <i class="fab fa-whatsapp"></i>
-                            </button>
+                            <form method="POST" style="display: inline;" onsubmit="return confirm('Kirimkan WhatsApp Reminder untuk tagihan ini via Gateway API?');">
+                                <input type="hidden" name="action" value="send_wa">
+                                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                                <input type="hidden" name="invoice_id" value="<?php echo $inv['id']; ?>">
+                                <button type="submit" class="btn btn-secondary btn-sm" title="Kirim Reminder WA Via API Gateway" style="background: var(--neon-green); border-color: var(--neon-green); color: black;">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                            </form>
                         </div>
                     </td>
                 </tr>

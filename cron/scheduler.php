@@ -275,6 +275,22 @@ function runAutoInvoice($pdo)
                 insert('invoices', $invoiceData);
                 $generatedCount++;
                 echo "  ✓ Generated invoice for: {$customer['name']}\n";
+                
+                // Dispatch via WhatsApp Gateway
+                if (!empty($customer['phone'])) {
+                    $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+                    require_once __DIR__ . '/../includes/whatsapp.php';
+                    $message = buildWhatsAppMessage('invoice_created', [
+                        'customer_name' => $customer['name'],
+                        'period' => date('F Y'),
+                        'invoice_number' => $invoiceData['invoice_number'],
+                        'amount' => formatCurrency($invoiceData['amount']),
+                        'due_date' => formatDate($invoiceData['due_date']),
+                        'payment_url' => $paymentUrl,
+                        'app_name' => APP_NAME
+                    ]);
+                    if (!empty($message)) sendWhatsAppMessage($customer['phone'], $message);
+                }
             }
         }
     }
