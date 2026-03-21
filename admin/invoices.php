@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             // Dispatch via WhatsApp Gateway
                             if (!empty($customer['phone'])) {
                                 $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+                                $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoiceData['amount']}&merchant_ref={$invoiceData['invoice_number']}";
                                 require_once __DIR__ . '/../includes/whatsapp.php';
                                 $message = buildWhatsAppMessage('invoice_created', [
                                     'customer_name' => $customer['name'],
@@ -61,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     'amount' => formatCurrency($invoiceData['amount']),
                                     'due_date' => formatDate($invoiceData['due_date']),
                                     'payment_url' => $paymentUrl,
+                                    'tripay_url' => $tripayUrl,
                                     'app_name' => APP_NAME
                                 ]);
                                 if (!empty($message)) sendWhatsAppMessage($customer['phone'], $message);
@@ -284,6 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Dispatch via WhatsApp Gateway
                     if (!empty($customer['phone'])) {
                         $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+                        $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoiceData['amount']}&merchant_ref={$invoiceData['invoice_number']}";
                         require_once __DIR__ . '/../includes/whatsapp.php';
                         $message = buildWhatsAppMessage('invoice_created', [
                             'customer_name' => $customer['name'],
@@ -292,6 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'amount' => formatCurrency($invoiceData['amount']),
                             'due_date' => formatDate($invoiceData['due_date']),
                             'payment_url' => $paymentUrl,
+                            'tripay_url'  => $tripayUrl,
                             'app_name' => APP_NAME
                         ]);
                         if (!empty($message)) sendWhatsAppMessage($customer['phone'], $message);
