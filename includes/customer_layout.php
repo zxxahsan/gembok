@@ -682,12 +682,17 @@ ob_start();
         <div class="sidebar-nav">
             <a href="dashboard.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : ''; ?>">
                 <i class="fas fa-tachometer-alt"></i>
-                <span>Dashboard</span>
+                <span>Beranda</span>
             </a>
             
-            <a href="payment.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'payment.php' ? 'active' : ''; ?>">
+            <a href="wifi.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'wifi.php' ? 'active' : ''; ?>">
+                <i class="fas fa-wifi"></i>
+                <span>WiFi & Router</span>
+            </a>
+            
+            <a href="billing.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'billing.php' ? 'active' : ''; ?>">
                 <i class="fas fa-credit-card"></i>
-                <span>Pembayaran</span>
+                <span>Tagihan</span>
             </a>
             
             <a href="trouble.php" class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'trouble.php' ? 'active' : ''; ?>">
@@ -699,7 +704,7 @@ ob_start();
             
             <a href="logout.php" class="menu-item">
                 <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
+                <span>Keluar</span>
             </a>
         </div>
     </div>
@@ -711,17 +716,17 @@ ob_start();
                 <i class="fas fa-tachometer-alt"></i>
                 <span>Beranda</span>
             </a>
-            <a href="dashboard.php#wifi-settings" class="mobile-nav-item">
+            <a href="wifi.php" class="mobile-nav-item <?php echo basename($_SERVER['PHP_SELF']) === 'wifi.php' ? 'active' : ''; ?>">
                 <i class="fas fa-wifi"></i>
                 <span>WiFi</span>
+            </a>
+            <a href="billing.php" class="mobile-nav-item <?php echo basename($_SERVER['PHP_SELF']) === 'billing.php' ? 'active' : ''; ?>">
+                <i class="fas fa-credit-card"></i>
+                <span>Tagihan</span>
             </a>
             <a href="trouble.php" class="mobile-nav-item <?php echo basename($_SERVER['PHP_SELF']) === 'trouble.php' ? 'active' : ''; ?>">
                 <i class="fas fa-ticket-alt"></i>
                 <span>Lapor</span>
-            </a>
-            <a href="payment.php" class="mobile-nav-item <?php echo basename($_SERVER['PHP_SELF']) === 'payment.php' ? 'active' : ''; ?>">
-                <i class="fas fa-credit-card"></i>
-                <span>Tagihan</span>
             </a>
             <a href="logout.php" class="mobile-nav-item">
                 <i class="fas fa-sign-out-alt"></i>
