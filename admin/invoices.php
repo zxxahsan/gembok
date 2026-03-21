@@ -319,7 +319,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
                     
                     require_once __DIR__ . '/../includes/whatsapp.php';
-                    $message = buildWhatsAppMessage('invoice_reminder', [
+                    $message = buildWhatsAppMessage('invoice_reminder_1', [
                         'customer_name' => $invoice['name'],
                         'amount' => formatCurrency($invoice['amount']),
                         'due_date' => formatDate($invoice['due_date']),

@@ -356,41 +356,63 @@ function runBackupDb()
 function sendReminders($pdo)
 {
     echo "Sending payment reminders...\n";
-
-    // Get customers with unpaid invoices due in 3 days
-    $upcomingInvoices = fetchAll("
-        SELECT c.id, c.name, c.phone, c.pppoe_username, i.invoice_number, i.amount, i.due_date
-        FROM customers c
-        INNER JOIN invoices i ON c.id = i.customer_id
-        WHERE i.status = 'unpaid'
-        AND i.due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)
-        AND c.status = 'active'
-    ");
-
-    echo "Found " . count($upcomingInvoices) . " upcoming invoice reminders\n";
-
-    foreach ($upcomingInvoices as $invoice) {
-        $daysUntilDue = (strtotime($invoice['due_date']) - time()) / 86400;
-
-        $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
-        
-        $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
-        
-        require_once __DIR__ . '/../includes/whatsapp.php';
-        $message = buildWhatsAppMessage('invoice_reminder', [
-            'customer_name' => $invoice['name'],
-            'amount' => formatCurrency($invoice['amount']),
-            'due_date' => formatDate($invoice['due_date']),
-            'payment_url' => $paymentUrl,
-            'tripay_url' => $tripayUrl
-        ]);
-        
-        if (empty($message)) {
-            $message = "⚠️ *PENGINGAT TAGIHAN*\nHalo {$invoice['name']}, Tagihan " . formatCurrency($invoice['amount']) . " akan jatuh tempo pada " . formatDate($invoice['due_date']) . ".\nBayar disini: $paymentUrl \nAtau Tripay Langsung: $tripayUrl";
+    
+    // Fetch Configuration Settings for Days Offsets
+    $settingsRaw = fetchAll("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('wa_reminder_1_days', 'wa_reminder_2_days', 'wa_reminder_3_days')");
+    $dayConfig = [
+        'wa_reminder_1_days' => 7,
+        'wa_reminder_2_days' => 3,
+        'wa_reminder_3_days' => 1
+    ];
+    foreach($settingsRaw as $row) {
+        if(is_numeric($row['setting_value'])) {
+            $dayConfig[$row['setting_key']] = (int)$row['setting_value'];
         }
+    }
+    
+    // Build the execution mapping matrix
+    $configs = [
+        [ 'days' => $dayConfig['wa_reminder_1_days'], 'template' => 'invoice_reminder_1' ],
+        [ 'days' => $dayConfig['wa_reminder_2_days'], 'template' => 'invoice_reminder_2' ],
+        [ 'days' => $dayConfig['wa_reminder_3_days'], 'template' => 'invoice_reminder_3' ]
+    ];
+    
+    foreach ($configs as $cfg) {
+        $daysParam = $cfg['days'];
+        $templateKey = $cfg['template'];
 
-        echo "  Sending reminder to: {$invoice['name']} ({$invoice['phone']})\n";
-        sendWhatsApp($invoice['phone'], $message);
+        // Get customers with unpaid invoices EXACTLY matching the day offset
+        $upcomingInvoices = fetchAll("
+            SELECT c.id, c.name, c.phone, c.pppoe_username, i.invoice_number, i.amount, i.due_date
+            FROM customers c
+            INNER JOIN invoices i ON c.id = i.customer_id
+            WHERE i.status = 'unpaid'
+            AND i.due_date = DATE_ADD(CURDATE(), INTERVAL ? DAY)
+            AND c.status = 'active'
+        ", [$daysParam]);
+
+        echo "Found " . count($upcomingInvoices) . " upcoming invoice reminders for H-{$daysParam} (Template: {$templateKey})\n";
+
+        foreach ($upcomingInvoices as $invoice) {
+            $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+            $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
+            
+            require_once __DIR__ . '/../includes/whatsapp.php';
+            $message = buildWhatsAppMessage($templateKey, [
+                'customer_name' => $invoice['name'],
+                'amount' => formatCurrency($invoice['amount']),
+                'due_date' => formatDate($invoice['due_date']),
+                'payment_url' => $paymentUrl,
+                'tripay_url' => $tripayUrl
+            ]);
+            
+            if (empty($message)) {
+                $message = "⚠️ *PENGINGAT TAGIHAN*\nHalo {$invoice['name']}, Tagihan " . formatCurrency($invoice['amount']) . " akan memasukin batas akhir dalam $daysParam hari (" . formatDate($invoice['due_date']) . ").\nBayar disini: $paymentUrl \nAtau Tripay Langsung: $tripayUrl";
+            }
+
+            echo "  Sending reminder to: {$invoice['name']} ({$invoice['phone']})\n";
+            sendWhatsApp($invoice['phone'], $message);
+        }
     }
 }
 

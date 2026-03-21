@@ -17,7 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             'WABLAS_TOKEN' => $_POST['wablas_token'] ?? '',
             'WABLAS_DOMAIN' => $_POST['wablas_domain'] ?? '',
             'MPWA_TOKEN' => $_POST['mpwa_token'] ?? '',
-            'MPWA_URL' => $_POST['mpwa_url'] ?? ''
+            'MPWA_URL' => $_POST['mpwa_url'] ?? '',
+            'wa_reminder_1_days' => $_POST['wa_reminder_1_days'] ?? '7',
+            'wa_reminder_2_days' => $_POST['wa_reminder_2_days'] ?? '3',
+            'wa_reminder_3_days' => $_POST['wa_reminder_3_days'] ?? '1'
         ];
         
         foreach ($waSettings as $key => $value) {
@@ -50,7 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $waTemplates = [
         ['new_customer', "Halo *{customer_name}*,\n\nSelamat datang di Layanan Internet *{app_name}*!\nBerikut detail layanan Anda:\n- Paket: {package_name}\n- Harga: Rp {package_price}/bulan\n- Jatuh Tempo: Tanggal {due_date} tiap bulan\n- Username PPPoE: {pppoe_username}\n- Password: {pppoe_password}\n\nGunakan Portal Pelanggan kami:\n{portal_url}", '{customer_name}, {app_name}, {package_name}, {package_price}, {due_date}, {pppoe_username}, {pppoe_password}, {portal_url}'],
         ['invoice_created', "Halo *{customer_name}*,\n\nTagihan internet periode *{period}* telah terbit.\n\n- Nomor: {invoice_number}\n- Total: Rp {amount}\n- Jatuh Tempo: {due_date}\n\nBayar sekarang via Portal:\n{payment_url}", '{customer_name}, {period}, {invoice_number}, {amount}, {due_date}, {payment_url}, {app_name}'],
-        ['invoice_reminder', "⚠️ *PENGINGAT TAGIHAN* ⚠️\n\nHalo *{customer_name}*,\nTagihan internet sebesar *Rp {amount}* akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nTerima kasih.", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
+        ['invoice_reminder_1', "⚠️ *PENGINGAT TAGIHAN 1* ⚠️\n\nHalo *{customer_name}*,\nTagihan internet sebesar *Rp {amount}* akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nTerima kasih.", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
+        ['invoice_reminder_2', "⚠️ *PENGINGAT TAGIHAN 2* ⚠️\n\nHalo *{customer_name}*,\nMohon segera melunasi tagihan internet sebesar *Rp {amount}* yang akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nTerima kasih.", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
+        ['invoice_reminder_3', "‼️ *HARI JATUH TEMPO* ‼️\n\nHalo *{customer_name}*,\nHari ini atau besok adalah jadwal pemutusan sementara. Segera lakukan pembayaran tagihan internet sebesar *Rp {amount}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nAbaikan pesan ini bila sudah membayar.", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
         ['isolation_warning', "🔴 *KONEKSI TERPUTUS* 🔴\n\nMaaf *{customer_name}*, layanan internet telah diisolir karena tagihan *Rp {amount}* melewati batas ({due_date}).\n\nAktifkan kembali dalam 1 menit dengan pembayaran di:\n{payment_url}\n\nCheckout Cepat:\n{tripay_url}", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
         ['payment_success_normal', "✅ *PEMBAYARAN DITERIMA* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah kami terima.\n\nTerima kasih atas pembayaran Anda.", '{customer_name}, {amount}, {period}, {invoice_number}'],
         ['payment_success_isolated', "✅ *PEMBAYARAN DITERIMA & KONEKSI DIPULIHKAN* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nStatus Isolasi Anda telah DIBUKA otomatis. Layanan internet Anda segera aktif kembali dalam hitungan 1-2 menit ke depan.\nTerima kasih.", '{customer_name}, {amount}, {period}, {invoice_number}']
@@ -78,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Fetch Settings
-$stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('wa_bot_url', 'WHATSAPP_ADMIN_NUMBER', 'WA_GATEWAY', 'FONNTE_TOKEN', 'WABLAS_TOKEN', 'WABLAS_DOMAIN', 'MPWA_TOKEN', 'MPWA_URL')");
+$stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('wa_bot_url', 'WHATSAPP_ADMIN_NUMBER', 'WA_GATEWAY', 'FONNTE_TOKEN', 'WABLAS_TOKEN', 'WABLAS_DOMAIN', 'MPWA_TOKEN', 'MPWA_URL', 'wa_reminder_1_days', 'wa_reminder_2_days', 'wa_reminder_3_days')");
 $settings = [];
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $settings[$row['setting_key']] = $row['setting_value'];
@@ -94,7 +99,9 @@ try {
     $coreTemplates = [
         ['new_customer', "Halo *{customer_name}*,\n\nSelamat datang di Layanan Internet *{app_name}*!\nBerikut detail layanan Anda:\n- Paket: {package_name}\n- Harga: Rp {package_price}/bulan\n... (Edit via Portal) ...", ''],
         ['invoice_created', "Halo *{customer_name}*,\n\nTagihan internet periode *{period}* telah terbit.\n\n- Nomor: {invoice_number}\n- Total: Rp {amount}\n- Jatuh Tempo: {due_date}\n\nBayar sekarang via Portal:\n{payment_url}", ''],
-        ['invoice_reminder', "⚠️ *PENGINGAT TAGIHAN* ⚠️\n\nHalo *{customer_name}*,\nTagihan internet sebesar *Rp {amount}* akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nTerima kasih.", ''],
+        ['invoice_reminder_1', "⚠️ *PENGINGAT TAGIHAN 1* ⚠️\n\nHalo *{customer_name}*,\nTagihan internet sebesar *Rp {amount}* akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nTerima kasih.", ''],
+        ['invoice_reminder_2', "⚠️ *PENGINGAT TAGIHAN 2* ⚠️\n\nHalo *{customer_name}*,\nMohon segera melunasi tagihan internet sebesar *Rp {amount}* yang akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nTerima kasih.", ''],
+        ['invoice_reminder_3', "‼️ *HARI JATUH TEMPO* ‼️\n\nHalo *{customer_name}*,\nHari ini atau besok adalah jadwal pemutusan sementara. Segera lakukan pembayaran tagihan internet sebesar *Rp {amount}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nAbaikan pesan ini bila sudah membayar.", ''],
         ['isolation_warning', "🔴 *KONEKSI TERPUTUS* 🔴\n\nMaaf *{customer_name}*, layanan internet telah diisolir karena tagihan *Rp {amount}* melewati batas ({due_date}).\n\nAktifkan kembali dalam 1 menit dengan pembayaran di:\n{payment_url}\n\nCheckout Cepat:\n{tripay_url}", ''],
         ['payment_success_normal', "✅ *PEMBAYARAN DITERIMA* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah kami terima.\n\nTerima kasih atas pembayaran Anda.", '{customer_name}, {amount}, {period}, {invoice_number}'],
         ['payment_success_isolated', "✅ *PEMBAYARAN DITERIMA & KONEKSI DIPULIHKAN* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nStatus Isolasi Anda telah DIBUKA otomatis. Layanan internet Anda terhubung kembali dalam waktu 1-2 menit.\nTerima kasih.", '{customer_name}, {amount}, {period}, {invoice_number}']
@@ -116,7 +123,9 @@ try {
 $typeNames = [
     'new_customer' => 'Pelanggan Baru',
     'invoice_created' => 'Informasi Penagihan Baru',
-    'invoice_reminder' => 'Reminder Tagihan (H-3 / H-1)',
+    'invoice_reminder_1' => 'Reminder Tagihan 1 (H-X)',
+    'invoice_reminder_2' => 'Reminder Tagihan 2 (H-Y)',
+    'invoice_reminder_3' => 'Reminder Tagihan 3 (H-Z)',
     'isolation_warning' => 'Peringatan Isolir (PPPoE Terputus)',
     'payment_success_normal' => 'Pembayaran Berhasil (Status Aktif)',
     'payment_success_isolated' => 'Pembayaran Berhasil & Buka Isolir'
@@ -189,6 +198,25 @@ $typeNames = [
                 </div>
             </div>
             
+            <hr style="margin: 20px 0; border-color: rgba(255,255,255,0.05);">
+            
+            <h4><i class="fas fa-clock"></i> Jadwal Reminder Otomatis</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div class="form-group">
+                    <label class="form-label" style="color: var(--neon-green)">Reminder 1 (H-?)</label>
+                    <input type="number" name="wa_reminder_1_days" class="form-control" value="<?php echo htmlspecialchars($settings['wa_reminder_1_days'] ?? '7'); ?>" placeholder="7">
+                    <small style="color: var(--text-muted); display:block; margin-top:4px;">Dikirim berapa hari sebelum jatuh tempo?</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="color: var(--neon-orange)">Reminder 2 (H-?)</label>
+                    <input type="number" name="wa_reminder_2_days" class="form-control" value="<?php echo htmlspecialchars($settings['wa_reminder_2_days'] ?? '3'); ?>" placeholder="3">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="color: var(--neon-red)">Reminder 3 (H-?)</label>
+                    <input type="number" name="wa_reminder_3_days" class="form-control" value="<?php echo htmlspecialchars($settings['wa_reminder_3_days'] ?? '1'); ?>" placeholder="1">
+                </div>
+            </div>
+
             <hr style="margin: 20px 0; border-color: rgba(255,255,255,0.05);">
 
             <div class="form-group">
