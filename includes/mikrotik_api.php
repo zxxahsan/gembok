@@ -754,6 +754,67 @@ function mikrotikGetActiveSessions()
     return $sessions;
 }
 
+// Get single active PPPoE Session details (for uptime and bytes)
+function mikrotikGetActiveSessionByUsername($username, $routerId = null)
+{
+    $socket = getMikrotikConnection($routerId);
+    if (!$socket) {
+        return null;
+    }
+
+    mikrotikWrite($socket, '/ppp/active/print');
+    mikrotikWrite($socket, '?name=' . $username);
+    mikrotikWrite($socket, ''); // End sentence
+    
+    // Read ALL sentences until !done
+    $allWords = [];
+    $done = false;
+    $timeout = time() + 10;
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words))
+            break;
+        foreach ($words as $word) {
+            $allWords[] = $word;
+            if ($word === '!done') {
+                $done = true;
+                break;
+            }
+        }
+    }
+
+    // Parse active session
+    $sessions = [];
+    $currentSession = [];
+
+    foreach ($allWords as $word) {
+        if ($word === '!done') {
+            if (!empty($currentSession)) {
+                $sessions[] = $currentSession;
+            }
+            break;
+        }
+
+        if ($word === '!re') {
+            if (!empty($currentSession)) {
+                $sessions[] = $currentSession;
+                $currentSession = [];
+            }
+        } elseif (strpos($word, '=') === 0) {
+            $word = substr($word, 1);
+            $parts = explode('=', $word, 2);
+            if (count($parts) === 2) {
+                $currentSession[$parts[0]] = $parts[1];
+            }
+        }
+    }
+
+    if (!empty($sessions)) {
+        return $sessions[0];
+    }
+    return null;
+}
+
 function mikrotikGetProfiles()
 {
     $socket = getMikrotikConnection();

@@ -23,6 +23,28 @@ $onuOnline = false;
 $onuSignal = 'N/A';
 $onuDevices = '-';
 
+// Fetch PPPoE Session Uptime and Usage from MikroTik
+require_once '../includes/mikrotik_api.php';
+$pppoeUptime = 'Offline';
+$pppoeUsage = '0.00 GB';
+$pppoeUser = $customer['pppoe_username'] ?? '';
+
+if (!empty($pppoeUser)) {
+    // We try to pull strictly from the first active router
+    $activeSession = mikrotikGetActiveSessionByUsername($pppoeUser);
+    if ($activeSession) {
+        $pppoeUptime = $activeSession['uptime'] ?? 'N/A';
+        
+        $bIn = (float)($activeSession['bytes-in'] ?? 0);
+        $bOut = (float)($activeSession['bytes-out'] ?? 0);
+        $totalGB = ($bIn + $bOut) / (1024 * 1024 * 1024);
+        
+        if ($totalGB > 0) {
+            $pppoeUsage = number_format($totalGB, 2) . ' GB';
+        }
+    }
+}
+
 $customerDevice = null;
 if (!empty($customer['phone'])) {
     $customerDevice = genieacsGetDevice($customer['phone']);
@@ -260,7 +282,15 @@ ob_start();
                     </p>
                 </div>
                 <div>
-                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Signal</p>
+                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Uptime PPPoE</p>
+                    <p><i class="fas fa-clock" style="color: var(--neon-orange); margin-right: 5px;"></i><?php echo htmlspecialchars($pppoeUptime); ?></p>
+                </div>
+                <div>
+                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Total Penggunaan</p>
+                    <p><i class="fas fa-exchange-alt" style="color: var(--neon-cyan); margin-right: 5px;"></i><?php echo htmlspecialchars($pppoeUsage); ?></p>
+                </div>
+                <div>
+                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Signal ONU</p>
                     <p><?php echo $onuSignal; ?> dBm</p>
                 </div>
             </div>
