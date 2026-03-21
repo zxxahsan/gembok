@@ -847,6 +847,48 @@ function genieacsSetParameter($serial, $parameter, $value)
     return ['success' => false, 'message' => "GenieACS Error ($httpCode): " . ($response ?: 'Unknown error')];
 }
 
+/**
+ * Force GenieACS to query the router and refresh an object (like LAN Hosts array keys)
+ * @param string $serial Device ID or Phone tag
+ * @param string $objectName Parameter tree to refresh (e.g. 'InternetGatewayDevice.LANDevice.1.Hosts.')
+ */
+function genieacsRefreshObject($serial, $objectName)
+{
+    $genieacs = getGenieacsSettings();
+    if (empty($genieacs['url'])) return false;
+
+    $device = genieacsGetDevice($serial);
+    if (!$device) return false;
+
+    $deviceId = $device['_id'] ?? $serial;
+    $encodedId = rawurlencode($deviceId);
+    
+    // timeout=3000 ensures it forces an immediate connection request to the router
+    $url = rtrim($genieacs['url'], '/') . "/devices/{$encodedId}/tasks?timeout=3000&connection_request";
+
+    $data = [
+        'name' => 'refreshObject',
+        'objectName' => $objectName
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 6); // Don't block PHP too long
+
+    if (!empty($genieacs['username']) && !empty($genieacs['password'])) {
+        curl_setopt($ch, CURLOPT_USERPWD, $genieacs['username'] . ':' . $genieacs['password']);
+    }
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    return ($httpCode === 200 || $httpCode === 202);
+}
+
 function genieacsSetParameterValues($serial, $params)
 {
     $genieacs = getGenieacsSettings();
