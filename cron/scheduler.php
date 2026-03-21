@@ -201,6 +201,9 @@ function runAutoIsolir($pdo)
 
             // Get Payment URL Config. Assume URL exists
             $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+            
+            // Build Direct Tripay Checkout URL
+            $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
 
             // Build dynamic text through the WhatsApp Template Engine
             require_once __DIR__ . '/../includes/whatsapp.php';
@@ -208,12 +211,13 @@ function runAutoIsolir($pdo)
                 'customer_name' => $invoice['name'],
                 'amount' => formatCurrency($invoice['amount']),
                 'due_date' => formatDate($invoice['due_date']),
-                'payment_url' => $paymentUrl
+                'payment_url' => $paymentUrl,
+                'tripay_url' => $tripayUrl
             ]);
             
             // Fallback just in case template system fails
             if (empty($message)) {
-                $message = "🔴 *KONEKSI TERPUTUS*\nMaaf {$invoice['name']}, internet Anda telah diisolir karena tagihan " . formatCurrency($invoice['amount']) . ".\nBayar di: $paymentUrl";
+                $message = "🔴 *KONEKSI TERPUTUS*\nMaaf {$invoice['name']}, internet Anda telah diisolir karena tagihan " . formatCurrency($invoice['amount']) . ".\nBayar via Portal: $paymentUrl \nBayar via Tripay: $tripayUrl";
             }
             
             sendWhatsApp($invoice['phone'], $message);
@@ -354,16 +358,19 @@ function sendReminders($pdo)
 
         $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
         
+        $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
+        
         require_once __DIR__ . '/../includes/whatsapp.php';
         $message = buildWhatsAppMessage('invoice_reminder', [
             'customer_name' => $invoice['name'],
             'amount' => formatCurrency($invoice['amount']),
             'due_date' => formatDate($invoice['due_date']),
-            'payment_url' => $paymentUrl
+            'payment_url' => $paymentUrl,
+            'tripay_url' => $tripayUrl
         ]);
         
         if (empty($message)) {
-            $message = "⚠️ *PENGINGAT TAGIHAN*\nHalo {$invoice['name']}, Tagihan " . formatCurrency($invoice['amount']) . " akan jatuh tempo pada " . formatDate($invoice['due_date']) . ".\nBayar: $paymentUrl";
+            $message = "⚠️ *PENGINGAT TAGIHAN*\nHalo {$invoice['name']}, Tagihan " . formatCurrency($invoice['amount']) . " akan jatuh tempo pada " . formatDate($invoice['due_date']) . ".\nBayar disini: $paymentUrl \nAtau Tripay Langsung: $tripayUrl";
         }
 
         echo "  Sending reminder to: {$invoice['name']} ({$invoice['phone']})\n";

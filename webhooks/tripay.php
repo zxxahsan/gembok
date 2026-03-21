@@ -98,9 +98,23 @@ function handlePaidInvoice($invoiceNumber, $paymentData) {
             if (unisolateCustomer($invoice['customer_id'])) {
                 logActivity('AUTO_UNISOLATE', "Customer ID: {$invoice['customer_id']}");
                 if (!empty($customer['pppoe_username'])) {
-                    mikrotikRemoveActivePppoe($customer['pppoe_username'], $customer['router_id']);
+                    mikrotikRemoveActivePppoe($customer['pppoe_username'], $customer['router_id'] ?? null);
                 }
             }
+        }
+    }
+    
+    // Broadcast Payment Success WhatsApp
+    if ($customer && !empty($customer['phone'])) {
+        require_once __DIR__ . '/../includes/whatsapp.php';
+        $message = buildWhatsAppMessage('payment_success', [
+            'customer_name' => $customer['name'],
+            'amount' => formatCurrency($invoice['amount']),
+            'period' => date('F Y', strtotime($invoice['created_at'])),
+            'invoice_number' => $invoice['invoice_number']
+        ]);
+        if (!empty($message)) {
+            sendWhatsAppMessage($customer['phone'], $message);
         }
     }
 }

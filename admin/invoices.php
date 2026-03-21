@@ -76,6 +76,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         unisolateCustomer($invoice['customer_id']);
                     }
                     
+                    // Broadcast WhatsApp Payment Success
+                    $customer = fetchOne("SELECT name, phone FROM customers WHERE id = ?", [$invoice['customer_id']]);
+                    if ($customer && !empty($customer['phone'])) {
+                        require_once __DIR__ . '/../includes/whatsapp.php';
+                        $message = buildWhatsAppMessage('payment_success', [
+                            'customer_name' => $customer['name'],
+                            'amount' => formatCurrency($invoice['amount']),
+                            'period' => date('F Y', strtotime($invoice['created_at'])),
+                            'invoice_number' => $invoice['invoice_number']
+                        ]);
+                        if (!empty($message)) sendWhatsAppMessage($customer['phone'], $message);
+                    }
+                    
                     setFlash('success', 'Invoice berhasil dibayar');
                     logActivity('PAY_INVOICE', "Invoice: {$invoice['invoice_number']}");
                 } else {
@@ -164,6 +177,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Unisolate customer if was isolated
                         if (isCustomerIsolated($invoice['customer_id'])) {
                             unisolateCustomer($invoice['customer_id']);
+                        }
+                        
+                        // Broadcast WhatsApp Payment Success
+                        $customer = fetchOne("SELECT name, phone FROM customers WHERE id = ?", [$invoice['customer_id']]);
+                        if ($customer && !empty($customer['phone'])) {
+                            require_once __DIR__ . '/../includes/whatsapp.php';
+                            $message = buildWhatsAppMessage('payment_success', [
+                                'customer_name' => $customer['name'],
+                                'amount' => formatCurrency($amount),
+                                'period' => date('F Y', strtotime($invoice['created_at'])),
+                                'invoice_number' => $invoice['invoice_number']
+                            ]);
+                            if (!empty($message)) sendWhatsAppMessage($customer['phone'], $message);
                         }
                     }
                     

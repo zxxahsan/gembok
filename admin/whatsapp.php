@@ -50,8 +50,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $waTemplates = [
         ['new_customer', "Halo *{customer_name}*,\n\nSelamat datang di Layanan Internet *{app_name}*!\nBerikut detail layanan Anda:\n- Paket: {package_name}\n- Harga: Rp {package_price}/bulan\n- Jatuh Tempo: Tanggal {due_date} tiap bulan\n- Username PPPoE: {pppoe_username}\n- Password: {pppoe_password}\n\nGunakan Portal Pelanggan kami:\n{portal_url}", '{customer_name}, {app_name}, {package_name}, {package_price}, {due_date}, {pppoe_username}, {pppoe_password}, {portal_url}'],
         ['invoice_created', "Halo *{customer_name}*,\n\nTagihan internet periode *{period}* telah terbit.\n\n- Nomor: {invoice_number}\n- Total: Rp {amount}\n- Jatuh Tempo: {due_date}\n\nBayar sekarang via Portal:\n{payment_url}", '{customer_name}, {period}, {invoice_number}, {amount}, {due_date}, {payment_url}, {app_name}'],
-        ['invoice_reminder', "⚠️ *PENGINGAT TAGIHAN* ⚠️\n\nHalo *{customer_name}*,\nTagihan internet sebesar *Rp {amount}* akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nTerima kasih.", '{customer_name}, {amount}, {due_date}, {payment_url}'],
-        ['isolation_warning', "🔴 *KONEKSI TERPUTUS* 🔴\n\nMaaf *{customer_name}*, layanan internet telah diisolir karena tagihan *Rp {amount}* melewati batas ({due_date}).\n\nAktifkan kembali dalam 1 menit dengan pembayaran di:\n{payment_url}", '{customer_name}, {amount}, {due_date}, {payment_url}']
+        ['invoice_reminder', "⚠️ *PENGINGAT TAGIHAN* ⚠️\n\nHalo *{customer_name}*,\nTagihan internet sebesar *Rp {amount}* akan jatuh tempo pada *{due_date}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nTerima kasih.", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
+        ['isolation_warning', "🔴 *KONEKSI TERPUTUS* 🔴\n\nMaaf *{customer_name}*, layanan internet telah diisolir karena tagihan *Rp {amount}* melewati batas ({due_date}).\n\nAktifkan kembali dalam 1 menit dengan pembayaran di:\n{payment_url}\n\nCheckout Cepat:\n{tripay_url}", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
+        ['payment_success', "✅ *PEMBAYARAN DITERIMA* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nLayanan internet Anda sudah aktif dan dapat digunakan.\nTerima kasih atas pembayaran Anda.", '{customer_name}, {amount}, {period}, {invoice_number}']
     ];
     foreach ($waTemplates as $watmp) {
         $stmt = $pdo->prepare("INSERT IGNORE INTO whatsapp_templates (type, message, variables_hint) VALUES (?, ?, ?)");
@@ -97,7 +98,8 @@ $typeNames = [
     'new_customer' => 'Pelanggan Baru',
     'invoice_created' => 'Informasi Penagihan Baru',
     'invoice_reminder' => 'Reminder Tagihan (H-3 / H-1)',
-    'isolation_warning' => 'Peringatan Isolir (PPPoE Terputus)'
+    'isolation_warning' => 'Peringatan Isolir (PPPoE Terputus)',
+    'payment_success' => 'Pembayaran Berhasil / Lunas'
 ];
 ?>
 
