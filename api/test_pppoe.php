@@ -5,7 +5,6 @@ header('Content-Type: text/plain');
 
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
-require_once '../includes/mikrotik_api.php';
 
 $phone = $_GET['phone'] ?? $_GET['username'] ?? '';
 
@@ -14,68 +13,58 @@ if (empty($phone)) {
     exit;
 }
 
-$customer = fetchOne("SELECT * FROM customers WHERE phone = ? OR pppoe_username = ?", [$phone, $phone]);
-
-if (!$customer) {
-    echo "CUSTOMER NOT FOUND in DB.\n";
-    exit;
+$genieacs = getGenieacsSettings();
+if (empty($genieacs['url'])) {
+    echo "GenieACS URL empty.\n"; exit;
 }
 
-echo "CUSTOMER FOUND: " . $customer['name'] . "\n";
-$pppoeUser = $customer['pppoe_username'] ?? '';
-echo "PPPOE USERNAME: '$pppoeUser'\n\n";
+echo "=== DIAGNOSING GENIEACS TAG SORTING FOR PHONE: $phone ===\n";
 
-if (!empty($pppoeUser)) {
-    echo "Testing MikroTik Connection...\n";
-    $socket = getMikrotikConnection();
-    if (!$socket) {
-        echo "FAILED TO CONNECT TO MIKROTIK.\n";
-    } else {
-        echo "MikroTik Socket Connected.\n";
+$query = json_encode(['_tags' => $phone]);
+$url = rtrim($genieacs['url'], '/') . '/devices/?query=' . urlencode($query) . '&projection=_id,InternetGatewayDevice,VirtualParameters,Device,_lastInform';
+
+$ch = curl_init($url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+if (!empty($genieacs['username']) && !empty($genieacs['password'])) {
+    curl_setopt($ch, CURLOPT_USERPWD, $genieacs['username'] . ':' . $genieacs['password']);
+}
+
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+if ($httpCode === 200) {
+    $devices = json_decode($response, true);
+    
+    echo "Total Matching Devices Found: " . count($devices) . "\n\n";
+    
+    foreach ($devices as $index => $device) {
+        echo "Device Index [$index]:\n";
+        echo "  ID: " . ($device['_id'] ?? 'unknown') . "\n";
+        echo "  Last Inform: " . ($device['_lastInform'] ?? 'NONE') . "\n";
         
-        echo "\nAttempting /interface/print for name='<pppoe-$pppoeUser>'...\n";
-        mikrotikWrite($socket, '/interface/print');
-        mikrotikWrite($socket, '?name=<pppoe-' . $pppoeUser . '>');
-        mikrotikWrite($socket, '');
-        
-        $allWords = [];
-        $done = false;
-        $timeout = time() + 5;
-        while (!$done && time() < $timeout) {
-            $words = mikrotikReadSentence($socket);
-            if (empty($words)) break;
-            foreach ($words as $word) {
-                $allWords[] = $word;
-                if ($word === '!done') { $done = true; break; }
-            }
-        }
-        
-        $sessions = [];
-        $currentSession = [];
-        foreach ($allWords as $word) {
-            if ($word === '!done') {
-                if (!empty($currentSession)) $sessions[] = $currentSession;
-                break;
-            }
-            if ($word === '!re') {
-                if (!empty($currentSession)) {
-                    $sessions[] = $currentSession;
-                    $currentSession = [];
-                }
-            } elseif (strpos($word, '=') === 0) {
-                $word = substr($word, 1);
-                $parts = explode('=', $word, 2);
-                if (count($parts) === 2) {
-                    $currentSession[$parts[0]] = $parts[1];
-                }
-            }
-        }
-        
-        if (!empty($sessions)) {
-            echo "INTERFACE FOUND:\n";
-            print_r($sessions[0]);
+        $hostsVal = $device['InternetGatewayDevice']['LANDevice']['1']['Hosts']['Host'] ?? null;
+        if (is_array($hostsVal)) {
+            echo "  Found Hosts.Host! Count: " . count(array_filter(array_keys($hostsVal), 'is_numeric')) . "\n";
         } else {
-            echo "NO INTERFACE FOUND FOR '<pppoe-$pppoeUser>'.\n";
+            echo "  Hosts.Host is NOT an array.\n";
         }
+        
+        $assocVal = $device['InternetGatewayDevice']['LANDevice']['1']['WLANConfiguration']['1']['AssociatedDevice'] ?? null;
+        if (is_array($assocVal)) {
+            echo "  Found AssociatedDevice! Count: " . count(array_filter(array_keys($assocVal), 'is_numeric')) . "\n";
+        } else {
+            echo "  AssociatedDevice is NOT an array.\n";
+        }
+        echo "\n";
     }
+    
+    echo "\n=== TESTING genieacsGetDevice() ABSTRACTION ===\n";
+    $bestDevice = genieacsGetDevice($phone);
+    echo "Selected Device ID: " . ($bestDevice['_id'] ?? 'unknown') . "\n";
+    echo "Selected Last Inform: " . ($bestDevice['_lastInform'] ?? 'NONE') . "\n";
+    
+} else {
+    echo "FAILED TO FETCH DEVICES: HTTP $httpCode\n";
 }
