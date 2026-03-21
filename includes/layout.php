@@ -1139,7 +1139,7 @@ if (isset($_GET['switch_router'])) {
                 <a href="<?php echo APP_URL; ?>/admin/whatsapp.php"
                     class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'whatsapp.php' ? 'active' : ''; ?>">
                     <i class="fab fa-whatsapp"></i>
-                    <span>Template WA</span>
+                    <span>WhatsApp</span>
                 </a>
 
                 <a href="<?php echo APP_URL; ?>/admin/settings.php"

@@ -4,14 +4,26 @@ require_once '../includes/db.php';
 requireAdminLogin();
 
 $pdo = getDB();
-$pageTitle = 'WhatsApp & Template Messages';
+$pageTitle = 'WhatsApp';
 
 // Handle Form Submission for Device Settings
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_settings') {
     try {
-        $stmt = $pdo->prepare("UPDATE settings SET setting_value = ? WHERE setting_key = ?");
-        $stmt->execute([$_POST['wa_bot_url'], 'wa_bot_url']);
-        setFlash('success', 'Pengaturan WhatsApp Bot URL berhasil disimpan.');
+        $waSettings = [
+            'wa_bot_url' => $_POST['wa_bot_url'] ?? '',
+            'WHATSAPP_ADMIN_NUMBER' => $_POST['whatsapp_admin_number'] ?? ''
+        ];
+        
+        foreach ($waSettings as $key => $value) {
+            $existing = fetchOne("SELECT id FROM settings WHERE setting_key = ?", [$key]);
+            if ($existing) {
+                update('settings', ['setting_value' => $value], 'setting_key = ?', [$key]);
+            } else {
+                insert('settings', ['setting_key' => $key, 'setting_value' => $value]);
+            }
+        }
+        
+        setFlash('success', 'Pengaturan Integrasi WhatsApp berhasil disimpan.');
         header("Location: whatsapp.php");
         exit;
     } catch (PDOException $e) {
@@ -58,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Fetch Settings
-$stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('wa_bot_url')");
+$stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('wa_bot_url', 'WHATSAPP_ADMIN_NUMBER')");
 $settings = [];
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $settings[$row['setting_key']] = $row['setting_value'];
@@ -98,6 +110,12 @@ $typeNames = [
                 <label class="form-label">WhatsApp Integrator URL</label>
                 <input type="text" name="wa_bot_url" class="form-control" value="<?php echo htmlspecialchars($settings['wa_bot_url'] ?? ''); ?>" placeholder="http://127.0.0.1:3000">
                 <small style="color: var(--text-muted); display: block; margin-top: 5px;">Contoh: http://192.168.1.10:3000. Sistem gateway yang mem-parsing cURL PHP ke WA Web JS.</small>
+            </div>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label class="form-label">WhatsApp Admin Number</label>
+                <input type="text" name="whatsapp_admin_number" class="form-control" value="<?php echo htmlspecialchars($settings['WHATSAPP_ADMIN_NUMBER'] ?? ''); ?>" placeholder="628xxxxxxxxxx">
+                <small style="color: var(--text-muted); display: block; margin-top: 5px;">Nomor WhatsApp admin yang akan menerima rangkuman / notifikasi sistem (contoh: 6281...).</small>
             </div>
             
             <button type="submit" class="btn btn-primary">

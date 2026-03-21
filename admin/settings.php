@@ -110,7 +110,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'TRIPAY_API_KEY' => sanitize($_POST['tripay_api_key']),
                     'TRIPAY_PRIVATE_KEY' => sanitize($_POST['tripay_private_key']),
                     'TRIPAY_MERCHANT_CODE' => sanitize($_POST['tripay_merchant_code']),
-                    'WHATSAPP_ADMIN_NUMBER' => sanitize($_POST['whatsapp_admin_number']),
                     'TELEGRAM_BOT_TOKEN' => sanitize($_POST['telegram_token']),
                     'CRON_TOKEN' => sanitize($_POST['cron_token'])
                 ];
@@ -505,14 +504,6 @@ ob_start();
     <form method="POST">
         <input type="hidden" name="action" value="save_integrations">
         <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-        
-        <div class="form-group">
-            <label class="form-label">WhatsApp Admin Number</label>
-            <input type="text" name="whatsapp_admin_number" class="form-control" value="<?php echo htmlspecialchars($settings['WHATSAPP_ADMIN_NUMBER'] ?? ''); ?>" placeholder="628xxxxxxxxxx">
-            <small style="color: var(--text-muted);">Nomor WhatsApp admin untuk notifikasi log (format: 628...)</small>
-        </div>
-        
-        <hr style="margin: 30px 0; border-color: var(--border-color);">
         
         <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">Payment Gateway (Tripay)</h4>
         
