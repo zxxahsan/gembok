@@ -41,38 +41,20 @@ if (!empty($customer['phone'])) {
     $customerDevice = genieacsGetDevice($customer['phone']);
 }
 
-// Compute Gigabytes bandwidth usage purely from ONT WAN Interface Stats (Evades MikroTik OS version limits)
+// Compute Gigabytes bandwidth usage purely from MikroTik /interface API (Per User Request)
 $pppoeUsage = '0.00 GB';
 
-if ($customerDevice) {
-    $bytesInPaths = [
-        'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.Stats.BytesReceived',
-        'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Stats.BytesReceived',
-        'Device.IP.Interface.1.Stats.BytesReceived'
-    ];
-    $bytesOutPaths = [
-        'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.Stats.BytesSent',
-        'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Stats.BytesSent',
-        'Device.IP.Interface.1.Stats.BytesSent'
-    ];
-    
-    $bIn = 0;
-    foreach ($bytesInPaths as $p) {
-        $val = genieacsGetValue($customerDevice, $p);
-        $valStr = is_array($val) ? ($val['_value'] ?? 0) : $val;
-        if (is_numeric($valStr) && $valStr > 0) { $bIn = (float)$valStr; break; }
-    }
-    
-    $bOut = 0;
-    foreach ($bytesOutPaths as $p) {
-        $val = genieacsGetValue($customerDevice, $p);
-        $valStr = is_array($val) ? ($val['_value'] ?? 0) : $val;
-        if (is_numeric($valStr) && $valStr > 0) { $bOut = (float)$valStr; break; }
-    }
-    
-    $totalGB = ($bIn + $bOut) / (1024 * 1024 * 1024);
-    if ($totalGB > 0) {
-        $pppoeUsage = number_format($totalGB, 2) . ' GB';
+if (!empty($pppoeUser)) {
+    $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pppoeUser);
+    if ($dynamicInterface) {
+        // RouterOS names rx-byte (download into router) and tx-byte (upload from router)
+        $bIn = (float)($dynamicInterface['rx-byte'] ?? 0);
+        $bOut = (float)($dynamicInterface['tx-byte'] ?? 0);
+        
+        $totalGB = ($bIn + $bOut) / (1024 * 1024 * 1024);
+        if ($totalGB > 0) {
+            $pppoeUsage = number_format($totalGB, 2) . ' GB';
+        }
     }
 }
 
