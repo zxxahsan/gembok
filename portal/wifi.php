@@ -27,9 +27,6 @@ $customerDevice = null;
 if (!empty($customer['phone'])) {
     $customerDevice = genieacsGetDevice($customer['phone']);
 }
-if (!$customerDevice && !empty($customer['pppoe_username'])) {
-    $customerDevice = genieacsFindDeviceByPppoe($customer['pppoe_username']);
-}
 
 if ($customerDevice) {
     $deviceId = $customerDevice['_id'] ?? $customerDevice['_deviceId']['_SerialNumber'] ?? $customer['pppoe_username'];
@@ -275,10 +272,6 @@ ob_start();
         
         <?php if ($onuData): ?>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <div>
-                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Username PPPoE</p>
-                    <p><code><?php echo htmlspecialchars($customer['pppoe_username'] ?? '-'); ?></code></p>
-                </div>
                 <div>
                     <p style="color: var(--text-secondary); margin-bottom: 5px;">Perangkat Terhubung</p>
                     <p><?php echo htmlspecialchars($onuDevices); ?> Device</p>
