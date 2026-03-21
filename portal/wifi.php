@@ -340,11 +340,12 @@ ob_start();
         <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9rem;">
             Daftar komputer, smartphone, atau Smart TV yang sedang menggunakan jaringan WiFi Anda.
         </p>
-        <div style="overflow-x: auto;">
-            <table class="data-table" style="width: 100%; min-width: 600px;">
+        
+        <div class="table-responsive" style="overflow-x: auto; width: 100%;">
+            <table class="table" style="width: 100%; border-collapse: collapse; min-width: 600px;">
                 <thead>
-                    <tr>
-                        <th style="background: rgba(0,0,0,0.2);">Nama Perangkat</th>
+                    <tr style="border-bottom: 2px solid var(--border-color); text-align: left; font-size: 0.9rem; color: var(--text-secondary);">
+                        <th style="padding: 12px; background: rgba(0,0,0,0.2);">Nama Perangkat</th>
                         <th style="background: rgba(0,0,0,0.2);">IP Address</th>
                         <th style="background: rgba(0,0,0,0.2);">MAC Address</th>
                         <th style="background: rgba(0,0,0,0.2);">Status</th>
