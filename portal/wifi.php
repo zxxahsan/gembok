@@ -74,85 +74,83 @@ if ($customerDevice) {
     // Extract LAN Hosts (Connected Devices List)
     $lanHosts = [];
     
-    // Attempt 1: Standard TR-069 Hosts
-    $hostsRaw = genieacsGetValue($customerDevice, 'InternetGatewayDevice.LANDevice.1.Hosts.Host');
+    // We will extract and merge devices from ALL possible trees because some ONUs 
+    // separate Ethernet devices (Hosts.Host) from WiFi devices (AssociatedDevice).
+    $possibleTrees = [
+        'InternetGatewayDevice.LANDevice.1.Hosts.Host',
+        'Device.Hosts.Host',
+        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice',
+        'Device.WiFi.AccessPoint.1.AssociatedDevice',
+        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.AssociatedDevice'
+    ];
     
-    // Attempt 2: TR-181 Hosts
-    if (!$hostsRaw) {
-        $hostsRaw = genieacsGetValue($customerDevice, 'Device.Hosts.Host');
-    }
+    $aggregatedHosts = [];
     
-    // Attempt 3: WLAN Associated Devices (ZTE / Huawei / FiberHome fallback)
-    if (!$hostsRaw) {
-        $hostsRaw = genieacsGetValue($customerDevice, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice');
-    }
-    
-    // Attempt 4: TR-181 WLAN Associated Devices
-    if (!$hostsRaw) {
-        $hostsRaw = genieacsGetValue($customerDevice, 'Device.WiFi.AccessPoint.1.AssociatedDevice');
-    }
-    
-    $lanHosts = [];
-    if (is_array($hostsRaw)) {
-        foreach ($hostsRaw as $key => $hostData) {
-            if (!is_numeric($key)) continue; // Ignore '_object' or timestamps
-            
-            $host = [];
-            
-            // HostName parsing
-            if (isset($hostData['HostName'])) {
-                $host['HostName'] = is_array($hostData['HostName']) ? ($hostData['HostName']['_value'] ?? '') : $hostData['HostName'];
-            } else {
-                $host['HostName'] = 'Unknown Device (WiFi Client)';
-            }
-            
-            // IP Address parsing
-            if (isset($hostData['IPAddress'])) {
-                $host['IPAddress'] = is_array($hostData['IPAddress']) ? ($hostData['IPAddress']['_value'] ?? '') : $hostData['IPAddress'];
-            } elseif (isset($hostData['AssociatedDeviceIPAddress'])) {
-                $host['IPAddress'] = is_array($hostData['AssociatedDeviceIPAddress']) ? ($hostData['AssociatedDeviceIPAddress']['_value'] ?? '') : $hostData['AssociatedDeviceIPAddress'];
-            } else {
-                $host['IPAddress'] = '-';
-            }
-            
-            // MAC Address parsing
-            if (isset($hostData['MACAddress'])) {
-                $host['MACAddress'] = is_array($hostData['MACAddress']) ? ($hostData['MACAddress']['_value'] ?? '') : $hostData['MACAddress'];
-            } elseif (isset($hostData['AssociatedDeviceMACAddress'])) {
-                $host['MACAddress'] = is_array($hostData['AssociatedDeviceMACAddress']) ? ($hostData['AssociatedDeviceMACAddress']['_value'] ?? '') : $hostData['AssociatedDeviceMACAddress'];
-            } else {
-                $host['MACAddress'] = '-';
-            }
-            
-            // Active status parsing
-            if (isset($hostData['Active'])) {
-                $host['Active'] = is_array($hostData['Active']) ? ($hostData['Active']['_value'] ?? false) : $hostData['Active'];
-            } elseif (isset($hostData['AssociatedDeviceAuthenticationState'])) {
-                // Usually if they are in AssociatedDevice, they are active/connected
-                $authState = is_array($hostData['AssociatedDeviceAuthenticationState']) ? ($hostData['AssociatedDeviceAuthenticationState']['_value'] ?? false) : $hostData['AssociatedDeviceAuthenticationState'];
-                $host['Active'] = ($authState === '1' || $authState === true || $authState === 'true');
-            } else {
-                // If it's in the list but lacks 'Active' property, assume it's Active/Connected
-                $host['Active'] = true;
-            }
-            
-            // Normalize boolean behavior
-            if ($host['Active'] === '1' || $host['Active'] === true || $host['Active'] === 'true') {
-                $host['Active'] = true;
-            } else {
-                $host['Active'] = false;
-            }
-            
-            if (!empty($host['MACAddress']) && $host['MACAddress'] !== '-') {
-                $lanHosts[] = $host;
+    foreach ($possibleTrees as $treePath) {
+        $treeData = genieacsGetValue($customerDevice, $treePath);
+        if (is_array($treeData)) {
+            foreach ($treeData as $key => $hostData) {
+                if (!is_numeric($key)) continue; // Ignore '_object' or timestamps
+                
+                $host = [];
+                
+                // HostName parsing
+                if (isset($hostData['HostName'])) {
+                    $host['HostName'] = is_array($hostData['HostName']) ? ($hostData['HostName']['_value'] ?? '') : $hostData['HostName'];
+                } else {
+                    $host['HostName'] = 'Unknown Device (WiFi Client)';
+                }
+                
+                // IP Address parsing
+                if (isset($hostData['IPAddress'])) {
+                    $host['IPAddress'] = is_array($hostData['IPAddress']) ? ($hostData['IPAddress']['_value'] ?? '') : $hostData['IPAddress'];
+                } elseif (isset($hostData['AssociatedDeviceIPAddress'])) {
+                    $host['IPAddress'] = is_array($hostData['AssociatedDeviceIPAddress']) ? ($hostData['AssociatedDeviceIPAddress']['_value'] ?? '') : $hostData['AssociatedDeviceIPAddress'];
+                } else {
+                    $host['IPAddress'] = '-';
+                }
+                
+                // MAC Address parsing
+                if (isset($hostData['MACAddress'])) {
+                    $host['MACAddress'] = is_array($hostData['MACAddress']) ? ($hostData['MACAddress']['_value'] ?? '') : $hostData['MACAddress'];
+                } elseif (isset($hostData['AssociatedDeviceMACAddress'])) {
+                    $host['MACAddress'] = is_array($hostData['AssociatedDeviceMACAddress']) ? ($hostData['AssociatedDeviceMACAddress']['_value'] ?? '') : $hostData['AssociatedDeviceMACAddress'];
+                } else {
+                    $host['MACAddress'] = '-';
+                }
+                
+                // Active status parsing
+                if (isset($hostData['Active'])) {
+                    $host['Active'] = is_array($hostData['Active']) ? ($hostData['Active']['_value'] ?? false) : $hostData['Active'];
+                } elseif (isset($hostData['AssociatedDeviceAuthenticationState'])) {
+                    // Usually if they are in AssociatedDevice, they are active/connected
+                    $authState = is_array($hostData['AssociatedDeviceAuthenticationState']) ? ($hostData['AssociatedDeviceAuthenticationState']['_value'] ?? false) : $hostData['AssociatedDeviceAuthenticationState'];
+                    $host['Active'] = ($authState === '1' || $authState === true || $authState === 'true');
+                } else {
+                    $host['Active'] = true;
+                }
+                
+                // Normalize boolean behavior
+                if ($host['Active'] === '1' || $host['Active'] === true || $host['Active'] === 'true') {
+                    $host['Active'] = true;
+                } else {
+                    $host['Active'] = false;
+                }
+                
+                // Deduplicate by MAC
+                if (!empty($host['MACAddress']) && $host['MACAddress'] !== '-') {
+                    $aggregatedHosts[$host['MACAddress']] = $host;
+                }
             }
         }
-        
-        // Sort explicitly so Active devices sit on top
-        usort($lanHosts, function($a, $b) {
-            return $b['Active'] <=> $a['Active'];
-        });
     }
+    
+    $lanHosts = array_values($aggregatedHosts);
+    
+    // Sort explicitly so Active devices sit on top
+    usort($lanHosts, function($a, $b) {
+        return $b['Active'] <=> $a['Active'];
+    });
 }
 
 // Handle POST actions for WiFi & Reboot
