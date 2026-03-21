@@ -17,20 +17,29 @@ $device = genieacsGetDevice($phone);
 echo "Device ID Tracker: " . ($device['_id'] ?? 'Not Found') . "\n";
 
 $path = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice';
-$keys = explode('.', $path);
-$current = $device;
+$assocObj = genieacsGetValue($device, $path);
 
-echo "\n--- Traversal Trace ---\n";
-foreach ($keys as $key) {
-    echo "Attempting to access key: '$key'\n";
-    if (!isset($current[$key])) {
-        echo "  [FAIL] Key '$key' is NOT SET in the current array!\n";
-        echo "  Available keys at this level are: " . implode(", ", array_keys($current)) . "\n";
-        exit;
+if (is_array($assocObj) && isset($assocObj['1'])) {
+    echo "\nFound AssociatedDevice! Here are the keys inside Client #1:\n";
+    $client = $assocObj['1'];
+    
+    foreach ($client as $k => $v) {
+        $valStr = is_array($v) ? ($v['_value'] ?? 'array') : $v;
+        echo "  - $k => " . $valStr . "\n";
     }
-    echo "  [SUCCESS] Key '$key' accessed.\n";
-    $current = $current[$key];
+} else {
+    echo "Could not find Client #1 inside AssociatedDevice!\n";
 }
 
-echo "\nTraversal successful! Array structure is:\n";
-print_r(array_keys($current));
+$hostsPath = 'InternetGatewayDevice.LANDevice.1.Hosts.Host';
+$hostsObj = genieacsGetValue($device, $hostsPath);
+
+if (is_array($hostsObj) && isset($hostsObj['1'])) {
+    echo "\nFound Hosts.Host! Here are the keys inside Ethernet Client #1:\n";
+    $hclient = $hostsObj['1'];
+    
+    foreach ($hclient as $k => $v) {
+        $valStr = is_array($v) ? ($v['_value'] ?? 'array') : $v;
+        echo "  - $k => " . $valStr . "\n";
+    }
+}
