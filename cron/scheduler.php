@@ -176,7 +176,7 @@ function runAutoIsolir($pdo)
 
     // Get customers with unpaid invoices that are overdue
     $overdueInvoices = fetchAll("
-        SELECT c.id, c.name, c.phone, c.pppoe_username, c.package_id, i.invoice_number, i.amount
+        SELECT c.id, c.name, c.phone, c.pppoe_username, c.package_id, i.invoice_number, i.amount, i.due_date
         FROM customers c
         INNER JOIN invoices i ON c.id = i.customer_id
         WHERE i.status = 'unpaid'
@@ -199,8 +199,23 @@ function runAutoIsolir($pdo)
                 echo "  ✓ Dropped active PPPoE connection\n";
             }
 
-            // Send WhatsApp notification
-            $message = "Halo {$invoice['name']},\n\nPembayaran internet Anda sudah melewati tanggal jatuh tempo.\n\nTagihan: " . formatCurrency($invoice['amount']) . "\nInvoice: {$invoice['invoice_number']}\n\nMohon segera lakukan pembayaran untuk mengaktifkan kembali koneksi internet Anda.\n\nTerima kasih.";
+            // Get Payment URL Config. Assume URL exists
+            $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+
+            // Build dynamic text through the WhatsApp Template Engine
+            require_once __DIR__ . '/../includes/whatsapp.php';
+            $message = buildWhatsAppMessage('isolation_warning', [
+                'customer_name' => $invoice['name'],
+                'amount' => formatCurrency($invoice['amount']),
+                'due_date' => formatDate($invoice['due_date']),
+                'payment_url' => $paymentUrl
+            ]);
+            
+            // Fallback just in case template system fails
+            if (empty($message)) {
+                $message = "🔴 *KONEKSI TERPUTUS*\nMaaf {$invoice['name']}, internet Anda telah diisolir karena tagihan " . formatCurrency($invoice['amount']) . ".\nBayar di: $paymentUrl";
+            }
+            
             sendWhatsApp($invoice['phone'], $message);
 
         } else {
@@ -337,13 +352,19 @@ function sendReminders($pdo)
     foreach ($upcomingInvoices as $invoice) {
         $daysUntilDue = (strtotime($invoice['due_date']) - time()) / 86400;
 
-        $message = "Halo {$invoice['name']},\n\n";
-        $message .= "Pengingat: Tagihan internet Anda akan jatuh tempo dalam " . ceil($daysUntilDue) . " hari.\n\n";
-        $message .= "Tagihan: " . formatCurrency($invoice['amount']) . "\n";
-        $message .= "Invoice: {$invoice['invoice_number']}\n";
-        $message .= "Jatuh Tempo: " . formatDate($invoice['due_date']) . "\n\n";
-        $message .= "Mohon lakukan pembayaran sebelum jatuh tempo untuk menghindari isolir.\n\n";
-        $message .= "Terima kasih.";
+        $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+        
+        require_once __DIR__ . '/../includes/whatsapp.php';
+        $message = buildWhatsAppMessage('invoice_reminder', [
+            'customer_name' => $invoice['name'],
+            'amount' => formatCurrency($invoice['amount']),
+            'due_date' => formatDate($invoice['due_date']),
+            'payment_url' => $paymentUrl
+        ]);
+        
+        if (empty($message)) {
+            $message = "⚠️ *PENGINGAT TAGIHAN*\nHalo {$invoice['name']}, Tagihan " . formatCurrency($invoice['amount']) . " akan jatuh tempo pada " . formatDate($invoice['due_date']) . ".\nBayar: $paymentUrl";
+        }
 
         echo "  Sending reminder to: {$invoice['name']} ({$invoice['phone']})\n";
         sendWhatsApp($invoice['phone'], $message);

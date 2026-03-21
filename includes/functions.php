@@ -93,16 +93,13 @@ function sendWhatsApp($phone, $message)
 {
     require_once 'whatsapp.php';
 
-    // Get default WhatsApp gateway from settings
-    $defaultGateway = fetchOne("SELECT setting_value FROM settings WHERE setting_key = ?", ['DEFAULT_WHATSAPP_GATEWAY'])['setting_value'] ?? 'fonnte';
-
-    // Format phone number (62 format)
+    // Format phone number (62 format) is already covered in the new engine, but double ensuring doesn't hurt.
     if (substr($phone, 0, 2) === '08') {
         $phone = '62' . substr($phone, 1);
     }
 
-    // Send using selected gateway
-    $result = sendWhatsAppMessage($phone, $message, $defaultGateway);
+    // Send through the unified Node JS Engine natively
+    $result = sendWhatsAppMessage($phone, $message);
 
     return $result['success'] ?? false;
 }
