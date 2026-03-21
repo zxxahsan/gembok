@@ -83,7 +83,9 @@ $typeNames = [
 ];
 ?>
 
-<?php require_once '../includes/layout.php'; ?>
+?>
+
+<?php ob_start(); // BEGIN OUTPUT WRAPPER ?>
 
 <div class="card">
     <div class="card-header">
@@ -156,4 +158,7 @@ $typeNames = [
 </div>
 <?php endif; ?>
 
-<?php require_once '../includes/footer.php'; ?>
+<?php 
+$content = ob_get_clean(); // END OUTPUT WRAPPER 
+require_once '../includes/layout.php';
+?>
