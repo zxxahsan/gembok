@@ -23,10 +23,9 @@ $onuOnline = false;
 $onuSignal = 'N/A';
 $onuDevices = '-';
 
-// Fetch PPPoE Session Uptime and Usage from MikroTik
+// Fetch PPPoE Session Uptime from MikroTik (since RouterOS ppp/active still accurately tracks duration)
 require_once '../includes/mikrotik_api.php';
 $pppoeUptime = 'Offline';
-$pppoeUsage = '0.00 GB';
 $pppoeUser = $customer['pppoe_username'] ?? '';
 
 if (!empty($pppoeUser)) {
@@ -34,20 +33,47 @@ if (!empty($pppoeUser)) {
     $activeSession = mikrotikGetActiveSessionByUsername($pppoeUser);
     if ($activeSession) {
         $pppoeUptime = $activeSession['uptime'] ?? 'N/A';
-        
-        $bIn = (float)($activeSession['bytes-in'] ?? 0);
-        $bOut = (float)($activeSession['bytes-out'] ?? 0);
-        $totalGB = ($bIn + $bOut) / (1024 * 1024 * 1024);
-        
-        if ($totalGB > 0) {
-            $pppoeUsage = number_format($totalGB, 2) . ' GB';
-        }
     }
 }
 
 $customerDevice = null;
 if (!empty($customer['phone'])) {
     $customerDevice = genieacsGetDevice($customer['phone']);
+}
+
+// Compute Gigabytes bandwidth usage purely from ONT WAN Interface Stats (Evades MikroTik OS version limits)
+$pppoeUsage = '0.00 GB';
+
+if ($customerDevice) {
+    $bytesInPaths = [
+        'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.Stats.BytesReceived',
+        'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Stats.BytesReceived',
+        'Device.IP.Interface.1.Stats.BytesReceived'
+    ];
+    $bytesOutPaths = [
+        'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.Stats.BytesSent',
+        'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Stats.BytesSent',
+        'Device.IP.Interface.1.Stats.BytesSent'
+    ];
+    
+    $bIn = 0;
+    foreach ($bytesInPaths as $p) {
+        $val = genieacsGetValue($customerDevice, $p);
+        $valStr = is_array($val) ? ($val['_value'] ?? 0) : $val;
+        if (is_numeric($valStr) && $valStr > 0) { $bIn = (float)$valStr; break; }
+    }
+    
+    $bOut = 0;
+    foreach ($bytesOutPaths as $p) {
+        $val = genieacsGetValue($customerDevice, $p);
+        $valStr = is_array($val) ? ($val['_value'] ?? 0) : $val;
+        if (is_numeric($valStr) && $valStr > 0) { $bOut = (float)$valStr; break; }
+    }
+    
+    $totalGB = ($bIn + $bOut) / (1024 * 1024 * 1024);
+    if ($totalGB > 0) {
+        $pppoeUsage = number_format($totalGB, 2) . ' GB';
+    }
 }
 
 if ($customerDevice) {
@@ -74,9 +100,15 @@ if ($customerDevice) {
     }
     $onuDevices = is_numeric($rawDevices) ? (int)$rawDevices : '-';
 
-    // Remove aggressive bulk-refresh payload. The weak FiberHome HG6145F routinely panics 
-    // and drops OMCI arrays when queried for 4 heavy tree roots simultaneously. 
-    // We will rely on passive ACS inform caches like Kunci does.
+    // Gentle targeted refresh to wake up FiberHome's Connected Devices array
+    // We only call ONE isolated branch to deliberately avoid OMCI resource crashes
+    if ($onuDevices > 0) {
+        $didRefresh = genieacsRefreshObjects($deviceId, ['InternetGatewayDevice.LANDevice.1.Hosts']);
+        if ($didRefresh) {
+            $newGraph = genieacsGetDevice($deviceId);
+            if ($newGraph) $customerDevice = $newGraph;
+        }
+    }
 
     // Extract LAN Hosts (Connected Devices List)
     $lanHosts = [];
