@@ -55,6 +55,45 @@ if ($customerDevice) {
     }
     $onuDevices = is_numeric($rawDevices) ? (int)$rawDevices : '-';
 
+    $onuDevices = is_numeric($rawDevices) ? (int)$rawDevices : '-';
+
+    // Before parsing LAN Hosts, force the router to UPLOAD its live host table to GenieACS cache!
+    // This is required because ACS doesn't permanently store Host arrays unless explicitly requested.
+    $refreshTargets = [];
+    $rawObj = $customerDevice;
+    if (isset($rawObj['InternetGatewayDevice']['LANDevice']['1']['WLANConfiguration']['1']['TotalAssociations'])) {
+         // ZTE, FiberHome
+        $refreshTargets[] = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice.';
+    }
+    if (isset($rawObj['InternetGatewayDevice']['LANDevice']['1']['Hosts']['HostNumberOfEntries'])) {
+        // Classic Huawei / standard TR-069
+        $refreshTargets[] = 'InternetGatewayDevice.LANDevice.1.Hosts.Host.';
+    } elseif (isset($rawObj['Device']['Hosts']['HostNumberOfEntries'])) {
+        // TR-181 standard
+        $refreshTargets[] = 'Device.Hosts.Host.';
+    }
+
+    // Default fallback if nothing explicitly defined
+    if (empty($refreshTargets)) {
+        $refreshTargets[] = 'InternetGatewayDevice.LANDevice.1.Hosts.';
+    }
+
+    $didRefresh = false;
+    foreach ($refreshTargets as $target) {
+        // Trigger background live fetch!
+        if (genieacsRefreshObject($deviceId, $target)) {
+            $didRefresh = true;
+        }
+    }
+
+    // Reload the dynamically populated device graph from GenieACS into PHP!
+    if ($didRefresh) {
+        $customerDevice = genieacsGetDevice($deviceId);
+        
+        // Safety bounds to prevent fatal error if device magically unlinked
+        if (!$customerDevice) $customerDevice = $rawObj;
+    }
+
     // Extract LAN Hosts (Connected Devices List)
     $lanHosts = [];
     
