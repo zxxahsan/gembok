@@ -11,7 +11,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     try {
         $waSettings = [
             'wa_bot_url' => $_POST['wa_bot_url'] ?? '',
-            'WHATSAPP_ADMIN_NUMBER' => $_POST['whatsapp_admin_number'] ?? ''
+            'WHATSAPP_ADMIN_NUMBER' => $_POST['whatsapp_admin_number'] ?? '',
+            'WA_GATEWAY' => $_POST['wa_gateway'] ?? 'fonnte',
+            'FONNTE_TOKEN' => $_POST['fonnte_token'] ?? '',
+            'WABLAS_TOKEN' => $_POST['wablas_token'] ?? '',
+            'WABLAS_DOMAIN' => $_POST['wablas_domain'] ?? '',
+            'MPWA_TOKEN' => $_POST['mpwa_token'] ?? '',
+            'MPWA_URL' => $_POST['mpwa_url'] ?? ''
         ];
         
         foreach ($waSettings as $key => $value) {
@@ -70,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Fetch Settings
-$stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('wa_bot_url', 'WHATSAPP_ADMIN_NUMBER')");
+$stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('wa_bot_url', 'WHATSAPP_ADMIN_NUMBER', 'WA_GATEWAY', 'FONNTE_TOKEN', 'WABLAS_TOKEN', 'WABLAS_DOMAIN', 'MPWA_TOKEN', 'MPWA_URL')");
 $settings = [];
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $settings[$row['setting_key']] = $row['setting_value'];
@@ -95,35 +101,97 @@ $typeNames = [
 ];
 ?>
 
-?>
-
 <?php ob_start(); // BEGIN OUTPUT WRAPPER ?>
 
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title"><i class="fas fa-robot"></i> Koneksi API WhatsApp (Node.js)</h3>
+        <h3 class="card-title"><i class="fas fa-plug"></i> Pengaturan Global WhatsApp & Gateway</h3>
     </div>
     <div class="card-body">
         <form method="POST">
             <input type="hidden" name="action" value="save_settings">
+            
             <div class="form-group">
-                <label class="form-label">WhatsApp Integrator URL</label>
-                <input type="text" name="wa_bot_url" class="form-control" value="<?php echo htmlspecialchars($settings['wa_bot_url'] ?? ''); ?>" placeholder="http://127.0.0.1:3000">
-                <small style="color: var(--text-muted); display: block; margin-top: 5px;">Contoh: http://192.168.1.10:3000. Sistem gateway yang mem-parsing cURL PHP ke WA Web JS.</small>
+                <label class="form-label" style="font-weight: bold; color: var(--neon-cyan);">Gateway WhatsApp Aktif</label>
+                <select name="wa_gateway" id="wa_gateway_select" class="form-control" onchange="toggleWaSettings()" style="background: rgba(0,0,0,0.5); border: 1px solid var(--neon-cyan);">
+                    <option value="fonnte" <?php echo ($settings['WA_GATEWAY'] ?? '') === 'fonnte' ? 'selected' : ''; ?>>Fonnte API</option>
+                    <option value="wablas" <?php echo ($settings['WA_GATEWAY'] ?? '') === 'wablas' ? 'selected' : ''; ?>>Wablas</option>
+                    <option value="mpwa" <?php echo ($settings['WA_GATEWAY'] ?? '') === 'mpwa' ? 'selected' : ''; ?>>MPWA Official</option>
+                    <option value="custom" <?php echo ($settings['WA_GATEWAY'] ?? '') === 'custom' ? 'selected' : ''; ?>>Custom Node.js Gateway</option>
+                </select>
+                <small style="color: var(--text-muted); display: block; margin-top: 5px;">Pilih metode mana yang akan digunakan sistem Gembok saat mengirim notifikasi.</small>
             </div>
             
-            <div class="form-group" style="margin-top: 15px;">
+            <!-- FONNTE SETTINGS -->
+            <div id="cfg_fonnte" class="wa-cfg-box" style="display: none; padding: 15px; border: 1px dashed var(--border-color); border-radius: 8px; margin-bottom: 15px;">
+                <div class="form-group">
+                    <label class="form-label">Fonnte API Token</label>
+                    <input type="text" name="fonnte_token" class="form-control" value="<?php echo htmlspecialchars($settings['FONNTE_TOKEN'] ?? ''); ?>">
+                </div>
+            </div>
+
+            <!-- WABLAS SETTINGS -->
+            <div id="cfg_wablas" class="wa-cfg-box" style="display: none; padding: 15px; border: 1px dashed var(--border-color); border-radius: 8px; margin-bottom: 15px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label class="form-label">Wablas Domain Server</label>
+                        <input type="text" name="wablas_domain" class="form-control" value="<?php echo htmlspecialchars($settings['WABLAS_DOMAIN'] ?? ''); ?>" placeholder="https://solo.wablas.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Wablas API Token</label>
+                        <input type="text" name="wablas_token" class="form-control" value="<?php echo htmlspecialchars($settings['WABLAS_TOKEN'] ?? ''); ?>">
+                    </div>
+                </div>
+            </div>
+
+            <!-- MPWA SETTINGS -->
+            <div id="cfg_mpwa" class="wa-cfg-box" style="display: none; padding: 15px; border: 1px dashed var(--border-color); border-radius: 8px; margin-bottom: 15px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label class="form-label">MPWA API URL</label>
+                        <input type="text" name="mpwa_url" class="form-control" value="<?php echo htmlspecialchars($settings['MPWA_URL'] ?? ''); ?>" placeholder="https://mpwa.official.id/api/send">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MPWA API Token (Key)</label>
+                        <input type="text" name="mpwa_token" class="form-control" value="<?php echo htmlspecialchars($settings['MPWA_TOKEN'] ?? ''); ?>">
+                    </div>
+                </div>
+            </div>
+
+            <!-- CUSTOM NODE.JS SETTINGS -->
+            <div id="cfg_custom" class="wa-cfg-box" style="display: none; padding: 15px; border: 1px dashed var(--border-color); border-radius: 8px; margin-bottom: 15px;">
+                <div class="form-group">
+                    <label class="form-label">Custom Node.js Gateway URL</label>
+                    <input type="text" name="wa_bot_url" class="form-control" value="<?php echo htmlspecialchars($settings['wa_bot_url'] ?? ''); ?>" placeholder="http://127.0.0.1:3000">
+                    <small style="color: var(--text-muted); display: block; margin-top: 5px;">Arahkan ke proxy Baileys/WWeb.js Anda. Endpoint yang dipukul otomatis + `/send-message`.</small>
+                </div>
+            </div>
+            
+            <hr style="margin: 20px 0; border-color: rgba(255,255,255,0.05);">
+
+            <div class="form-group">
                 <label class="form-label">WhatsApp Admin Number</label>
                 <input type="text" name="whatsapp_admin_number" class="form-control" value="<?php echo htmlspecialchars($settings['WHATSAPP_ADMIN_NUMBER'] ?? ''); ?>" placeholder="628xxxxxxxxxx">
-                <small style="color: var(--text-muted); display: block; margin-top: 5px;">Nomor WhatsApp admin yang akan menerima rangkuman / notifikasi sistem (contoh: 6281...).</small>
+                <small style="color: var(--text-muted); display: block; margin-top: 5px;">Nomor WhatsApp admin yang akan menerima rangkuman / notifikasi peringatan sistem (format internasional 628...).</small>
             </div>
             
             <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Simpan Pengaturan Koneksi
+                <i class="fas fa-save"></i> Simpan Penyetelan WhatsApp
             </button>
         </form>
     </div>
 </div>
+
+<script>
+function toggleWaSettings() {
+    document.querySelectorAll('.wa-cfg-box').forEach(el => el.style.display = 'none');
+    const selected = document.getElementById('wa_gateway_select').value;
+    const targetBox = document.getElementById('cfg_' + selected);
+    if(targetBox) targetBox.style.display = 'block';
+}
+// Run on load
+document.addEventListener('DOMContentLoaded', toggleWaSettings);
+</script>
 
 <?php if ($templates === null): ?>
 <div class="card" style="margin-top: 20px; border-color: var(--neon-orange);">
