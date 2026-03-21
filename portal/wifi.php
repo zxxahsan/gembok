@@ -283,6 +283,9 @@ ob_start();
 ?>
 
 <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+    <?php 
+    $isCustomerDeviceOnline = $customerDevice && $onuOnline;
+    ?>
 
     <!-- ONU Info -->
     <div class="card">
@@ -327,63 +330,6 @@ ob_start();
     </div>
 
     <!-- WiFi Settings -->
-    <?php 
-    $isCustomerDeviceOnline = $customerDevice && $onuOnline;
-    ?>
-
-    <!-- Connected Devices List -->
-    <?php if ($isCustomerDeviceOnline && $customerDevice): ?>
-    <div class="card" style="margin-bottom: 20px;">
-        <h3 style="margin-bottom: 15px; color: var(--neon-cyan);">
-            <i class="fas fa-network-wired"></i> Daftar Perangkat Terhubung (LAN/WiFi)
-        </h3>
-        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9rem;">
-            Daftar komputer, smartphone, atau Smart TV yang sedang menggunakan jaringan WiFi Anda.
-        </p>
-        
-        <div class="table-responsive" style="overflow-x: auto; width: 100%;">
-            <table class="table" style="width: 100%; border-collapse: collapse; min-width: 600px;">
-                <thead>
-                    <tr style="border-bottom: 2px solid var(--border-color); text-align: left; font-size: 0.9rem; color: var(--text-secondary);">
-                        <th style="padding: 12px; background: rgba(0,0,0,0.2);">Nama Perangkat</th>
-                        <th style="background: rgba(0,0,0,0.2);">IP Address</th>
-                        <th style="background: rgba(0,0,0,0.2);">MAC Address</th>
-                        <th style="background: rgba(0,0,0,0.2);">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($lanHosts)): ?>
-                        <tr>
-                            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">
-                                <i class="fas fa-ghost" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
-                                Sistem tidak dapat mendeteksi daftar perangkat dari Router Anda.
-                            </td>
-                        </tr>
-                    <?php else: ?>
-                        <?php foreach ($lanHosts as $host): ?>
-                        <tr style="border-bottom: 1px solid var(--border-color);">
-                            <td style="padding: 12px; font-weight: 600; color: #fff;">
-                                <i class="fas <?php echo (stripos($host['HostName'], 'android') !== false || stripos($host['HostName'], 'iphone') !== false) ? 'fa-mobile-alt' : 'fa-laptop'; ?>" style="color: var(--text-secondary); margin-right: 8px;"></i>
-                                <?php echo htmlspecialchars($host['HostName'] ?: 'Unknown Device'); ?>
-                            </td>
-                            <td style="padding: 12px; font-family: monospace; color: var(--neon-cyan);"><?php echo htmlspecialchars($host['IPAddress']); ?></td>
-                            <td style="padding: 12px; font-family: monospace; color: var(--text-secondary);"><?php echo htmlspecialchars($host['MACAddress']); ?></td>
-                            <td style="padding: 12px;">
-                                <?php if ($host['Active']): ?>
-                                    <span class="badge badge-success" style="font-size: 0.8rem; padding: 4px 10px;">Aktif</span>
-                                <?php else: ?>
-                                    <span class="badge badge-warning" style="font-size: 0.8rem; padding: 4px 10px;">Tidak Aktif</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <?php endif; ?>
-    
     <?php if ($isCustomerDeviceOnline && $customerDevice): ?>
     <div class="card" id="wifi-settings">
         <h3 style="margin-bottom: 15px; color: var(--neon-cyan);">
@@ -450,6 +396,57 @@ ob_start();
                 <i class="fas fa-sync-alt"></i> Restart Router Sekarang
             </button>
         </form>
+    </div>
+    
+    <!-- Connected Devices List -->
+    <div class="card" style="margin-top: 20px;">
+        <h3 style="margin-bottom: 15px; color: var(--neon-cyan);">
+            <i class="fas fa-network-wired"></i> Daftar Perangkat Terhubung (LAN/WiFi)
+        </h3>
+        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9rem;">
+            Daftar komputer, smartphone, atau Smart TV yang sedang menggunakan jaringan WiFi Anda.
+        </p>
+        
+        <div class="table-responsive" style="overflow-x: auto; width: 100%;">
+            <table class="table" style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border-color); text-align: left; font-size: 0.9rem; color: var(--text-secondary);">
+                        <th style="padding: 12px; background: rgba(0,0,0,0.2);">Nama Perangkat</th>
+                        <th style="background: rgba(0,0,0,0.2);">IP Address</th>
+                        <th style="background: rgba(0,0,0,0.2);">MAC Address</th>
+                        <th style="background: rgba(0,0,0,0.2);">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($lanHosts)): ?>
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                <i class="fas fa-ghost" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+                                Sistem tidak dapat mendeteksi daftar perangkat dari Router Anda.
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($lanHosts as $host): ?>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 12px; font-weight: 600; color: #fff;">
+                                <i class="fas <?php echo (stripos($host['HostName'], 'android') !== false || stripos($host['HostName'], 'iphone') !== false) ? 'fa-mobile-alt' : 'fa-laptop'; ?>" style="color: var(--text-secondary); margin-right: 8px;"></i>
+                                <?php echo htmlspecialchars($host['HostName'] ?: 'Unknown Device'); ?>
+                            </td>
+                            <td style="padding: 12px; font-family: monospace; color: var(--neon-cyan);"><?php echo htmlspecialchars($host['IPAddress']); ?></td>
+                            <td style="padding: 12px; font-family: monospace; color: var(--text-secondary);"><?php echo htmlspecialchars($host['MACAddress']); ?></td>
+                            <td style="padding: 12px;">
+                                <?php if ($host['Active']): ?>
+                                    <span class="badge badge-success" style="font-size: 0.8rem; padding: 4px 10px;">Aktif</span>
+                                <?php else: ?>
+                                    <span class="badge badge-warning" style="font-size: 0.8rem; padding: 4px 10px;">Tidak Aktif</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
     
     <?php else: ?>
