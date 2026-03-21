@@ -107,17 +107,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
             case 'save_integrations':
                 $integrationSettings = [
-                    'DEFAULT_WHATSAPP_GATEWAY' => sanitize($_POST['default_whatsapp_gateway']),
-                    'FONNTE_API_TOKEN' => sanitize($_POST['fonnte_api_token']),
-                    'WABLAS_API_TOKEN' => sanitize($_POST['wablas_api_token']),
-                    'MPWA_API_KEY' => sanitize($_POST['mpwa_api_key']),
-                    'MPWA_SENDER'  => sanitize($_POST['mpwa_sender']),
                     'TRIPAY_API_KEY' => sanitize($_POST['tripay_api_key']),
                     'TRIPAY_PRIVATE_KEY' => sanitize($_POST['tripay_private_key']),
                     'TRIPAY_MERCHANT_CODE' => sanitize($_POST['tripay_merchant_code']),
-                    'MIDTRANS_API_KEY' => sanitize($_POST['midtrans_api_key']),
-                    'MIDTRANS_MERCHANT_CODE' => sanitize($_POST['midtrans_merchant_code']),
-                    'DEFAULT_PAYMENT_GATEWAY' => sanitize($_POST['default_payment_gateway']),
                     'WHATSAPP_ADMIN_NUMBER' => sanitize($_POST['whatsapp_admin_number']),
                     'TELEGRAM_BOT_TOKEN' => sanitize($_POST['telegram_token']),
                     'CRON_TOKEN' => sanitize($_POST['cron_token'])
@@ -514,64 +506,10 @@ ob_start();
         <input type="hidden" name="action" value="save_integrations">
         <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
         
-        <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">WhatsApp Gateway</h4>
-        
-        <!-- WhatsApp Webhook URL Info Box -->
-        <div style="background: rgba(0,200,255,0.08); border: 1px solid var(--neon-cyan); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                <i class="fas fa-link" style="color: var(--neon-cyan);"></i>
-                <strong style="color: var(--neon-cyan);">URL Webhook / Callback WhatsApp</strong>
-            </div>
-            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 10px;">
-                Paste URL ini ke kolom <strong>Webhook URL</strong> di dashboard gateway WhatsApp Anda (berlaku untuk Fonnte, Wablas, maupun MPWA).
-            </p>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="text" id="wa_webhook_url" readonly
-                    value="<?php echo APP_URL; ?>/webhooks/whatsapp.php"
-                    style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,200,255,0.3); color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 13px; cursor: pointer;"
-                    onclick="this.select()">
-                <button type="button" onclick="copyWebhookUrl('wa_webhook_url', this)" style="background: var(--neon-cyan); color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap;">
-                    <i class="fas fa-copy"></i> Salin
-                </button>
-            </div>
-        </div>
-        
-        <div class="form-group">
-            <label class="form-label">WhatsApp Gateway Default</label>
-            <select name="default_whatsapp_gateway" class="form-control">
-                <option value="fonnte" <?php echo ($settings['DEFAULT_WHATSAPP_GATEWAY'] ?? '') === 'fonnte' ? 'selected' : ''; ?>>Fonnte</option>
-                <option value="wablas" <?php echo ($settings['DEFAULT_WHATSAPP_GATEWAY'] ?? '') === 'wablas' ? 'selected' : ''; ?>>Wablas</option>
-                <option value="mpwa" <?php echo ($settings['DEFAULT_WHATSAPP_GATEWAY'] ?? '') === 'mpwa' ? 'selected' : ''; ?>>MPWA</option>
-            </select>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <div class="form-group">
-                <label class="form-label">Fonnte API Token</label>
-                <input type="password" name="fonnte_api_token" class="form-control" value="<?php echo htmlspecialchars($settings['FONNTE_API_TOKEN'] ?? ''); ?>" placeholder="Masukkan API Token Fonnte">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Wablas API Token</label>
-                <input type="password" name="wablas_api_token" class="form-control" value="<?php echo htmlspecialchars($settings['WABLAS_API_TOKEN'] ?? ''); ?>" placeholder="Masukkan API Token Wablas">
-            </div>
-        </div>
-        
-        <div class="form-group">
-            <label class="form-label">MPWA API Key</label>
-            <input type="password" name="mpwa_api_key" class="form-control" value="<?php echo htmlspecialchars($settings['MPWA_API_KEY'] ?? ''); ?>" placeholder="Masukkan API Key MPWA">
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">MPWA Sender Number <span style="color: #ff6b6b;">*wajib</span></label>
-            <input type="text" name="mpwa_sender" class="form-control" value="<?php echo htmlspecialchars($settings['MPWA_SENDER'] ?? ''); ?>" placeholder="628xxxxxxxxxx">
-            <small style="color: var(--text-muted);">Nomor WhatsApp yang sudah di-scan QR di dashboard MPWA (format: 628...)</small>
-        </div>
-
         <div class="form-group">
             <label class="form-label">WhatsApp Admin Number</label>
             <input type="text" name="whatsapp_admin_number" class="form-control" value="<?php echo htmlspecialchars($settings['WHATSAPP_ADMIN_NUMBER'] ?? ''); ?>" placeholder="628xxxxxxxxxx">
-            <small style="color: var(--text-muted);">Nomor WhatsApp admin untuk mengelola bot (format: 628...)</small>
+            <small style="color: var(--text-muted);">Nomor WhatsApp admin untuk notifikasi log (format: 628...)</small>
         </div>
         
         <hr style="margin: 30px 0; border-color: var(--border-color);">
@@ -613,52 +551,6 @@ ob_start();
                 <label class="form-label">Tripay Merchant Code</label>
                 <input type="text" name="tripay_merchant_code" class="form-control" value="<?php echo htmlspecialchars($settings['TRIPAY_MERCHANT_CODE'] ?? ''); ?>" placeholder="Masukkan Merchant Code">
             </div>
-        </div>
-        
-        <hr style="margin: 30px 0; border-color: var(--border-color);">
-        
-        <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">Payment Gateway (Midtrans)</h4>
-        
-        <!-- Midtrans Webhook URL Info Box -->
-        <div style="background: rgba(0,200,255,0.08); border: 1px solid var(--neon-cyan); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                <i class="fas fa-link" style="color: var(--neon-cyan);"></i>
-                <strong style="color: var(--neon-cyan);">URL Notification / Webhook Midtrans</strong>
-            </div>
-            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 10px;">
-                Paste URL ini ke kolom <strong>Payment Notification URL</strong> di Midtrans Dashboard &rarr; Settings &rarr; Configuration.
-            </p>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="text" id="midtrans_webhook_url" readonly
-                    value="<?php echo APP_URL; ?>/webhooks/midtrans.php"
-                    style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,200,255,0.3); color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 13px; cursor: pointer;"
-                    onclick="this.select()">
-                <button type="button" onclick="copyWebhookUrl('midtrans_webhook_url', this)" style="background: var(--neon-cyan); color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap;">
-                    <i class="fas fa-copy"></i> Salin
-                </button>
-            </div>
-        </div>
-        
-        <div class="form-group">
-            <label class="form-label">Midtrans API Key</label>
-            <input type="text" name="midtrans_api_key" class="form-control" value="<?php echo htmlspecialchars($settings['MIDTRANS_API_KEY'] ?? ''); ?>" placeholder="Masukkan API Key Midtrans">
-        </div>
-        
-        <div class="form-group">
-            <label class="form-label">Midtrans Merchant Code</label>
-            <input type="text" name="midtrans_merchant_code" class="form-control" value="<?php echo htmlspecialchars($settings['MIDTRANS_MERCHANT_CODE'] ?? ''); ?>" placeholder="Masukkan Merchant Code">
-        </div>
-        
-        <hr style="margin: 30px 0; border-color: var(--border-color);">
-        
-        <h4 style="margin-bottom: 15px; color: var(--neon-cyan);">Pengaturan Pembayaran</h4>
-        
-        <div class="form-group">
-            <label class="form-label">Payment Gateway Default</label>
-            <select name="default_payment_gateway" class="form-control">
-                <option value="tripay" <?php echo ($settings['DEFAULT_PAYMENT_GATEWAY'] ?? '') === 'tripay' ? 'selected' : ''; ?>>Tripay</option>
-                <option value="midtrans" <?php echo ($settings['DEFAULT_PAYMENT_GATEWAY'] ?? '') === 'midtrans' ? 'selected' : ''; ?>>Midtrans</option>
-            </select>
         </div>
         
         <hr style="margin: 30px 0; border-color: var(--border-color);">

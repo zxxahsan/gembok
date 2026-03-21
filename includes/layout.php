@@ -1136,6 +1136,12 @@ if (isset($_GET['switch_router'])) {
                     <span>Teknisi</span>
                 </a>
 
+                <a href="<?php echo APP_URL; ?>/admin/whatsapp.php"
+                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'whatsapp.php' ? 'active' : ''; ?>">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>Template WA</span>
+                </a>
+
                 <a href="<?php echo APP_URL; ?>/admin/settings.php"
                     class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'settings.php' ? 'active' : ''; ?>">
                     <i class="fas fa-cog"></i>
