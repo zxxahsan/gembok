@@ -19,27 +19,33 @@ echo "Device ID Tracker: " . ($device['_id'] ?? 'Not Found') . "\n";
 $path = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice';
 $assocObj = genieacsGetValue($device, $path);
 
-if (is_array($assocObj) && isset($assocObj['1'])) {
-    echo "\nFound AssociatedDevice! Here are the keys inside Client #1:\n";
-    $client = $assocObj['1'];
-    
-    foreach ($client as $k => $v) {
-        $valStr = is_array($v) ? ($v['_value'] ?? 'array') : $v;
-        echo "  - $k => " . $valStr . "\n";
+if (is_array($assocObj)) {
+    echo "\nFound AssociatedDevice!\n";
+    foreach ($assocObj as $key => $client) {
+        if (!is_numeric($key)) continue;
+        echo "Client ID $key:\n";
+        foreach ($client as $k => $v) {
+            $valStr = is_array($v) ? ($v['_value'] ?? 'array') : $v;
+            echo "  - $k => " . $valStr . "\n";
+        }
+        break; // Just dump the first one we find!
     }
 } else {
-    echo "Could not find Client #1 inside AssociatedDevice!\n";
+    echo "Could not load AssociatedDevice!\n";
 }
 
 $hostsPath = 'InternetGatewayDevice.LANDevice.1.Hosts.Host';
 $hostsObj = genieacsGetValue($device, $hostsPath);
 
-if (is_array($hostsObj) && isset($hostsObj['1'])) {
-    echo "\nFound Hosts.Host! Here are the keys inside Ethernet Client #1:\n";
-    $hclient = $hostsObj['1'];
-    
-    foreach ($hclient as $k => $v) {
-        $valStr = is_array($v) ? ($v['_value'] ?? 'array') : $v;
-        echo "  - $k => " . $valStr . "\n";
+if (is_array($hostsObj)) {
+    echo "\nFound Hosts.Host!\n";
+    foreach ($hostsObj as $key => $client) {
+        if (!is_numeric($key)) continue;
+        echo "Client ID $key:\n";
+        foreach ($client as $k => $v) {
+            $valStr = is_array($v) ? ($v['_value'] ?? 'array') : $v;
+            echo "  - $k => " . $valStr . "\n";
+        }
+        break;
     }
 }
