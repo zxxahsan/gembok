@@ -113,7 +113,20 @@ try {
 
     // Update WiFi settings via GenieACS
     if (!empty($ssid)) {
-        $result = genieacsSetParameter($serial, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID', $ssid);
+        $ssidPath = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID';
+        $possiblePaths = [
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
+            'InternetGatewayDevice.LANDevice.1.WiFi.Radio.1.SSID',
+            'Device.WiFi.SSID.1.SSID'
+        ];
+        foreach ($possiblePaths as $path) {
+            if (genieacsGetValue($device, $path) !== null) {
+                $ssidPath = $path;
+                break;
+            }
+        }
+
+        $result = genieacsSetParameter($serial, $ssidPath, $ssid);
 
         if (!$result['success']) {
             echo json_encode(['success' => false, 'message' => 'Failed to update SSID: ' . ($result['message'] ?? 'Unknown error')]);
@@ -122,7 +135,21 @@ try {
     }
 
     if (!empty($password)) {
-        $result = genieacsSetParameter($serial, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase', $password);
+        $passPath = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase';
+        $possiblePaths = [
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase',
+            'Device.WiFi.AccessPoint.1.Security.KeyPassphrase'
+        ];
+        foreach ($possiblePaths as $path) {
+            if (genieacsGetValue($device, $path) !== null) {
+                $passPath = $path;
+                break;
+            }
+        }
+
+        $result = genieacsSetParameter($serial, $passPath, $password);
 
         if (!$result['success']) {
             echo json_encode(['success' => false, 'message' => 'Failed to update password: ' . ($result['message'] ?? 'Unknown error')]);

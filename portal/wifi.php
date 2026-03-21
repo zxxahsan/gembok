@@ -112,7 +112,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($newSsid)) {
             setFlash('error', 'Nama WiFi tidak boleh kosong');
         } else {
-            if (genieacsSetParameter($deviceId, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID', $newSsid)) {
+            // Dynamically locate where the SSID is stored on this specific router brand
+            $ssidPath = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID';
+            $possiblePaths = [
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
+                'InternetGatewayDevice.LANDevice.1.WiFi.Radio.1.SSID',
+                'Device.WiFi.SSID.1.SSID'
+            ];
+            foreach ($possiblePaths as $path) {
+                if (genieacsGetValue($customerDevice, $path) !== null) {
+                    $ssidPath = $path;
+                    break;
+                }
+            }
+            
+            if (genieacsSetParameter($deviceId, $ssidPath, $newSsid)) {
                 setFlash('success', 'Nama WiFi berhasil diubah. Router mungkin perlu restart.');
                 logActivity('CUSTOMER_CHANGE_SSID', "Customer {$customer['name']} changed SSID");
             } else {
@@ -126,7 +140,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (strlen($newPass) < 8) {
             setFlash('error', 'Password WiFi minimal 8 karakter');
         } else {
-            if (genieacsSetParameter($deviceId, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey', $newPass)) {
+            // Dynamically locate where the PreSharedKey is stored on this specific router brand
+            $passPath = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey';
+            $possiblePaths = [
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey',
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase',
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase',
+                'Device.WiFi.AccessPoint.1.Security.KeyPassphrase'
+            ];
+            foreach ($possiblePaths as $path) {
+                if (genieacsGetValue($customerDevice, $path) !== null) {
+                    $passPath = $path;
+                    break;
+                }
+            }
+            
+            if (genieacsSetParameter($deviceId, $passPath, $newPass)) {
                 setFlash('success', 'Password WiFi berhasil diubah. Router mungkin perlu restart.');
                 logActivity('CUSTOMER_CHANGE_WIFI_PASS', "Customer {$customer['name']} changed WiFi password");
             } else {
@@ -260,7 +289,7 @@ ob_start();
                         <p style="font-size: 1.2rem; font-weight: 600; padding: 10px; background: rgba(0, 245, 255, 0.05); border-radius: 8px; border: 1px solid rgba(0, 245, 255, 0.2);">
                             <i class="fas fa-signal" style="color: var(--neon-cyan); margin-right: 10px;"></i>
                             <?php 
-                                $currentSsid = genieacsGetValue($customerDevice, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID');
+                                $currentSsid = $onuData['ssid'] ?? null;
                                 echo htmlspecialchars(is_array($currentSsid) ? ($currentSsid['_value'] ?? 'Unknown') : ($currentSsid ?? 'Unknown')); 
                             ?>
                         </p>
@@ -279,7 +308,7 @@ ob_start();
                             <div style="display: flex; align-items: center; width: 100%;">
                                 <i class="fas fa-key" style="color: var(--neon-cyan); margin-right: 10px;"></i>
                                 <?php 
-                                    $currentPass = genieacsGetValue($customerDevice, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey');
+                                    $currentPass = $onuData['wifi_password'] ?? null;
                                     $passVal = htmlspecialchars(is_array($currentPass) ? ($currentPass['_value'] ?? '') : ($currentPass ?? '')); 
                                 ?>
                                 <input type="password" id="currentWifiPass" value="<?php echo $passVal; ?>" readonly style="background: transparent; border: none; color: var(--text-primary); font-size: 1.2rem; font-weight: 600; width: 100%; outline: none;">
