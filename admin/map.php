@@ -60,14 +60,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($phone)) continue;
 
             // Does this phone number exist as a Tag in any GenieACS device?
-            $serial = $deviceTags[$phone] ?? null;
+            $hasTag = isset($deviceTags[$phone]);
 
-            if ($serial) {
-                $existing = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$serial]);
+            if ($hasTag) {
+                // User prefers the phone number itself to serve as the map's identifying serial key
+                $serialToSave = $phone;
+                
+                $existing = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$serialToSave]);
                 if (!$existing) {
                     insert('onu_locations', [
                         'name' => $c['name'],
-                        'serial_number' => $serial,
+                        'serial_number' => $serialToSave,
                         'lat' => $c['lat'],
                         'lng' => $c['lng'],
                         'created_at' => date('Y-m-d H:i:s')

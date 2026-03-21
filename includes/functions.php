@@ -623,6 +623,28 @@ function genieacsGetDevice($serial)
         }
     }
 
+    // Attempt 5: Search by Tag (critical when the map passes a Customer WhatsApp/Phone number instead of a hardware serial)
+    $query5 = json_encode(['_tags' => $serial]);
+    $url5 = rtrim($genieacs['url'], '/') . '/devices/?query=' . urlencode($query5);
+
+    $ch5 = curl_init($url5);
+    curl_setopt($ch5, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch5, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch5, CURLOPT_TIMEOUT, 10);
+    if (!empty($genieacs['username']) && !empty($genieacs['password'])) {
+        curl_setopt($ch5, CURLOPT_USERPWD, $genieacs['username'] . ':' . $genieacs['password']);
+    }
+
+    $response5 = curl_exec($ch5);
+    $httpCode5 = curl_getinfo($ch5, CURLINFO_HTTP_CODE);
+
+    if ($httpCode5 === 200) {
+        $devices = json_decode($response5, true);
+        if (is_array($devices) && count($devices) > 0) {
+            return $devices[0];
+        }
+    }
+
     return null;
 }
 
