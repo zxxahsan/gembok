@@ -39,9 +39,60 @@ if (!$device) {
     exit;
 }
 
-$serial = $device['_id'] ?? $device['DeviceID']['_SerialNumber'] ?? $pppoeUsername;
+$serial = $device['_id'];
 echo "SUCCESS! Device found: $serial\n";
 echo "=========================================\n\n";
+
+if (isset($_GET['refresh'])) {
+    echo "=========================================\n";
+    echo "TRIGGERING LIVE REFRESH TASK ON ACS...\n";
+    
+    // Test refreshObject
+    $target = $_GET['target'] ?? 'InternetGatewayDevice.LANDevice.1.Hosts.Host.';
+    echo "Target: $target\n\n";
+    
+    $genieacs = getGenieacsSettings();
+    $url = rtrim($genieacs['url'], '/') . "/devices/" . rawurlencode($serial) . "/tasks?timeout=5000&connection_request";
+    
+    $data = [];
+    if (isset($_GET['get_params'])) {
+        echo "Using Task: getParameterValues\n";
+        $data = [
+            'name' => 'getParameterValues',
+            'parameterNames' => [$target]
+        ];
+    } else {
+        echo "Using Task: refreshObject\n";
+        $data = [
+            'name' => 'refreshObject',
+            'objectName' => $target
+        ];
+    }
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+    
+    if (!empty($genieacs['username'])) {
+        curl_setopt($ch, CURLOPT_USERPWD, $genieacs['username'] . ':' . $genieacs['password']);
+    }
+    
+    $startTime = microtime(true);
+    $response = curl_exec($ch);
+    $endTime = microtime(true);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    echo "CURL Executed in " . round($endTime - $startTime, 2) . "s\n";
+    echo "HTTP Status: $httpCode\n";
+    echo "Response: $response\n\n";
+    
+    // Re-fetch device
+    $device = genieacsGetDevice($serial);
+}
 
 echo "Attempting to locate LAN Hosts/Associated Devices trees...\n\n";
 
