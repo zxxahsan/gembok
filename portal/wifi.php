@@ -52,24 +52,9 @@ if ($customerDevice) {
     }
     $onuDevices = is_numeric($rawDevices) ? (int)$rawDevices : '-';
 
-    $onuDevices = is_numeric($rawDevices) ? (int)$rawDevices : '-';
-
-    // Dispatch a bulk TR-069 multi-task payload targeting all typical Connected Devices tables 
-    // This perfectly evades "dormant trees" since we forcibly pull them straight into the ACS cache
-    $refreshTargets = [
-        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice.',
-        'InternetGatewayDevice.LANDevice.1.Hosts.Host.',
-        'Device.Hosts.Host.',
-        'Device.WiFi.AccessPoint.1.AssociatedDevice.'
-    ];
-
-    $didRefresh = genieacsRefreshObjects($deviceId, $refreshTargets);
-
-    // Reload the dynamically populated device graph from GenieACS into PHP!
-    if ($didRefresh) {
-        $customerDevice = genieacsGetDevice($deviceId);
-        if (!$customerDevice) $customerDevice = $rawObj;
-    }
+    // Remove aggressive bulk-refresh payload. The weak FiberHome HG6145F routinely panics 
+    // and drops OMCI arrays when queried for 4 heavy tree roots simultaneously. 
+    // We will rely on passive ACS inform caches like Kunci does.
 
     // Extract LAN Hosts (Connected Devices List)
     $lanHosts = [];
@@ -77,9 +62,9 @@ if ($customerDevice) {
     // We will extract and merge devices from ALL possible trees because some ONUs 
     // separate Ethernet devices (Hosts.Host) from WiFi devices (AssociatedDevice).
     $possibleTrees = [
+        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice',
         'InternetGatewayDevice.LANDevice.1.Hosts.Host',
         'Device.Hosts.Host',
-        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice',
         'Device.WiFi.AccessPoint.1.AssociatedDevice',
         'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.AssociatedDevice'
     ];
@@ -111,23 +96,33 @@ if ($customerDevice) {
                 }
                 
                 // MAC Address parsing
+                $macFound = '-';
                 if (isset($hostData['MACAddress'])) {
-                    $host['MACAddress'] = is_array($hostData['MACAddress']) ? ($hostData['MACAddress']['_value'] ?? '') : $hostData['MACAddress'];
+                    $macFound = is_array($hostData['MACAddress']) ? ($hostData['MACAddress']['_value'] ?? '') : $hostData['MACAddress'];
                 } elseif (isset($hostData['AssociatedDeviceMACAddress'])) {
-                    $host['MACAddress'] = is_array($hostData['AssociatedDeviceMACAddress']) ? ($hostData['AssociatedDeviceMACAddress']['_value'] ?? '') : $hostData['AssociatedDeviceMACAddress'];
-                } else {
-                    $host['MACAddress'] = '-';
+                    $macFound = is_array($hostData['AssociatedDeviceMACAddress']) ? ($hostData['AssociatedDeviceMACAddress']['_value'] ?? '') : $hostData['AssociatedDeviceMACAddress'];
                 }
+                
+                // Brutal Regex Scanner: If FiberHome hides the MAC under a bizarre alias (like 'PhysAddress')
+                if (empty($macFound) || $macFound === '-') {
+                    foreach ($hostData as $k => $v) {
+                        $valCheck = is_array($v) ? ($v['_value'] ?? '') : $v;
+                        if (is_string($valCheck) && preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $valCheck)) {
+                            $macFound = strtoupper($valCheck);
+                            break; // Seize the first valid hardware MAC
+                        }
+                    }
+                }
+                $host['MACAddress'] = $macFound;
                 
                 // Active status parsing
                 if (isset($hostData['Active'])) {
                     $host['Active'] = is_array($hostData['Active']) ? ($hostData['Active']['_value'] ?? false) : $hostData['Active'];
                 } elseif (isset($hostData['AssociatedDeviceAuthenticationState'])) {
-                    // Usually if they are in AssociatedDevice, they are active/connected
                     $authState = is_array($hostData['AssociatedDeviceAuthenticationState']) ? ($hostData['AssociatedDeviceAuthenticationState']['_value'] ?? false) : $hostData['AssociatedDeviceAuthenticationState'];
                     $host['Active'] = ($authState === '1' || $authState === true || $authState === 'true');
                 } else {
-                    $host['Active'] = true;
+                    $host['Active'] = true; // Fallback assume active if it's cached in WLAN list
                 }
                 
                 // Normalize boolean behavior
