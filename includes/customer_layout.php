@@ -739,7 +739,7 @@ ob_start();
     <div class="main-content">
         <div class="header">
             <div class="header-title">
-                <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
+                <h1>Selamat Datang</h1>
             </div>
             <div class="header-actions">
                 <button class="menu-toggle" onclick="toggleSidebar()" style="display: none; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
