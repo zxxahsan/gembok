@@ -24,43 +24,26 @@ if (!$invoice) {
     redirect('dashboard.php');
 }
 
-// Get default payment gateway from settings
-$defaultGateway = fetchOne("SELECT setting_value FROM settings WHERE setting_key = ?", ['DEFAULT_PAYMENT_GATEWAY'])['setting_value'] ?? 'tripay';
+// Exclusive Tripay Integration
+$defaultGateway = 'tripay';
 
 // Get payment gateways
 require_once '../includes/payment.php';
-$gateways = getPaymentGateways();
 
-// Get payment methods for selected gateway
-$paymentMethods = [];
-if ($defaultGateway === 'tripay') {
-    $paymentMethods = [
-        ['code' => 'QRIS', 'name' => 'QRIS', 'icon' => 'fa-qrcode', 'color' => '#00f5ff'],
-        ['code' => 'VIRTUAL_ACCOUNT_BCA', 'name' => 'BCA Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
-        ['code' => 'VIRTUAL_ACCOUNT_BRI', 'name' => 'BRI Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
-        ['code' => 'VIRTUAL_ACCOUNT_MANDIRI', 'name' => 'Mandiri Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
-        ['code' => 'VIRTUAL_ACCOUNT_BNI', 'name' => 'BNI Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
-        ['code' => 'EWALLET_OVO', 'name' => 'OVO', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
-        ['code' => 'EWALLET_DANA', 'name' => 'DANA', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
-        ['code' => 'EWALLET_LINKAJA', 'name' => 'LinkAja', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
-        ['code' => 'EWALLET_SHOPEEPAY', 'name' => 'ShopeePay', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
-        ['code' => 'ALFAMART', 'name' => 'Alfamart', 'icon' => 'fa-store', 'color' => '#00ff00'],
-        ['code' => 'INDOMARET', 'name' => 'Indomaret', 'icon' => 'fa-store', 'color' => '#ff0000']
-    ];
-} elseif ($defaultGateway === 'midtrans') {
-    $paymentMethods = [
-        ['code' => 'gopay', 'name' => 'GoPay', 'icon' => 'fa-wallet', 'color' => '#00f5ff'],
-        ['code' => 'qris', 'name' => 'QRIS', 'icon' => 'fa-qrcode', 'color' => '#00f5ff'],
-        ['code' => 'bca_va', 'name' => 'BCA Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
-        ['code' => 'bri_va', 'name' => 'BRI Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
-        ['code' => 'mandiri_va', 'name' => 'Mandiri Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
-        ['code' => 'bni_va', 'name' => 'BNI Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
-        ['code' => 'ovo', 'name' => 'OVO', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
-        ['code' => 'dana', 'name' => 'DANA', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
-        ['code' => 'linkaja', 'name' => 'LinkAja', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
-        ['code' => 'shopeepay', 'name' => 'ShopeePay', 'icon' => 'fa-wallet', 'color' => '#bf00ff']
-    ];
-}
+// Hardcoded Tripay Payment Methods
+$paymentMethods = [
+    ['code' => 'QRIS', 'name' => 'QRIS', 'icon' => 'fa-qrcode', 'color' => '#00f5ff'],
+    ['code' => 'VIRTUAL_ACCOUNT_BCA', 'name' => 'BCA Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
+    ['code' => 'VIRTUAL_ACCOUNT_BRI', 'name' => 'BRI Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
+    ['code' => 'VIRTUAL_ACCOUNT_MANDIRI', 'name' => 'Mandiri Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
+    ['code' => 'VIRTUAL_ACCOUNT_BNI', 'name' => 'BNI Virtual Account', 'icon' => 'fa-building', 'color' => '#667eea'],
+    ['code' => 'EWALLET_OVO', 'name' => 'OVO', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
+    ['code' => 'EWALLET_DANA', 'name' => 'DANA', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
+    ['code' => 'EWALLET_LINKAJA', 'name' => 'LinkAja', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
+    ['code' => 'EWALLET_SHOPEEPAY', 'name' => 'ShopeePay', 'icon' => 'fa-wallet', 'color' => '#bf00ff'],
+    ['code' => 'ALFAMART', 'name' => 'Alfamart', 'icon' => 'fa-store', 'color' => '#00ff00'],
+    ['code' => 'INDOMARET', 'name' => 'Indomaret', 'icon' => 'fa-store', 'color' => '#ff0000']
+];
 
 // Handle payment method selection
 $selectedPaymentMethod = $_POST['payment_method'] ?? '';

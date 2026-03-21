@@ -7,20 +7,16 @@ require_once 'config.php';
 
 // Generate payment link based on gateway
 function generatePaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $gateway = 'tripay', $paymentMethod = '') {
-    switch ($gateway) {
-        case 'tripay':
-            return generateTripayPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $paymentMethod);
-            
-        case 'midtrans':
-            return generateMidtransPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $paymentMethod);
-            
-        default:
-            return [
-                'success' => false,
-                'message' => 'Payment gateway not supported',
-                'link' => null
-            ];
+    // Only Tripay is supported now
+    if ($gateway === 'tripay') {
+        return generateTripayPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $paymentMethod);
     }
+    
+    return [
+        'success' => false,
+        'message' => 'Payment gateway not supported',
+        'link' => null
+    ];
 }
 
 // Tripay Payment Link Generator
@@ -46,28 +42,7 @@ function generateTripayPaymentLink($invoiceNumber, $amount, $customerName, $cust
     ];
 }
 
-// Midtrans Payment Link Generator
-function generateMidtransPaymentLink($invoiceNumber, $amount, $customerName, $customerPhone, $dueDate, $paymentMethod = '') {
-    if (!defined('MIDTRANS_API_KEY') || empty(MIDTRANS_API_KEY) || !defined('MIDTRANS_MERCHANT_CODE') || empty(MIDTRANS_MERCHANT_CODE)) {
-        return [
-            'success' => false,
-            'message' => 'Payment gateway not configured',
-            'link' => null
-        ];
-    }
-    
-    $merchantRef = $invoiceNumber;
-    $paymentLink = "https://app.midtrans.com/paymentlink.php?merchant_code=" . MIDTRANS_MERCHANT_CODE . "&amount={$amount}&order_id={$merchantRef}&customer_name=" . urlencode($customerName) . "&customer_phone=" . urlencode($customerPhone);
-    
-    if (!empty($paymentMethod)) {
-        $paymentLink .= "&payment_method={$paymentMethod}";
-    }
-    
-    return [
-        'success' => true,
-        'link' => $paymentLink
-    ];
-}
+// DEPRECATED: Midtrans Payment Link Generator removed
 
 // Get supported payment gateways
 function getPaymentGateways() {
@@ -79,15 +54,6 @@ function getPaymentGateways() {
             'color' => '#00f5ff',
             'description' => 'Payment gateway populer Indonesia',
             'features' => ['QRIS', 'Virtual Account', 'VA'],
-            'supported_channels' => ['QRIS', 'VA', 'Bank Transfer']
-        ],
-        [
-            'id' => 'midtrans',
-            'name' => 'Midtrans',
-            'icon' => 'fa-credit-card',
-            'color' => '#667eea',
-            'description' => 'Payment gateway populer Indonesia',
-            'features' => ['QRIS', 'Virtual Account', 'VA', 'Bank Transfer'],
             'supported_channels' => ['QRIS', 'VA', 'Bank Transfer']
         ]
     ];
@@ -117,34 +83,6 @@ function getTripayPaymentStatus($merchantRef) {
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . TRIPAY_API_KEY
     ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode !== 200) {
-        return ['success' => false, 'message' => 'Failed to get payment status'];
-    }
-    
-    return ['success' => true, 'data' => json_decode($response, true)];
-}
-
-// Get payment status from Midtrans
-function getMidtransPaymentStatus($orderId) {
-    if (!defined('MIDTRANS_API_KEY') || empty(MIDTRANS_API_KEY)) {
-        return ['success' => false, 'message' => 'API Key not configured'];
-    }
-    if (!defined('MIDTRANS_MERCHANT_CODE') || empty(MIDTRANS_MERCHANT_CODE)) {
-        return ['success' => false, 'message' => 'Merchant code not configured'];
-    }
-    
-    $url = "https://api.midtrans.com/v2/" . MIDTRANS_MERCHANT_CODE . "/{$orderId}/status";
-    
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json', 'Authorization: Basic ' . base64_encode(MIDTRANS_API_KEY . ':')]);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     

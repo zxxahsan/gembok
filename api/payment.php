@@ -56,14 +56,6 @@ try {
                 'color' => '#00f5ff',
                 'description' => 'Payment gateway populer Indonesia',
                 'features' => ['QRIS', 'Virtual Account', 'VA']
-            ],
-            [
-                'id' => 'midtrans',
-                'name' => 'Midtrans',
-                'icon' => 'fa-credit-card',
-                'color' => '#667eea',
-                'description' => 'Payment gateway populer Indonesia',
-                'features' => ['QRIS', 'Virtual Account', 'VA', 'Bank Transfer']
             ]
         ];
 
@@ -98,24 +90,6 @@ function generatePaymentLink($invoice, $gateway = 'tripay')
             // Generate Tripay payment link
             $merchantRef = $invoiceNumber;
             $paymentLink = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$amount}&merchant_ref={$merchantRef}";
-
-            return [
-                'success' => true,
-                'link' => $paymentLink
-            ];
-
-        case 'midtrans':
-            if (empty(MIDTRANS_API_KEY) || empty(MIDTRANS_MERCHANT_CODE)) {
-                return [
-                    'success' => false,
-                    'message' => 'Payment gateway not configured',
-                    'link' => null
-                ];
-            }
-
-            // Generate Midtrans payment link
-            $merchantRef = $invoiceNumber;
-            $paymentLink = "https://app.midtrans.com/paymentlink.php?merchant_code=" . MIDTRANS_MERCHANT_CODE . "&amount={$amount}&order_id={$merchantRef}";
 
             return [
                 'success' => true,
