@@ -51,39 +51,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 
                 if (insert('customers', $data)) {
-                    // Sync to onu_locations if requested
-                    $saveOnu = isset($_POST['save_onu']) && $_POST['save_onu'] == '1';
-                    $odpId = isset($_POST['odp_id']) && $_POST['odp_id'] !== '' ? (int) $_POST['odp_id'] : null;
-                    if ($saveOnu) {
-                        try {
-                            $serial = $data['pppoe_username']; // Use PPPoE username as identifier if serial not known yet
-                            $exists = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$serial]);
+                    // Auto-sync Map coordinates using the phone identifier
+                    try {
+                        $phoneObj = trim($data['phone']);
+                        if (!empty($phoneObj)) {
+                            $exists = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$phoneObj]);
                             $payload = [
                                 'name' => $data['name'],
                                 'lat' => $data['lat'],
                                 'lng' => $data['lng'],
-                                'odp_id' => $odpId,
                                 'updated_at' => date('Y-m-d H:i:s')
                             ];
+                            
+                            // If user explicitly chose save_onu, we also attempt to save odp_id
+                            if (isset($_POST['save_onu']) && $_POST['save_onu'] == '1') {
+                                $payload['odp_id'] = isset($_POST['odp_id']) && $_POST['odp_id'] !== '' ? (int) $_POST['odp_id'] : null;
+                            }
+                            
                             if ($exists) {
-                                update('onu_locations', $payload, 'serial_number = ?', [$serial]);
-                            } else {
-                                $payload['serial_number'] = $serial;
+                                update('onu_locations', $payload, 'serial_number = ?', [$phoneObj]);
+                            } elseif (!empty($data['lat']) && !empty($data['lng'])) {
+                                $payload['serial_number'] = $phoneObj;
                                 $payload['created_at'] = date('Y-m-d H:i:s');
                                 insert('onu_locations', $payload);
                             }
-                            
-                            // Synchronize PPPoE Username to GenieACS if applicable
+                        }
+
+                        // Legacy ACS PPPoE Username injection
+                        if (isset($_POST['save_onu']) && $_POST['save_onu'] == '1') {
+                            $serial = $data['pppoe_username'];
                             if (!empty($serial)) {
                                 genieacsSetParameter($serial, 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username', $serial);
                                 if ($pppoePassword !== '') {
                                     genieacsSetParameter($serial, 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password', $pppoePassword);
                                 }
                             }
-                        } catch (Exception $e) {
-                            // Do not block customer creation if ONU sync fails
-                            logError('ONU sync (add customer) failed: ' . $e->getMessage());
                         }
+                    } catch (Exception $e) {
+                        // Do not block customer creation if ONU sync fails
+                        logError('ONU sync (add customer) failed: ' . $e->getMessage());
                     }
                     setFlash('success', 'Pelanggan berhasil ditambahkan');
                     logActivity('ADD_CUSTOMER', "Name: {$data['name']}");
@@ -126,37 +132,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 
                 if (update('customers', $data, 'id = ?', [$customerId])) {
-                    // Sync to onu_locations if requested
-                    $saveOnu = isset($_POST['save_onu']) && $_POST['save_onu'] == '1';
-                    $odpId = isset($_POST['odp_id']) && $_POST['odp_id'] !== '' ? (int) $_POST['odp_id'] : null;
-                    if ($saveOnu) {
-                        try {
-                            // Get PPPoE username for this customer
+                    // Auto-sync Map coordinates using the phone identifier
+                    try {
+                        $phoneObj = trim($data['phone']);
+                        if (!empty($phoneObj)) {
+                            $exists = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$phoneObj]);
+                            $payload = [
+                                'name' => $data['name'],
+                                'lat' => $data['lat'],
+                                'lng' => $data['lng'],
+                                'updated_at' => date('Y-m-d H:i:s')
+                            ];
+                            
+                            // If user explicitly chose save_onu, we also attempt to save odp_id
+                            if (isset($_POST['save_onu']) && $_POST['save_onu'] == '1') {
+                                $payload['odp_id'] = isset($_POST['odp_id']) && $_POST['odp_id'] !== '' ? (int) $_POST['odp_id'] : null;
+                            }
+                            
+                            if ($exists) {
+                                update('onu_locations', $payload, 'serial_number = ?', [$phoneObj]);
+                            } elseif (!empty($data['lat']) && !empty($data['lng'])) {
+                                $payload['serial_number'] = $phoneObj;
+                                $payload['created_at'] = date('Y-m-d H:i:s');
+                                insert('onu_locations', $payload);
+                            }
+                        }
+
+                        // Legacy ACS PPPoE Username injection
+                        if (isset($_POST['save_onu']) && $_POST['save_onu'] == '1') {
                             $customer = fetchOne("SELECT pppoe_username FROM customers WHERE id = ?", [$customerId]);
                             if ($customer && !empty($customer['pppoe_username'])) {
                                 $serial = $customer['pppoe_username'];
-                                $exists = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$serial]);
-                                $payload = [
-                                    'name' => $data['name'],
-                                    'lat' => $data['lat'],
-                                    'lng' => $data['lng'],
-                                    'odp_id' => $odpId,
-                                    'updated_at' => date('Y-m-d H:i:s')
-                                ];
-                                if ($exists) {
-                                    update('onu_locations', $payload, 'serial_number = ?', [$serial]);
-                                } else {
-                                    $payload['serial_number'] = $serial;
-                                    $payload['created_at'] = date('Y-m-d H:i:s');
-                                    insert('onu_locations', $payload);
-                                }
-
-                                // Synchronize PPPoE Username to GenieACS if applicable
                                 genieacsSetParameter($serial, 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username', $serial);
                             }
-                        } catch (Exception $e) {
-                            logError('ONU sync (edit customer) failed: ' . $e->getMessage());
                         }
+                    } catch (Exception $e) {
+                        logError('ONU auto-sync (edit customer) failed: ' . $e->getMessage());
                     }
                     setFlash('success', 'Pelanggan berhasil diperbarui');
                     logActivity('UPDATE_CUSTOMER', "ID: {$customerId}");
