@@ -521,6 +521,17 @@ function genieacsGetDevices()
     return [];
 }
 
+// Helper to sort multiple devices and pick the most recent
+function _genieacsPickBestDevice($devices) {
+    if (empty($devices) || !is_array($devices)) return null;
+    usort($devices, function($a, $b) {
+        $timeA = isset($a['_lastInform']) ? strtotime($a['_lastInform']) : 0;
+        $timeB = isset($b['_lastInform']) ? strtotime($b['_lastInform']) : 0;
+        return $timeB <=> $timeA;
+    });
+    return $devices[0];
+}
+
 function genieacsGetDevice($serial)
 {
     $genieacs = getGenieacsSettings();
@@ -546,7 +557,7 @@ function genieacsGetDevice($serial)
     if ($httpCode1 === 200) {
         $devices = json_decode($response1, true);
         if (is_array($devices) && count($devices) > 0) {
-            return $devices[0];
+            return _genieacsPickBestDevice($devices);
         }
     }
 
@@ -569,7 +580,7 @@ function genieacsGetDevice($serial)
     if ($httpCode2 === 200) {
         $devices = json_decode($response2, true);
         if (is_array($devices) && count($devices) > 0) {
-            return $devices[0];
+            return _genieacsPickBestDevice($devices);
         }
     }
 
@@ -594,7 +605,7 @@ function genieacsGetDevice($serial)
         if ($httpCode3 === 200) {
             $devices = json_decode($response3, true);
             if (is_array($devices) && count($devices) > 0) {
-                return $devices[0];
+                return _genieacsPickBestDevice($devices);
             }
         }
     }
@@ -619,7 +630,7 @@ function genieacsGetDevice($serial)
     if ($httpCode4 === 200) {
         $devices = json_decode($response4, true);
         if (is_array($devices) && count($devices) > 0) {
-            return $devices[0];
+            return _genieacsPickBestDevice($devices);
         }
     }
 
@@ -641,7 +652,7 @@ function genieacsGetDevice($serial)
     if ($httpCode5 === 200) {
         $devices = json_decode($response5, true);
         if (is_array($devices) && count($devices) > 0) {
-            return $devices[0];
+            return _genieacsPickBestDevice($devices);
         }
     }
 
