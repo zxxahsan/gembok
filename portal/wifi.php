@@ -54,40 +54,20 @@ if ($customerDevice) {
 
     $onuDevices = is_numeric($rawDevices) ? (int)$rawDevices : '-';
 
-    // Before parsing LAN Hosts, force the router to UPLOAD its live host table to GenieACS cache!
-    // This is required because ACS doesn't permanently store Host arrays unless explicitly requested.
-    $refreshTargets = [];
-    $rawObj = $customerDevice;
-    if (isset($rawObj['InternetGatewayDevice']['LANDevice']['1']['WLANConfiguration']['1']['TotalAssociations'])) {
-         // ZTE, FiberHome
-        $refreshTargets[] = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice.';
-    }
-    if (isset($rawObj['InternetGatewayDevice']['LANDevice']['1']['Hosts']['HostNumberOfEntries'])) {
-        // Classic Huawei / standard TR-069
-        $refreshTargets[] = 'InternetGatewayDevice.LANDevice.1.Hosts.Host.';
-    } elseif (isset($rawObj['Device']['Hosts']['HostNumberOfEntries'])) {
-        // TR-181 standard
-        $refreshTargets[] = 'Device.Hosts.Host.';
-    }
+    // Dispatch a bulk TR-069 multi-task payload targeting all typical Connected Devices tables 
+    // This perfectly evades "dormant trees" since we forcibly pull them straight into the ACS cache
+    $refreshTargets = [
+        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice.',
+        'InternetGatewayDevice.LANDevice.1.Hosts.Host.',
+        'Device.Hosts.Host.',
+        'Device.WiFi.AccessPoint.1.AssociatedDevice.'
+    ];
 
-    // Default fallback if nothing explicitly defined
-    if (empty($refreshTargets)) {
-        $refreshTargets[] = 'InternetGatewayDevice.LANDevice.1.Hosts.';
-    }
-
-    $didRefresh = false;
-    foreach ($refreshTargets as $target) {
-        // Trigger background live fetch!
-        if (genieacsRefreshObject($deviceId, $target)) {
-            $didRefresh = true;
-        }
-    }
+    $didRefresh = genieacsRefreshObjects($deviceId, $refreshTargets);
 
     // Reload the dynamically populated device graph from GenieACS into PHP!
     if ($didRefresh) {
         $customerDevice = genieacsGetDevice($deviceId);
-        
-        // Safety bounds to prevent fatal error if device magically unlinked
         if (!$customerDevice) $customerDevice = $rawObj;
     }
 

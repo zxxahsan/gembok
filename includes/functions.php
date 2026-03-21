@@ -848,14 +848,14 @@ function genieacsSetParameter($serial, $parameter, $value)
 }
 
 /**
- * Force GenieACS to query the router and refresh an object (like LAN Hosts array keys)
+ * Force GenieACS to query the router and refresh multiple objects simultaneously via a bulk POST to minimize ConnectionRequest overheads.
  * @param string $serial Device ID or Phone tag
- * @param string $objectName Parameter tree to refresh (e.g. 'InternetGatewayDevice.LANDevice.1.Hosts.')
+ * @param array $objectNames Array of parameter trees to refresh
  */
-function genieacsRefreshObject($serial, $objectName)
+function genieacsRefreshObjects($serial, $objectNames)
 {
     $genieacs = getGenieacsSettings();
-    if (empty($genieacs['url'])) return false;
+    if (empty($genieacs['url']) || empty($objectNames)) return false;
 
     $device = genieacsGetDevice($serial);
     if (!$device) return false;
@@ -863,21 +863,24 @@ function genieacsRefreshObject($serial, $objectName)
     $deviceId = $device['_id'] ?? $serial;
     $encodedId = rawurlencode($deviceId);
     
-    // timeout=3000 ensures it forces an immediate connection request to the router
-    $url = rtrim($genieacs['url'], '/') . "/devices/{$encodedId}/tasks?timeout=3000&connection_request";
-
-    $data = [
-        'name' => 'refreshObject',
-        'objectName' => $objectName
-    ];
+    // Batch all targets into a single queue block
+    $tasks = [];
+    foreach ($objectNames as $t) {
+        $tasks[] = [
+            'name' => 'refreshObject',
+            'objectName' => $t
+        ];
+    }
+    
+    $url = rtrim($genieacs['url'], '/') . "/devices/{$encodedId}/tasks?timeout=5000&connection_request";
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($tasks));
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 6); // Don't block PHP too long
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8); // Allow up to 8 secs for big bulk trees
 
     if (!empty($genieacs['username']) && !empty($genieacs['password'])) {
         curl_setopt($ch, CURLOPT_USERPWD, $genieacs['username'] . ':' . $genieacs['password']);
@@ -887,6 +890,11 @@ function genieacsRefreshObject($serial, $objectName)
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     
     return ($httpCode === 200 || $httpCode === 202);
+}
+
+// Kept for backward compatibility
+function genieacsRefreshObject($serial, $objectName) {
+    return genieacsRefreshObjects($serial, [$objectName]);
 }
 
 function genieacsSetParameterValues($serial, $params)
