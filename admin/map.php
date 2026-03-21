@@ -34,37 +34,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['action']) && $_POST['action'] === 'sync_customers') {
         $pdo = getDB();
+        
+        // 1. Pull all devices from GenieACS and extract their Tags
+        $devices = genieacsGetDevices();
+        $deviceTags = []; // Map: tag (phone) => serial_number
+        
+        if (is_array($devices)) {
+            foreach ($devices as $device) {
+                if (isset($device['_tags']) && is_array($device['_tags']) && isset($device['_deviceId']['_SerialNumber'])) {
+                    $serial = $device['_deviceId']['_SerialNumber'];
+                    foreach ($device['_tags'] as $tag) {
+                        $deviceTags[$tag] = $serial;
+                    }
+                }
+            }
+        }
+
+        // 2. Cross-reference with our Customer database
         $customers = fetchAll("SELECT name, phone, lat, lng FROM customers WHERE lat IS NOT NULL AND lng IS NOT NULL AND lat != '' AND lng != ''");
         $added = 0;
         $updated = 0;
         
         foreach ($customers as $c) {
-            $serial = $c['phone']; // Binding phone number as the map unique identifier
-            if (empty($serial)) continue;
+            $phone = trim($c['phone']);
+            if (empty($phone)) continue;
 
-            $existing = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$serial]);
-            if (!$existing) {
-                insert('onu_locations', [
-                    'name' => $c['name'],
-                    'serial_number' => $serial,
-                    'lat' => $c['lat'],
-                    'lng' => $c['lng'],
-                    'created_at' => date('Y-m-d H:i:s')
-                ]);
-                $added++;
-            } else {
-                update('onu_locations', [
-                    'name' => $c['name'],
-                    'lat' => $c['lat'],
-                    'lng' => $c['lng'],
-                    'updated_at' => date('Y-m-d H:i:s')
-                ], 'id = ?', [$existing['id']]);
-                $updated++;
+            // Does this phone number exist as a Tag in any GenieACS device?
+            $serial = $deviceTags[$phone] ?? null;
+
+            if ($serial) {
+                $existing = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$serial]);
+                if (!$existing) {
+                    insert('onu_locations', [
+                        'name' => $c['name'],
+                        'serial_number' => $serial,
+                        'lat' => $c['lat'],
+                        'lng' => $c['lng'],
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]);
+                    $added++;
+                } else {
+                    update('onu_locations', [
+                        'name' => $c['name'],
+                        'lat' => $c['lat'],
+                        'lng' => $c['lng'],
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ], 'id = ?', [$existing['id']]);
+                    $updated++;
+                }
             }
         }
         
-        setFlash('success', "Sinkronisasi Pelanggan selesai. Ditambahkan: {$added}, Diperbarui: {$updated}");
-        logActivity('SYNC_CUSTOMERS', "Synced Map with Customer Data.");
+        setFlash('success', "Sinkronisasi Pintar selesai. Ditambahkan: {$added}, Diperbarui: {$updated}");
+        logActivity('SYNC_CUSTOMERS', "Synced Map with Customer ACS Tags.");
         redirect('map.php');
     }
 
@@ -287,11 +309,11 @@ ob_start();
         <h3 class="card-title" style="margin: 0;"><i class="fas fa-list"></i> Pelanggan Terdaftar di Peta (<?php echo $totalOnu; ?>)</h3>
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <input type="text" id="onuSearch" class="form-control" placeholder="Cari..." style="width: 150px;">
-            <form method="POST" style="display:inline;" onsubmit="return confirm('Tarik semua pelanggan yang memiliki kordinat ke Peta?');">
+            <form method="POST" style="display:inline;" onsubmit="return confirm('Tarik lokasi Peta berdasarkan pencocokan Tag ACS dan Nomor Telepon pelanggan?');">
                 <input type="hidden" name="action" value="sync_customers">
                 <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-                <button type="submit" class="btn btn-primary" title="Sync Pelanggan" style="white-space: nowrap;">
-                    <i class="fas fa-users-cog"></i> Sync Pelanggan
+                <button type="submit" class="btn btn-primary" title="Sync Pelanggan & ACS" style="white-space: nowrap; background: var(--neon-purple); border-color: var(--neon-purple);">
+                    <i class="fas fa-satellite-dish"></i> Sync Tag ACS
                 </button>
             </form>
             <button class="btn btn-danger" onclick="openDeleteAllOnusModal()" title="Hapus Semua Titik" style="white-space: nowrap;">
