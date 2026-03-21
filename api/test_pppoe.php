@@ -29,59 +29,53 @@ if (!empty($pppoeUser)) {
     echo "Testing MikroTik Connection...\n";
     $socket = getMikrotikConnection();
     if (!$socket) {
-        echo "FAILED TO CONNECT TO MIKROTIK (or login failed).\n";
+        echo "FAILED TO CONNECT TO MIKROTIK.\n";
     } else {
         echo "MikroTik Socket Connected.\n";
-        echo "Calling mikrotikGetActiveSessionByUsername()...\n";
         
-        $session = mikrotikGetActiveSessionByUsername($pppoeUser);
-        if ($session) {
-            echo "SESSION FOUND:\n";
-            print_r($session);
-        } else {
-            echo "NO ACTIVE SESSION FOUND FOR '$pppoeUser'.\n";
-            echo "Let's run a raw query unconditionally to see what we get...\n";
-            $allSessions = mikrotikGetActiveSessions();
-            echo "Total active PPPoE sessions generally: " . count($allSessions) . "\n";
-            if (count($allSessions) > 0) {
-                echo "Here is the first session found as an example:\n";
-                print_r($allSessions[0]);
+        echo "\nAttempting /interface/print for name='<pppoe-$pppoeUser>'...\n";
+        mikrotikWrite($socket, '/interface/print');
+        mikrotikWrite($socket, '?name=<pppoe-' . $pppoeUser . '>');
+        mikrotikWrite($socket, '');
+        
+        $allWords = [];
+        $done = false;
+        $timeout = time() + 5;
+        while (!$done && time() < $timeout) {
+            $words = mikrotikReadSentence($socket);
+            if (empty($words)) break;
+            foreach ($words as $word) {
+                $allWords[] = $word;
+                if ($word === '!done') { $done = true; break; }
             }
         }
-    }
-}
-
-echo "\n====================\nTesting Connected Devices\n";
-$customerDevice = genieacsGetDevice($phone);
-echo "Genie ACS Device ID: " . ($customerDevice['_id'] ?? 'Not Found') . "\n";
-
-if ($customerDevice) {
-    echo "\nRaw Total Associations (From Cache):\n";
-    $rawDevices = genieacsGetValue($customerDevice, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations');
-    $val = is_array($rawDevices) ? ($rawDevices['_value'] ?? 'array_no_val') : $rawDevices;
-    echo "TotalAssociations: " . $val . "\n";
-    
-    echo "\n\nChecking AssociatedDevice keys...\n";
-    $possibleTrees = [
-        'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice',
-        'InternetGatewayDevice.LANDevice.1.Hosts.Host',
-        'Device.Hosts.Host',
-        'Device.WiFi.AccessPoint.1.AssociatedDevice'
-    ];
-    
-    foreach ($possibleTrees as $treePath) {
-        $treeData = genieacsGetValue($customerDevice, $treePath);
-        if (is_array($treeData)) {
-            echo "\n--- FOUND ARRAY AT: $treePath ---\n";
-            foreach($treeData as $k => $host) {
-                if (!is_numeric($k)) continue;
-                echo "Host Index $k:\n";
-                foreach($host as $hKey => $hVal) {
-                    $valStr = is_array($hVal) ? ($hVal['_value'] ?? 'arr') : $hVal;
-                    echo "  - $hKey => $valStr\n";
-                }
-                break; // Just dump first
+        
+        $sessions = [];
+        $currentSession = [];
+        foreach ($allWords as $word) {
+            if ($word === '!done') {
+                if (!empty($currentSession)) $sessions[] = $currentSession;
+                break;
             }
+            if ($word === '!re') {
+                if (!empty($currentSession)) {
+                    $sessions[] = $currentSession;
+                    $currentSession = [];
+                }
+            } elseif (strpos($word, '=') === 0) {
+                $word = substr($word, 1);
+                $parts = explode('=', $word, 2);
+                if (count($parts) === 2) {
+                    $currentSession[$parts[0]] = $parts[1];
+                }
+            }
+        }
+        
+        if (!empty($sessions)) {
+            echo "INTERFACE FOUND:\n";
+            print_r($sessions[0]);
+        } else {
+            echo "NO INTERFACE FOUND FOR '<pppoe-$pppoeUser>'.\n";
         }
     }
 }
