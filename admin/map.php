@@ -31,6 +31,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('map.php');
     }
+
+    if (isset($_POST['action']) && $_POST['action'] === 'sync_acs') {
+        $devices = genieacsGetDevices();
+        $added = 0;
+        $pdo = getDB();
+        
+        if (is_array($devices)) {
+            foreach ($devices as $device) {
+                if (isset($device['_deviceId']['_SerialNumber'])) {
+                    $serial = $device['_deviceId']['_SerialNumber'];
+                    $existing = fetchOne("SELECT id FROM onu_locations WHERE serial_number = ?", [$serial]);
+                    if (!$existing) {
+                        $name = "ONU " . substr($serial, -4);
+                        if (isset($device['VirtualParameters']['pppoeUsername'])) {
+                            $name = $device['VirtualParameters']['pppoeUsername'];
+                        }
+                        insert('onu_locations', [
+                            'name' => $name,
+                            'serial_number' => $serial,
+                            'created_at' => date('Y-m-d H:i:s')
+                        ]);
+                        $added++;
+                    }
+                }
+            }
+        }
+        setFlash('success', "Sinkronisasi selesai. {$added} ONU baru ditambahkan dari GenieACS.");
+        logActivity('SYNC_ACS', "Synced Map ONUs with ACS, imported {$added} devices.");
+        redirect('map.php');
+    }
+
+    if (isset($_POST['action']) && $_POST['action'] === 'delete_onu') {
+        $id = (int)$_POST['onu_id'];
+        delete('onu_locations', 'id = ?', [$id]);
+        setFlash('success', 'ONU berhasil dihapus');
+        redirect('map.php');
+    }
+
+    if (isset($_POST['action']) && $_POST['action'] === 'save_onu') {
+        $id = (int)($_POST['onu_id'] ?? 0);
+        $name = sanitize($_POST['name']);
+        $serial = sanitize($_POST['serial_number']);
+        $lat = !empty($_POST['lat']) ? $_POST['lat'] : null;
+        $lng = !empty($_POST['lng']) ? $_POST['lng'] : null;
+        
+        if ($id > 0) {
+            update('onu_locations', [
+                'name' => $name,
+                'serial_number' => $serial,
+                'lat' => $lat,
+                'lng' => $lng,
+                'updated_at' => date('Y-m-d H:i:s')
+            ], 'id = ?', [$id]);
+            setFlash('success', 'Data ONU berhasil diperbarui');
+        } else {
+            insert('onu_locations', [
+                'name' => $name,
+                'serial_number' => $serial,
+                'lat' => $lat,
+                'lng' => $lng,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+            setFlash('success', 'ONU baru berhasil ditambahkan');
+        }
+        redirect('map.php');
+    }
 }
 
 $onuLocations = fetchAll("SELECT * FROM onu_locations ORDER BY name");
@@ -242,10 +308,20 @@ ob_start();
 <div class="card" style="margin-top: 20px;">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <h3 class="card-title" style="margin: 0;"><i class="fas fa-list"></i> ONU Terdaftar (<?php echo $totalOnu; ?>)</h3>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="text" id="onuSearch" class="form-control" placeholder="Cari ONU..." style="width: 200px;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="onuSearch" class="form-control" placeholder="Cari ONU..." style="width: 150px;">
+            <button class="btn btn-primary" onclick="openSaveOnuModal()" title="Tambah ONU" style="white-space: nowrap;">
+                <i class="fas fa-plus"></i> Tambah
+            </button>
+            <form method="POST" style="display:inline;" onsubmit="return confirm('Mulai sinkronisasi data dengan GenieACS?');">
+                <input type="hidden" name="action" value="sync_acs">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                <button type="submit" class="btn btn-secondary" title="Sync ACS" style="white-space: nowrap; background: var(--neon-purple); border-color: var(--neon-purple);">
+                    <i class="fas fa-sync"></i> Sync
+                </button>
+            </form>
             <button class="btn btn-danger" onclick="openDeleteAllOnusModal()" title="Hapus Semua ONU" style="white-space: nowrap;">
-                <i class="fas fa-trash-alt"></i> Hapus Semua
+                <i class="fas fa-trash-alt"></i> Bersihkan Area
             </button>
         </div>
     </div>
@@ -261,6 +337,7 @@ ob_start();
                 <th>RX/TX Power</th>
                 <th>Status</th>
                 <th>Last Inform</th>
+                <th>Aksi</th>
             </tr>
         </thead>
         <tbody>
@@ -349,6 +426,21 @@ ob_start();
                             echo '<span style="color: var(--text-muted);">-</span>';
                         }
                         ?>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn btn-secondary btn-sm" onclick='editOnuBasic(<?php echo json_encode($onu); ?>)' title="Edit Profil">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <form method="POST" style="display: inline;" onsubmit="return confirm('Hapus ONU ini secara permanen?');">
+                                <input type="hidden" name="action" value="delete_onu">
+                                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                                <input type="hidden" name="onu_id" value="<?php echo $onu['id']; ?>">
+                                <button type="submit" class="btn btn-danger btn-sm" title="Hapus">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -523,6 +615,51 @@ ob_start();
                 </div>
             </form>
         </div>
+    </div>
+</div>
+
+<!-- Save ONU Modal -->
+<div id="saveOnuModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 400px; max-width: 90%; margin: 2rem;">
+        <div class="card-header">
+            <h3 class="card-title" id="saveOnuTitle"><i class="fas fa-satellite-dish"></i> Tambah ONU</h3>
+            <button onclick="closeSaveOnuModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.25rem;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form method="POST">
+            <input type="hidden" name="action" value="save_onu">
+            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+            <input type="hidden" name="onu_id" id="save_onu_id" value="">
+            
+            <div class="form-group">
+                <label class="form-label">Nama ONU / Pelanggan</label>
+                <input type="text" name="name" id="save_onu_name" class="form-control" required placeholder="Cth: ONU John Doe">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Serial Number</label>
+                <input type="text" name="serial_number" id="save_onu_serial" class="form-control" required placeholder="Cth: ZTEG1234ABCD">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Latitude</label>
+                <input type="number" name="lat" id="save_onu_lat" class="form-control" step="any" placeholder="Cth: -6.123456">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Longitude</label>
+                <input type="number" name="lng" id="save_onu_lng" class="form-control" step="any" placeholder="Cth: 106.123456">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeSaveOnuModal()">Batal</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Simpan ONU
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -1152,6 +1289,30 @@ function closeDeleteAllOnusModal() {
     document.getElementById('deleteAllOnusModal').style.display = 'none';
 }
 
+function openSaveOnuModal() {
+    document.getElementById('saveOnuTitle').innerHTML = '<i class="fas fa-satellite-dish"></i> Tambah ONU';
+    document.getElementById('save_onu_id').value = '';
+    document.getElementById('save_onu_name').value = '';
+    document.getElementById('save_onu_serial').value = '';
+    document.getElementById('save_onu_lat').value = '';
+    document.getElementById('save_onu_lng').value = '';
+    document.getElementById('saveOnuModal').style.display = 'flex';
+}
+
+function closeSaveOnuModal() {
+    document.getElementById('saveOnuModal').style.display = 'none';
+}
+
+function editOnuBasic(onu) {
+    document.getElementById('saveOnuTitle').innerHTML = '<i class="fas fa-edit"></i> Edit ONU';
+    document.getElementById('save_onu_id').value = onu.id;
+    document.getElementById('save_onu_name').value = onu.name;
+    document.getElementById('save_onu_serial').value = onu.serial_number;
+    document.getElementById('save_onu_lat').value = onu.lat || '';
+    document.getElementById('save_onu_lng').value = onu.lng || '';
+    document.getElementById('saveOnuModal').style.display = 'flex';
+}
+
 document.getElementById('onuModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeOnuModal();
@@ -1164,10 +1325,17 @@ document.getElementById('deleteAllOnusModal').addEventListener('click', function
     }
 });
 
+document.getElementById('saveOnuModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeSaveOnuModal();
+    }
+});
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeOnuModal();
         closeDeleteAllOnusModal();
+        closeSaveOnuModal();
     }
 });
 
