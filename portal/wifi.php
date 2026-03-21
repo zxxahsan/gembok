@@ -185,6 +185,14 @@ if ($customerDevice) {
     usort($lanHosts, function($a, $b) {
         return $b['Active'] <=> $a['Active'];
     });
+    
+    // OVERRIDE erroneous hardware counts:
+    // If FiberHome's `TotalAssociations` lied and reported 0, but we actually 
+    // proved there are devices nested in the Hosts arrays, overwrite the UI counter!
+    if (count($lanHosts) > 0 && ($onuDevices === 0 || $onuDevices === '-')) {
+        $activeCount = count(array_filter($lanHosts, function($h) { return $h['Active'] === true; }));
+        $onuDevices = $activeCount > 0 ? $activeCount : count($lanHosts);
+    }
 }
 
 // Handle POST actions for WiFi & Reboot
