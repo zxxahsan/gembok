@@ -199,28 +199,20 @@ function runAutoIsolir($pdo)
                 echo "  ✓ Dropped active PPPoE connection\n";
             }
 
-            // Get Payment URL Config. Assume URL exists
-            $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
-            
-            // Build Direct Tripay Checkout URL
-            $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
-
-            // Build dynamic text through the WhatsApp Template Engine
-            require_once __DIR__ . '/../includes/whatsapp.php';
-            $message = buildWhatsAppMessage('isolation_warning', [
-                'customer_name' => $invoice['name'],
-                'amount' => formatCurrency($invoice['amount']),
-                'due_date' => formatDate($invoice['due_date']),
-                'payment_url' => $paymentUrl,
-                'tripay_url' => $tripayUrl
-            ]);
-            
-            // Fallback just in case template system fails
-            if (empty($message)) {
-                $message = "🔴 *KONEKSI TERPUTUS*\nMaaf {$invoice['name']}, internet Anda telah diisolir karena tagihan " . formatCurrency($invoice['amount']) . ".\nBayar via Portal: $paymentUrl \nBayar via Tripay: $tripayUrl";
+            $customer = fetchOne("SELECT * FROM customers WHERE id = ?", [$invoice['customer_id']]);
+            if ($customer && !empty($customer['phone'])) {
+                require_once __DIR__ . '/../includes/whatsapp.php';
+                $message = buildWhatsAppMessage('isolation_warning', getUniversalWaVariables($customer, $invoice));
+                
+                // Fallback just in case template system fails
+                if (empty($message)) {
+                    $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
+                    $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
+                    $message = "🔴 *KONEKSI TERPUTUS*\nMaaf {$invoice['name']}, internet Anda telah diisolir karena tagihan " . formatCurrency($invoice['amount']) . ".\nBayar via Portal: $paymentUrl \nBayar via Tripay: $tripayUrl";
+                }
+                
+                sendWhatsApp($invoice['phone'], $message);
             }
-            
-            sendWhatsApp($invoice['phone'], $message);
 
         } else {
             echo "  ✗ Failed to isolate customer\n";
@@ -229,20 +221,15 @@ function runAutoIsolir($pdo)
 }
 
 /**
- * Run auto invoice generation (for 1st of each month)
+ * Run auto invoice generation (Scheduled 7 days before due_date)
  */
 function runAutoInvoice($pdo)
 {
     echo "Running auto invoice generation...\n";
 
-    // Only run on the 1st of the month
-    if (date('j') != '1') {
-        echo "  Skipping - not the 1st of the month\n";
-        return;
-    }
-
-    $currentMonth = date('Y-m');
     $generatedCount = 0;
+    $today = date('Y-m-d');
+    $targetDueDate = date('Y-m-d', strtotime('+7 days')); // Invoices due in exactly 7 days from now
 
     // Get all active and isolated customers
     $customers = fetchAll("SELECT * FROM customers WHERE status IN ('active', 'isolated')");
@@ -250,54 +237,67 @@ function runAutoInvoice($pdo)
     echo "Found " . count($customers) . " active/isolated customers\n";
 
     foreach ($customers as $customer) {
-        // Check if invoice already exists for this month
-        $existingInvoice = fetchOne("
-            SELECT id FROM invoices 
-            WHERE customer_id = ? 
-            AND DATE_FORMAT(created_at, '%Y-%m') = ?",
-            [$customer['id'], $currentMonth]
-        );
+        $billingDay = (int)($customer['due_date'] ?? 1);
+        if ($billingDay === 0) $billingDay = 1;
 
-        if (!$existingInvoice) {
-            $package = fetchOne("SELECT * FROM packages WHERE id = ?", [$customer['package_id']]);
+        // Calculate the due date for the *next* invoice based on the customer's billing day
+        // This logic ensures we always look for the next upcoming invoice period.
+        $currentMonth = date('n');
+        $currentYear = date('Y');
 
-            if ($package) {
-                $dueDate = getCustomerDueDate($customer, $currentMonth . '-01');
-                $invoiceData = [
-                    'invoice_number' => generateInvoiceNumber(),
-                    'customer_id' => $customer['id'],
-                    'amount' => $package['price'],
-                    'status' => 'unpaid',
-                    'due_date' => $dueDate,
-                    'created_at' => date('Y-m-d H:i:s')
-                ];
+        $potentialDueDateThisMonth = date('Y-m-d', mktime(0, 0, 0, $currentMonth, $billingDay, $currentYear));
+        $potentialDueDateNextMonth = date('Y-m-d', mktime(0, 0, 0, $currentMonth + 1, $billingDay, $currentYear));
 
-                insert('invoices', $invoiceData);
-                $generatedCount++;
-                echo "  ✓ Generated invoice for: {$customer['name']}\n";
+        $invoiceDueDate = '';
+        if ($potentialDueDateThisMonth >= $today) {
+            // If the billing day for this month is in the future or today, consider it.
+            $invoiceDueDate = $potentialDueDateThisMonth;
+        } else {
+            // Otherwise, the invoice should be for the next month.
+            $invoiceDueDate = $potentialDueDateNextMonth;
+        }
+
+        // Check if this calculated invoiceDueDate is exactly 7 days from today
+        if ($invoiceDueDate === $targetDueDate) {
+            $targetMonth = date('Y-m', strtotime($invoiceDueDate));
+            
+            // Check if invoice already exists for this exact target month and customer
+            $existingInvoice = fetchOne("
+                SELECT id FROM invoices 
+                WHERE customer_id = ? 
+                AND DATE_FORMAT(due_date, '%Y-%m') = ?",
+                [$customer['id'], $targetMonth]
+            );
+
+            if (!$existingInvoice) {
+                $package = fetchOne("SELECT * FROM packages WHERE id = ?", [$customer['package_id']]);
+
+                if ($package) {
+                    $invoiceData = [
+                        'invoice_number' => generateInvoiceNumber(),
+                        'customer_id' => $customer['id'],
+                        'amount' => $package['price'],
+                        'status' => 'unpaid',
+                        'due_date' => $invoiceDueDate,
+                        'created_at' => date('Y-m-d H:i:s')
+                    ];
+
+                    insert('invoices', $invoiceData);
+                    $generatedCount++;
+                    echo "  ✓ Generated invoice for: {$customer['name']} (Due: {$invoiceData['due_date']})\n";
                 
-                // Dispatch via WhatsApp Gateway
-                if (!empty($customer['phone'])) {
-                    $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
-                    $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoiceData['amount']}&merchant_ref={$invoiceData['invoice_number']}";
-                    require_once __DIR__ . '/../includes/whatsapp.php';
-                    $message = buildWhatsAppMessage('invoice_created', [
-                        'customer_name' => $customer['name'],
-                        'period' => date('F Y'),
-                        'invoice_number' => $invoiceData['invoice_number'],
-                        'amount' => formatCurrency($invoiceData['amount']),
-                        'due_date' => formatDate($invoiceData['due_date']),
-                        'payment_url' => $paymentUrl,
-                        'tripay_url'  => $tripayUrl,
-                        'app_name' => APP_NAME
-                    ]);
-                    if (!empty($message)) sendWhatsAppMessage($customer['phone'], $message);
+                    // Dispatch via WhatsApp Gateway
+                    if (!empty($customer['phone'])) {
+                        require_once __DIR__ . '/../includes/whatsapp.php';
+                        $message = buildWhatsAppMessage('invoice_created', getUniversalWaVariables($customer, $invoiceData));
+                        if (!empty($message)) sendWhatsApp($customer['phone'], $message);
+                    }
                 }
             }
         }
     }
 
-    echo "Generated {$generatedCount} invoices for " . date('F Y') . "\n";
+    echo "Generated {$generatedCount} new invoices.\n";
 
     // Log activity
     logActivity('AUTO_INVOICE', "Auto-generated {$generatedCount} invoices for " . date('F Y'));
@@ -396,19 +396,12 @@ function sendReminders($pdo)
         echo "Found " . count($upcomingInvoices) . " upcoming invoice reminders for H-{$daysParam} (Template: {$templateKey})\n";
 
         foreach ($upcomingInvoices as $invoice) {
-            $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
-            $tripayUrl = "https://tripay.co.id/checkout?merchant_code=" . TRIPAY_MERCHANT_CODE . "&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
-            
             require_once __DIR__ . '/../includes/whatsapp.php';
-            $message = buildWhatsAppMessage($templateKey, [
-                'customer_name' => $invoice['name'],
-                'amount' => formatCurrency($invoice['amount']),
-                'due_date' => formatDate($invoice['due_date']),
-                'payment_url' => $paymentUrl,
-                'tripay_url' => $tripayUrl
-            ]);
+            // Use joined query mapping
+            $message = buildWhatsAppMessage($templateKey, getUniversalWaVariables($invoice, $invoice));
             
             if (empty($message)) {
+                $paymentUrl = rtrim(APP_URL, '/') . "/portal/index.php";
                 $message = "⚠️ *PENGINGAT TAGIHAN*\nHalo {$invoice['name']}, Tagihan " . formatCurrency($invoice['amount']) . " akan memasukin batas akhir dalam $daysParam hari (" . formatDate($invoice['due_date']) . ").\nBayar disini: $paymentUrl \nAtau Tripay Langsung: $tripayUrl";
             }
 

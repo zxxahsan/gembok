@@ -40,6 +40,65 @@ function buildWhatsAppMessage($type, $variables = []) {
 }
 
 /**
+ * Universally construct all available template variables
+ * @param array $customer Customer record containing name, phone, etc.
+ * @param array|null $invoice Invoice record containing amount, due_date, etc.
+ * @return array Variable dictionary for buildWhatsAppMessage
+ */
+function getUniversalWaVariables($customer, $invoice = null) {
+    $merchantCode = defined('TRIPAY_MERCHANT_CODE') ? TRIPAY_MERCHANT_CODE : '';
+    if (empty($merchantCode)) {
+        try {
+            $row = fetchOne("SELECT setting_value FROM settings WHERE setting_key = 'TRIPAY_MERCHANT_CODE'");
+            if ($row) $merchantCode = $row['setting_value'];
+        } catch (Exception $e) {}
+    }
+
+    $vars = [
+        'customer_name' => $customer['name'] ?? '',
+        'pppoe_username' => $customer['pppoe_username'] ?? '',
+        'pppoe_password' => $customer['pppoe_password'] ?? '',
+        'app_name' => defined('APP_NAME') ? APP_NAME : 'Gembok Simple',
+        'portal_url' => rtrim(APP_URL, '/') . '/portal/index.php',
+        'payment_url' => rtrim(APP_URL, '/') . '/portal/index.php'
+    ];
+
+    if (!empty($customer['package_id'])) {
+        try {
+            $pkg = fetchOne("SELECT name, price FROM packages WHERE id = ?", [$customer['package_id']]);
+            if ($pkg) {
+                $vars['package_name'] = $pkg['name'];
+                $vars['package_price'] = formatCurrency($pkg['price']);
+            }
+        } catch(Exception $e) {}
+    } else {
+        $vars['package_name'] = '';
+        $vars['package_price'] = '';
+    }
+
+    if ($invoice) {
+        $vars['invoice_number'] = $invoice['invoice_number'] ?? '';
+        $vars['amount'] = isset($invoice['amount']) ? formatCurrency($invoice['amount']) : '';
+        $vars['period'] = isset($invoice['created_at']) ? date('F Y', strtotime($invoice['created_at'])) : (date('F Y'));
+        $vars['due_date'] = isset($invoice['due_date']) ? formatDate($invoice['due_date']) : '';
+        
+        if (!empty($merchantCode) && isset($invoice['amount']) && isset($invoice['invoice_number'])) {
+            $vars['tripay_url'] = "https://tripay.co.id/checkout?merchant_code={$merchantCode}&amount={$invoice['amount']}&merchant_ref={$invoice['invoice_number']}";
+        } else {
+            $vars['tripay_url'] = '';
+        }
+    } else {
+        $vars['invoice_number'] = '';
+        $vars['amount'] = '';
+        $vars['period'] = '';
+        $vars['due_date'] = '';
+        $vars['tripay_url'] = '';
+    }
+
+    return $vars;
+}
+
+/**
  * Custom Node.js WhatsApp Sender
  */
 function sendCustomNodeWhatsApp($phone, $message) {

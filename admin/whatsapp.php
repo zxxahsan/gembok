@@ -262,6 +262,26 @@ document.addEventListener('DOMContentLoaded', toggleWaSettings);
     <h2><i class="fas fa-comment-dots"></i> Master Template Pesan</h2>
     <p style="color: var(--text-secondary); margin-bottom: 20px;">Sesuaikan format kalimat otomatis yang akan disalurkan oleh sistem Gembok ke nomor WhatsApp Pelanggan.</p>
     
+    <!-- GLOBAL VARIABLES HINT -->
+    <div class="alert alert-info" style="background: rgba(0, 204, 255, 0.1); border-left: 4px solid #00ccff; padding: 15px; margin-bottom: 25px; border-radius: 4px;">
+        <h4 style="margin-top: 0; color: #00ccff;"><i class="fas fa-info-circle"></i> Daftar Variabel Global (Bisa Digunakan di SEMUA Template)</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; font-family: monospace; font-size: 0.9rem; color: #eee;">
+            <div><strong>{customer_name}</strong> - Nama Pelanggan</div>
+            <div><strong>{app_name}</strong> - Nama Aplikasi Sistem</div>
+            <div><strong>{package_name}</strong> - Nama Paket Internet</div>
+            <div><strong>{package_price}</strong> - Harga Paket Pribadi</div>
+            <div><strong>{pppoe_username}</strong> - Username PPPoE</div>
+            <div><strong>{pppoe_password}</strong> - Password PPPoE</div>
+            <div><strong>{due_date}</strong> - Tanggal Jatuh Tempo</div>
+            <div><strong>{period}</strong> - Nama Bulan & Tahun Tagihan</div>
+            <div><strong>{invoice_number}</strong> - Nomor Invoice (Jika ada)</div>
+            <div><strong>{amount}</strong> - Total Tagihan Pembayaran</div>
+            <div><strong>{portal_url}</strong> - Link Portal Pelanggan</div>
+            <div><strong>{payment_url}</strong> - Link Bayar Standar (Sama)</div>
+            <div><strong>{tripay_url}</strong> - Link Checkout Instan TriPay</div>
+        </div>
+    </div>
+    
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
         <?php foreach ($templates as $tmpl): ?>
         <div class="card" style="border-top: 3px solid var(--neon-cyan);">
