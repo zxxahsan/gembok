@@ -8,6 +8,31 @@ requireAdminLogin();
 
 $pageTitle = 'Peta ONU';
 
+$pageTitle = 'Peta ONU';
+
+// Handle form submissions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isset($_POST['csrf_token']) || !verifyCsrfToken($_POST['csrf_token'])) {
+        setFlash('error', 'Invalid CSRF token');
+        redirect('map.php');
+    }
+
+    if (isset($_POST['action']) && $_POST['action'] === 'delete_all_onus') {
+        if ($_POST['confirm_text'] !== 'HAPUS SEMUA') {
+            setFlash('error', 'Konfirmasi gagal. Ketik "HAPUS SEMUA" untuk menghapus semua ONU.');
+        } else {
+            $pdo = getDB();
+            // Delete all ONUs from the map
+            $pdo->exec("DELETE FROM onu_locations");
+            $pdo->exec("ALTER TABLE onu_locations AUTO_INCREMENT = 1");
+            
+            setFlash('success', 'Seluruh data ONU berhasil dihapus dari peta.');
+            logActivity('DELETE_ALL_ONUS', 'Admin cleared all ONU locations from the map.');
+        }
+        redirect('map.php');
+    }
+}
+
 $onuLocations = fetchAll("SELECT * FROM onu_locations ORDER BY name");
 
 $totalOnu = count($onuLocations);
@@ -215,9 +240,14 @@ ob_start();
 
 <!-- ONU List -->
 <div class="card" style="margin-top: 20px;">
-    <div class="card-header">
-        <h3 class="card-title"><i class="fas fa-list"></i> ONU Terdaftar (<?php echo $totalOnu; ?>)</h3>
-        <input type="text" id="onuSearch" class="form-control" placeholder="Cari ONU..." style="width: 200px;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h3 class="card-title" style="margin: 0;"><i class="fas fa-list"></i> ONU Terdaftar (<?php echo $totalOnu; ?>)</h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="onuSearch" class="form-control" placeholder="Cari ONU..." style="width: 200px;">
+            <button class="btn btn-danger" onclick="openDeleteAllOnusModal()" title="Hapus Semua ONU" style="white-space: nowrap;">
+                <i class="fas fa-trash-alt"></i> Hapus Semua
+            </button>
+        </div>
     </div>
     
     <table class="data-table">
@@ -457,6 +487,42 @@ ob_start();
                 <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
             </div>
         </form>
+    </div>
+</div>
+
+</div>
+
+<!-- Delete All ONUs Modal -->
+<div id="deleteAllOnusModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 400px; max-width: 90%; margin: 2rem; border-top: 4px solid #ff4757;">
+        <div class="card-header">
+            <h3 class="card-title" style="color: #ff4757;"><i class="fas fa-exclamation-triangle"></i> Peringatan Bahaya</h3>
+            <button onclick="closeDeleteAllOnusModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.25rem;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="card-body">
+            <p style="margin-bottom: 15px; color: var(--text-primary);">
+                Anda yakin ingin menghapus <strong>SELURUH</strong> data ONU terdaftar dari peta? Tindakan ini <strong>TIDAK BISA DIBATALKAN</strong> dan semua pin lokasi akan hilang.
+            </p>
+            <form method="POST">
+                <input type="hidden" name="action" value="delete_all_onus">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                
+                <div class="form-group">
+                    <label class="form-label">Ketik <strong>HAPUS SEMUA</strong> untuk konfirmasi:</label>
+                    <input type="text" name="confirm_text" class="form-control" required autocomplete="off" placeholder="HAPUS SEMUA">
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeleteAllOnusModal()" style="flex: 1;">Batal</button>
+                    <button type="submit" class="btn btn-danger" style="flex: 1;">
+                        <i class="fas fa-trash-alt"></i> Hapus Permanen
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -1078,15 +1144,30 @@ document.getElementById('onuSearch').addEventListener('input', function(e) {
     });
 });
 
+function openDeleteAllOnusModal() {
+    document.getElementById('deleteAllOnusModal').style.display = 'flex';
+}
+
+function closeDeleteAllOnusModal() {
+    document.getElementById('deleteAllOnusModal').style.display = 'none';
+}
+
 document.getElementById('onuModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeOnuModal();
     }
 });
 
+document.getElementById('deleteAllOnusModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeDeleteAllOnusModal();
+    }
+});
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeOnuModal();
+        closeDeleteAllOnusModal();
     }
 });
 
