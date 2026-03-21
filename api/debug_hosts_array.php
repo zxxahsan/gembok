@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 header('Content-Type: text/plain');
 
 require_once '../includes/auth.php';
@@ -12,36 +14,23 @@ if (empty($phone)) {
 }
 
 $device = genieacsGetDevice($phone);
+echo "Device ID Tracker: " . ($device['_id'] ?? 'Not Found') . "\n";
 
-echo "Dump of HostsData:\n";
-$hostsRaw = genieacsGetValue($device, 'InternetGatewayDevice.LANDevice.1.Hosts.Host');
-if ($hostsRaw) {
-    echo "FOUND Hosts.Host! Keys inside it:\n";
-    foreach($hostsRaw as $key => $hostData) {
-        if (!is_numeric($key)) continue;
-        echo "  Index [$key]:\n";
-        foreach($hostData as $k => $v) {
-            echo "    $k => " . (is_array($v) ? ($v['_value'] ?? 'array') : $v) . "\n";
-        }
-        echo "\n";
+$path = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice';
+$keys = explode('.', $path);
+$current = $device;
+
+echo "\n--- Traversal Trace ---\n";
+foreach ($keys as $key) {
+    echo "Attempting to access key: '$key'\n";
+    if (!isset($current[$key])) {
+        echo "  [FAIL] Key '$key' is NOT SET in the current array!\n";
+        echo "  Available keys at this level are: " . implode(", ", array_keys($current)) . "\n";
+        exit;
     }
-} else {
-    echo "Hosts.Host NOT FOUND.\n";
+    echo "  [SUCCESS] Key '$key' accessed.\n";
+    $current = $current[$key];
 }
 
-echo "\n--------------------------------------------------------------\n";
-
-$assocRaw = genieacsGetValue($device, 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDevice');
-if ($assocRaw) {
-    echo "FOUND AssociatedDevice! Keys inside it:\n";
-    foreach($assocRaw as $key => $hostData) {
-        if (!is_numeric($key)) continue;
-        echo "  Index [$key]:\n";
-        foreach($hostData as $k => $v) {
-            echo "    $k => " . (is_array($v) ? ($v['_value'] ?? 'array') : $v) . "\n";
-        }
-        echo "\n";
-    }
-} else {
-    echo "AssociatedDevice NOT FOUND.\n";
-}
+echo "\nTraversal successful! Array structure is:\n";
+print_r(array_keys($current));
