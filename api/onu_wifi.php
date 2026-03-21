@@ -24,8 +24,18 @@ try {
         }
 
         // Get device info from GenieACS
-        // First find the device by PPPoE username
-        $device = genieacsFindDeviceByPppoe($pppoeUsername);
+        $device = null;
+        
+        // Find customer to see if a phone tag applies
+        $custDb = fetchOne("SELECT phone FROM customers WHERE pppoe_username = ?", [$pppoeUsername]);
+        if ($custDb && !empty($custDb['phone'])) {
+            $device = genieacsGetDevice($custDb['phone']);
+        }
+        
+        // Fallback to PPPoE
+        if (!$device) {
+            $device = genieacsFindDeviceByPppoe($pppoeUsername);
+        }
         
         if ($device) {
             $deviceId = $device['_id'];
@@ -70,14 +80,23 @@ try {
         exit;
     }
 
-    // If PPPoE username is provided, find the device
+    // Find the device properly prioritizing Phone Tag overrides
     if (!empty($pppoeUsername)) {
-        $device = genieacsFindDeviceByPppoe($pppoeUsername);
+        $device = null;
+        $custDb = fetchOne("SELECT phone FROM customers WHERE pppoe_username = ?", [$pppoeUsername]);
+        if ($custDb && !empty($custDb['phone'])) {
+            $device = genieacsGetDevice($custDb['phone']);
+        }
+        
+        if (!$device) {
+            $device = genieacsFindDeviceByPppoe($pppoeUsername);
+        }
+        
         if (!$device) {
             echo json_encode(['success' => false, 'message' => 'Device not found for PPPoE username: ' . $pppoeUsername]);
             exit;
         }
-        $serial = $device['_id'] ?? $device['DeviceID']['_SerialNumber'] ?? $pppoeUsername; // Fallback to _id first, then serial, then username
+        $serial = $device['_id'] ?? $device['DeviceID']['_SerialNumber'] ?? $pppoeUsername;
     }
 
     // Validate SSID

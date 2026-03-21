@@ -23,7 +23,13 @@ $onuOnline = false;
 $onuSignal = 'N/A';
 $onuDevices = '-';
 
-$customerDevice = genieacsFindDeviceByPppoe($customer['pppoe_username']);
+$customerDevice = null;
+if (!empty($customer['phone'])) {
+    $customerDevice = genieacsGetDevice($customer['phone']);
+}
+if (!$customerDevice && !empty($customer['pppoe_username'])) {
+    $customerDevice = genieacsFindDeviceByPppoe($customer['pppoe_username']);
+}
 
 if ($customerDevice) {
     $deviceId = $customerDevice['_id'] ?? $customerDevice['_deviceId']['_SerialNumber'] ?? $customer['pppoe_username'];
