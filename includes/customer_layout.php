@@ -80,8 +80,31 @@ ob_start();
             --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
             
             /* Sidebar */
+            /* Sidebar */
             --sidebar-width: 260px;
             --sidebar-collapsed: 70px;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-primary: #f0f2f5;
+                --bg-secondary: #ffffff;
+                --bg-card: rgba(255, 255, 255, 0.9);
+                --bg-sidebar: #ffffff;
+                --neon-cyan: #007bff;
+                --neon-purple: #6f42c1;
+                --neon-pink: #d63384;
+                --neon-green: #198754;
+                --neon-orange: #fd7e14;
+                --neon-red: #dc3545;
+                --text-primary: #1a1a1b;
+                --text-secondary: #4a4a4b;
+                --text-muted: #6a6a6b;
+                --border-color: rgba(0, 0, 0, 0.1);
+                --border-glow: rgba(0, 123, 255, 0.2);
+                --shadow-neon: 0 4px 12px rgba(0, 123, 255, 0.1);
+                --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.05);
+            }
         }
 
         * {

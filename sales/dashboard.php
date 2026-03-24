@@ -15,6 +15,9 @@ $salesUser = getSalesUser($salesId);
 // Update session balance
 $_SESSION['sales']['deposit_balance'] = $salesUser['deposit_balance'];
 
+// Pre-sync pending offline activations
+syncHotspotSalesStatus();
+
 // Get Stats
 $today = date('Y-m-d');
 $month = date('Y-m');
@@ -22,12 +25,12 @@ $month = date('Y-m');
 // Today's Sales
 $todaySales = fetchOne("SELECT COUNT(*) as count, SUM(price) as capital, SUM(selling_price) as total 
     FROM hotspot_sales 
-    WHERE sales_user_id = ? AND DATE(created_at) = ?", [$salesId, $today]);
+    WHERE sales_user_id = ? AND status = 'active' AND DATE(used_at) = ?", [$salesId, $today]);
 
 // Month's Sales
 $monthSales = fetchOne("SELECT COUNT(*) as count, SUM(price) as capital, SUM(selling_price) as total 
     FROM hotspot_sales 
-    WHERE sales_user_id = ? AND DATE_FORMAT(created_at, '%Y-%m') = ?", [$salesId, $month]);
+    WHERE sales_user_id = ? AND status = 'active' AND DATE_FORMAT(used_at, '%Y-%m') = ?", [$salesId, $month]);
 
 ob_start();
 ?>
@@ -89,9 +92,6 @@ ob_start();
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
             <a href="vouchers.php" class="btn btn-primary" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px; font-size: 1.1rem;">
                 <i class="fas fa-ticket-alt" style="font-size: 1.5rem;"></i> Buat Voucher
-            </a>
-            <a href="pay.php" class="btn btn-success" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px; font-size: 1.1rem; background: var(--neon-green); color: black;">
-                <i class="fas fa-money-bill-wave" style="font-size: 1.5rem;"></i> Bayar Tagihan
             </a>
             <a href="history.php" class="btn btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px; font-size: 1.1rem; background: var(--bg-input); border: 1px solid var(--border-color);">
                 <i class="fas fa-history" style="font-size: 1.5rem;"></i> Riwayat Transaksi

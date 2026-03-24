@@ -24,8 +24,12 @@ function getWhatsAppSetting($key) {
  */
 function buildWhatsAppMessage($type, $variables = []) {
     try {
-        $row = fetchOne("SELECT message FROM whatsapp_templates WHERE type = ?", [$type]);
-        if (!$row) return ''; // Fallback if template is completely missing
+        $row = fetchOne("SELECT message, is_enabled FROM whatsapp_templates WHERE type = ?", [$type]);
+        
+        // Skip if template missing or explicitly disabled by Admin
+        if (!$row || (isset($row['is_enabled']) && $row['is_enabled'] == 0)) {
+            return ''; 
+        }
         
         $message = $row['message'];
         

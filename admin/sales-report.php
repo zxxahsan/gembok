@@ -8,13 +8,16 @@ requireAdminLogin();
 
 $pageTitle = 'Laporan Penjualan Hotspot';
 
+// Pre-sync pending changes
+syncHotspotSalesStatus();
+
 // Handle filters
-$date_from = sanitize($_GET['date_from'] ?? date('Y-m-d'));
+$date_from = sanitize($_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days')));
 $date_to = sanitize($_GET['date_to'] ?? date('Y-m-d'));
 $profile_filter = sanitize($_GET['profile'] ?? 'all');
 $sales_user_filter = sanitize($_GET['sales_user'] ?? 'all');
 
-$where = "DATE(h.created_at) BETWEEN ? AND ?";
+$where = "h.status = 'active' AND DATE(h.used_at) BETWEEN ? AND ?";
 $params = [$date_from, $date_to];
 
 if ($profile_filter !== 'all') {
@@ -36,7 +39,7 @@ $sql = "SELECT h.*, s.name as sales_name
         FROM hotspot_sales h 
         LEFT JOIN sales_users s ON h.sales_user_id = s.id 
         WHERE $where 
-        ORDER BY h.created_at DESC";
+        ORDER BY h.used_at DESC";
 
 $sales = fetchAll($sql, $params);
 
@@ -152,7 +155,7 @@ ob_start();
                     <?php else: ?>
                         <?php foreach ($sales as $s): ?>
                             <tr>
-                                <td style="padding: 15px; vertical-align: middle;"><?php echo date('d/m/Y H:i', strtotime($s['created_at'])); ?></td>
+                                <td style="padding: 15px; vertical-align: middle;"><?php echo date('d/m/Y H:i', strtotime($s['used_at'])); ?></td>
                                 <td style="padding: 15px; vertical-align: middle;">
                                     <?php if ($s['sales_name']): ?>
                                         <span class="badge badge-warning" style="padding: 8px 12px; font-size: 0.9em;"><?php echo htmlspecialchars($s['sales_name']); ?></span>

@@ -63,8 +63,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $msg = "🚨 *TUGAS GANGGUAN BARU*\n\n";
                             $msg .= "Ticket: #{$ticketId}\n";
                             $msg .= "Pelanggan: " . ($customer['name'] ?? 'N/A') . "\n";
+                            $gmapsLink = "Tidak ada kordinat map.";
+                            if (!empty($customer['latitude']) && !empty($customer['longitude'])) {
+                                $gmapsLink = "https://www.google.com/maps?q={$customer['latitude']},{$customer['longitude']}";
+                            }
+
                             $msg .= "Kontak (WA): " . ($customer['phone'] ?? '-') . "\n";
                             $msg .= "Alamat: " . ($customer['address'] ?? '-') . "\n";
+                            $msg .= "Lokasi Map: {$gmapsLink}\n";
                             $msg .= "Masalah: {$description}\n";
                             $msg .= "Prioritas: " . strtoupper($priority) . "\n\n";
                             $msg .= "Mohon segera dicek. Terima kasih.";
@@ -121,8 +127,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $msg .= "Ticket: #{$ticketId}\n";
                                 $msg .= "Status: " . strtoupper($status) . "\n";
                                 $msg .= "Pelanggan: " . ($customerDetails['name'] ?? 'N/A') . "\n";
+                                $gmapsLink = "Tidak ada kordinat map.";
+                                if (!empty($customerDetails['latitude']) && !empty($customerDetails['longitude'])) {
+                                    $gmapsLink = "https://www.google.com/maps?q={$customerDetails['latitude']},{$customerDetails['longitude']}";
+                                }
+
                                 $msg .= "Kontak (WA): " . ($customerDetails['phone'] ?? '-') . "\n";
                                 $msg .= "Alamat: " . ($customerDetails['address'] ?? '-') . "\n";
+                                $msg .= "Lokasi Map: {$gmapsLink}\n";
                                 $msg .= "Masalah: {$ticket['description']}\n";
                                 $msg .= "Catatan Admin: " . ($notes ?: '-') . "\n\n";
                                 $msg .= "Mohon untuk segera ditindaklanjuti. Terima kasih.";

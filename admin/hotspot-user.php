@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $timelimit = sanitize($_POST['timelimit'] ?? '');
         $datalimit = sanitize($_POST['datalimit'] ?? '');
         $charMode = sanitize($_POST['char_mode'] ?? 'alphanumeric'); // alphanumeric, numeric, alpha
+        $salesId = !empty($_POST['sales_id']) ? (int) $_POST['sales_id'] : null;
 
         $profilePrice = 0;
         $profileValidity = '';
@@ -59,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $successCount++;
                 // Record sale if price is set
                 if ($profilePrice > 0) {
-                    recordHotspotSale($user, $profile, $profilePrice, $profileSelling, $prefix);
+                    recordHotspotSale($user, $profile, $profilePrice, $profileSelling, $prefix, $salesId);
                 }
                 // Store generated voucher for printing
                 $generatedVouchers[] = [
@@ -111,6 +112,9 @@ $hotspotUsers = mikrotikGetHotspotUsers();
 $hotspotProfiles = mikrotikGetHotspotProfiles();
 $activeUsers = mikrotikGetHotspotActive();
 $activeUsernames = array_column($activeUsers, 'user');
+
+// Get Sales Users for Reseller tracking dropdown
+$allSalesUsers = fetchAll("SELECT id, username, name FROM sales_users");
 
 // Build profile price lookup from on-login scripts (Mikhmon v3 style)
 $profilePriceMap = [];
@@ -205,6 +209,17 @@ ob_start();
                     <?php foreach ($hotspotProfiles as $p): ?>
                         <option value="<?php echo htmlspecialchars($p['name']); ?>">
                             <?php echo htmlspecialchars($p['name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reseller / Sales (Tracker)</label>
+                <select name="sales_id" class="form-control">
+                    <option value="">-- Tanpa Sales / Admin --</option>
+                    <?php foreach ($allSalesUsers as $su): ?>
+                        <option value="<?php echo htmlspecialchars($su['id']); ?>">
+                            <?php echo htmlspecialchars($su['name'] . ' (' . $su['username'] . ')'); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

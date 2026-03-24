@@ -29,14 +29,21 @@ $customers = fetchAll("
 
 // Get technician's tasks to highlight
 $myTasks = fetchAll("
-    SELECT id, customer_id, 'ticket' as type FROM trouble_tickets WHERE technician_id = ? AND status != 'resolved'
+    SELECT t.id, t.customer_id, c.pppoe_username, 'ticket' as type 
+    FROM trouble_tickets t
+    JOIN customers c ON t.customer_id = c.id
+    WHERE t.technician_id = ? AND t.status != 'resolved'
     UNION
-    SELECT id, id as customer_id, 'install' as type FROM customers WHERE installed_by = ? AND status = 'registered'
+    SELECT id, id as customer_id, pppoe_username, 'install' as type 
+    FROM customers 
+    WHERE installed_by = ? AND status = 'registered'
 ", [$tech['id'], $tech['id']]);
 
 $taskMap = [];
 foreach ($myTasks as $task) {
-    $taskMap[$task['customer_id']] = $task['type'];
+    if (!empty($task['pppoe_username'])) {
+        $taskMap[$task['pppoe_username']] = $task['type'];
+    }
 }
 
 ?>
@@ -381,55 +388,25 @@ foreach ($myTasks as $task) {
             iconAnchor: [12, 12]
         });
         
+        // Pass the task map dynamically
+        var myTasks = JSON.parse('<?php echo addslashes(json_encode($taskMap)); ?>');
+
         // Fetch data from API like admin/map.php
         fetch('../../api/onu_locations.php')
-        .then(response => response.json())
-        .then(result => {
-            if (!result.success) {
-                console.error('Failed to load map data:', result.message);
-                return;
-            }
-            
-            // Render ODPs
-            if (result.odps) {
-                result.odps.forEach(function(odp) {
-                    if(odp.lat && odp.lng) {
-                        L.marker([odp.lat, odp.lng], {icon: odpIcon})
-                         .bindPopup("<b>ODP: " + (odp.name || 'Unknown') + "</b><br>Code: " + (odp.code || '-'))
-                         .addTo(map);
-                    }
-                });
-            }
-            
-            // Render ODP Links
-            if (result.odp_links) {
-                const odpIndex = {};
-                result.odps.forEach(odp => odpIndex[odp.id] = odp);
-                
-                result.odp_links.forEach(link => {
-                    const from = odpIndex[link.from_odp_id];
-                    const to = odpIndex[link.to_odp_id];
-                    if (from && to && from.lat && from.lng && to.lat && to.lng) {
-                        L.polyline([[from.lat, from.lng], [to.lat, to.lng]], {
-                            color: '#00f5ff',
-                            weight: 2,
-                            opacity: 0.6,
-                            dashArray: '5, 10'
-                        }).addTo(map);
-                    }
-                });
-            }
-
-            // Render ONUs / Customers
-            if (result.data) {
-                result.data.forEach(function(o) {
-                    if(o.lat && o.lng) {
+... (keep going)
                         var isOnline = o.status === 'online';
                         var color = isOnline ? '#00ff88' : (o.status === 'offline' ? '#ff4757' : '#9aa0a6');
+                        var iconClass = 'fa-satellite-dish';
+                        
+                        // Override logic: if customer is flagged in $taskMap, illuminate Orange
+                        if (myTasks[o.serial_number]) {
+                            color = '#ff9f43'; // Orange Warning
+                            iconClass = 'fa-exclamation-triangle';
+                        }
                         
                         var markerIcon = L.divIcon({
                             className: 'custom-marker',
-                            html: '<div style="background: ' + color + '; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.5); color: white;"><i class="fas fa-satellite-dish" style="font-size: 11px;"></i></div>',
+                            html: '<div style="background: ' + color + '; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.5); color: white;"><i class="fas ' + iconClass + '" style="font-size: 11px;"></i></div>',
                             iconSize: [24, 24],
                             iconAnchor: [12, 12]
                         });
@@ -570,18 +547,61 @@ foreach ($myTasks as $task) {
             return date.toLocaleDateString('id-ID') + ' ' + date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         }
 
-        // User Location
-        var userMarker;
+        // User Location Runtime Monitoring
+        var userMarker = null;
+        var watchId = null;
+
+        if ("geolocation" in navigator) {
+            watchId = navigator.geolocation.watchPosition(function(position) {
+                var lat = position.coords.latitude;
+                var lng = position.coords.longitude;
+                var acc = position.coords.accuracy;
+                
+                if (userMarker) {
+                    userMarker.setLatLng([lat, lng]);
+                    userMarker.getPopup().setContent("Lokasi Teknisi Saat Ini<br>Akurasi: " + Math.round(acc) + "m");
+                } else {
+                    var techIcon = L.divIcon({
+                        className: 'tech-marker',
+                        html: '<div style="background: var(--primary); width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 15px var(--primary);"></div>',
+                        iconSize: [14, 14],
+                        iconAnchor: [7, 7]
+                    });
+                    
+                    userMarker = L.marker([lat, lng], {icon: techIcon, zIndexOffset: 1000})
+                        .addTo(map)
+                        .bindPopup("Lokasi Teknisi Saat Ini<br>Akurasi: " + Math.round(acc) + "m");
+                }
+            }, function(error) {
+                console.warn("Live Geolocation disabled: " + error.message);
+            }, {
+                enableHighAccuracy: true,
+                maximumAge: 10000,
+                timeout: 5000
+            });
+        }
+
         function locateUser() {
-            map.locate({setView: true, maxZoom: 16});
+            if (userMarker) {
+                map.setView(userMarker.getLatLng(), 17);
+            } else {
+                map.locate({setView: true, maxZoom: 17});
+            }
         }
 
         map.on('locationfound', function(e) {
-            if (userMarker) map.removeLayer(userMarker);
-            userMarker = L.marker(e.latlng).addTo(map)
-                .bindPopup("Lokasi Anda").openPopup();
-            
-            L.circle(e.latlng, e.accuracy).addTo(map);
+            // Backup locator if watchPosition fails
+            if (!userMarker) {
+                var techIcon = L.divIcon({
+                    className: 'tech-marker',
+                    html: '<div style="background: var(--primary); width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 15px var(--primary);"></div>',
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                });
+                
+                userMarker = L.marker(e.latlng, {icon: techIcon, zIndexOffset: 1000}).addTo(map)
+                    .bindPopup("Lokasi Teknisi (Fallback)").openPopup();
+            }
         });
 
         // Modal Functions

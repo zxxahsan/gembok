@@ -36,56 +36,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect("view_ticket.php?id=$ticketId");
         }
         
-        // Handle Multiple Photo Upload (Wajib jika resolved)
-        if (!empty($_FILES['photos']['name'][0])) {
-            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        // Handle Client-Side Compressed Photos
+        if (!empty($_POST['compressed_photos'])) {
             $uploadedPhotos = [];
             
-            $fileCount = count($_FILES['photos']['name']);
-            for ($i = 0; $i < $fileCount; $i++) {
-                if ($_FILES['photos']['error'][$i] === UPLOAD_ERR_OK) {
-                    $filename = $_FILES['photos']['name'][$i];
-                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            foreach ($_POST['compressed_photos'] as $i => $base64String) {
+                // Determine format
+                if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $type)) {
+                    $data = substr($base64String, strpos($base64String, ',') + 1);
+                    $data = base64_decode($data);
                     
-                    if (in_array($ext, $allowed)) {
-                        $newName = "ticket_{$ticketId}_" . time() . "_{$i}.jpg";
-                        $targetDir = "../../uploads/tickets/";
-                        if (!is_dir($targetDir)) @mkdir($targetDir, 0777, true);
-                        $targetFile = $targetDir . $newName;
-                        
-                        $source = $_FILES['photos']['tmp_name'][$i];
-                        $imageInfo = @getimagesize($source);
-                        
-                        if ($imageInfo) {
-                            list($width, $height) = $imageInfo;
-                            $newWidth = 800; // Compress
-                            $newHeight = ($height / $width) * $newWidth;
-                            
-                            $tmpImg = imagecreatetruecolor($newWidth, $newHeight);
-                            $sourceImg = null;
-                            
-                            switch ($ext) {
-                                case 'jpg': case 'jpeg': $sourceImg = @imagecreatefromjpeg($source); break;
-                                case 'png': $sourceImg = @imagecreatefrompng($source); break;
-                                case 'webp': $sourceImg = @imagecreatefromwebp($source); break;
-                            }
-                            
-                            if ($sourceImg) {
-                                if ($ext == 'png' || $ext == 'webp') {
-                                    imagecolortransparent($tmpImg, imagecolorallocatealpha($tmpImg, 0, 0, 0, 127));
-                                    imagealphablending($tmpImg, false);
-                                    imagesavealpha($tmpImg, true);
-                                }
-                                
-                                imagecopyresampled($tmpImg, $sourceImg, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-                                
-                                if (imagejpeg($tmpImg, $targetFile, 70)) {
-                                    $uploadedPhotos[] = "uploads/tickets/" . $newName;
-                                    imagedestroy($tmpImg);
-                                    imagedestroy($sourceImg);
-                                }
-                            }
-                        }
+                    if ($data === false) {
+                        continue;
+                    }
+                    
+                    $newName = "ticket_{$ticketId}_" . time() . "_{$i}.jpg";
+                    $targetDir = "../../uploads/tickets/";
+                    if (!is_dir($targetDir)) @mkdir($targetDir, 0777, true);
+                    $targetFile = $targetDir . $newName;
+                    
+                    if (file_put_contents($targetFile, $data)) {
+                        $uploadedPhotos[] = "uploads/tickets/" . $newName;
                     }
                 }
             }
@@ -93,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!empty($uploadedPhotos)) {
                 $photoPath = implode(',', $uploadedPhotos);
             } else {
-                setFlash('error', 'Gagal memproses gambar apa pun. Pastikan format valid.');
+                setFlash('error', 'Gagal memproses gambar kompresi. Pastikan format valid.');
                 redirect("view_ticket.php?id=$ticketId");
             }
         } elseif (empty($ticket['photo_proof'])) {
@@ -326,7 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="card">
             <h3 style="margin-bottom: 15px;">Update Status</h3>
             
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data" id="ticketForm">
                 <div class="status-options">
                     <div class="status-opt">
                         <input type="radio" name="status" id="st_pending" value="pending" <?php echo $ticket['status'] === 'pending' ? 'checked' : ''; ?>>
@@ -404,6 +375,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     reader.readAsDataURL(input.files[i]);
                 }
             }
+        }
+
+        // JS Canvas Image Compressor
+        const form = document.getElementById('ticketForm');
+        const photoInput = document.getElementById('photo-input');
+
+        form.addEventListener('submit', async function(e) {
+            if (document.getElementById('st_resolved').checked && photoInput.files && photoInput.files.length > 0) {
+                e.preventDefault();
+                
+                // Show loading state
+                const btn = document.querySelector('.btn-submit');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengompresi Foto...';
+                btn.disabled = true;
+                
+                // Remove existing hidden inputs if any to prevent duplicates on retry
+                document.querySelectorAll('input[name="compressed_photos[]"]').forEach(el => el.remove());
+                
+                try {
+                    for (let i = 0; i < photoInput.files.length; i++) {
+                        const file = photoInput.files[i];
+                        if (file.type.match(/image.*/)) {
+                            const compressedBase64 = await compressImage(file);
+                            
+                            const hidden = document.createElement('input');
+                            hidden.type = 'hidden';
+                            hidden.name = 'compressed_photos[]';
+                            hidden.value = compressedBase64;
+                            form.appendChild(hidden);
+                        }
+                    }
+                    
+                    // Clear the actual file input so we don't send the massive original files via multipart/form-data!
+                    photoInput.value = '';
+                    
+                    // Submit form
+                    form.submit();
+                } catch (err) {
+                    alert('Gagal mengompresi gambar: ' + err);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            }
+        });
+
+        function compressImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > MAX_WIDTH) {
+                            height = Math.round((height * MAX_WIDTH) / width);
+                            width = MAX_WIDTH;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Export to base64 jpeg with 0.7 quality
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        resolve(dataUrl);
+                    }
+                    img.onerror = reject;
+                }
+                reader.onerror = reject;
+            });
         }
     </script>
 

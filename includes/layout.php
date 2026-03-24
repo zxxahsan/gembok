@@ -957,7 +957,9 @@ if (isset($_GET['switch_router'])) {
     </style>
     <script>
         // Apply theme immediately to prevent flash
-        if (localStorage.getItem('theme') === 'light') {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        if (savedTheme === 'light' || (!savedTheme && prefersLight)) {
             document.documentElement.classList.add('light-theme');
             document.addEventListener('DOMContentLoaded', () => {
                 document.body.classList.add('light-theme');

@@ -40,13 +40,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// Ensure Schema exists for is_enabled (Self-healing)
+try {
+    $checkCol = $pdo->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'whatsapp_templates' AND COLUMN_NAME = 'is_enabled'");
+    $checkCol->execute();
+    if (!$checkCol->fetch()) {
+        $pdo->exec("ALTER TABLE whatsapp_templates ADD COLUMN is_enabled BOOLEAN DEFAULT 1");
+    }
+} catch (Exception $e) {}
+
 // Handle Template Generation / Restitution if table is brand new or dropped
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'migrate_table') {
     $createTable = "CREATE TABLE IF NOT EXISTS whatsapp_templates (
         id INT AUTO_INCREMENT PRIMARY KEY,
         type VARCHAR(50) NOT NULL UNIQUE,
         message TEXT NOT NULL,
-        variables_hint TEXT
+        variables_hint TEXT,
+        is_enabled BOOLEAN DEFAULT 1
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
     $pdo->exec($createTable);
     
@@ -72,8 +82,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Handle Template Updates
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_template') {
     try {
-        $stmt = $pdo->prepare("UPDATE whatsapp_templates SET message = ? WHERE type = ?");
-        $stmt->execute([$_POST['message'], $_POST['type']]);
+        $isEnabled = isset($_POST['is_enabled']) ? 1 : 0;
+        $stmt = $pdo->prepare("UPDATE whatsapp_templates SET message = ?, is_enabled = ? WHERE type = ?");
+        $stmt->execute([$_POST['message'], $isEnabled, $_POST['type']]);
         setFlash('success', 'Template ' . $_POST['type'] . ' berhasil diubah.');
         header("Location: whatsapp.php");
         exit;
@@ -293,6 +304,15 @@ document.addEventListener('DOMContentLoaded', toggleWaSettings);
                 <form method="POST">
                     <input type="hidden" name="action" value="save_template">
                     <input type="hidden" name="type" value="<?php echo htmlspecialchars($tmpl['type']); ?>">
+                    
+                    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px;">
+                        <label style="margin: 0; font-weight: bold; color: var(--text-primary); cursor: pointer;">
+                            <i class="fas fa-power-off" style="color: <?php echo (!isset($tmpl['is_enabled']) || $tmpl['is_enabled']) ? 'var(--neon-green)' : 'var(--neon-red)'; ?>;"></i> Aktifkan Template Ini
+                        </label>
+                        <div style="display: flex; align-items: center;">
+                            <input type="checkbox" name="is_enabled" value="1" <?php echo (!isset($tmpl['is_enabled']) || $tmpl['is_enabled']) ? 'checked' : ''; ?> style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--neon-cyan);">
+                        </div>
+                    </div>
                     
                     <div class="form-group">
                         <textarea name="message" class="form-control" rows="8" style="font-family: monospace; font-size: 0.9rem; line-height: 1.5;" required><?php echo htmlspecialchars($tmpl['message']); ?></textarea>

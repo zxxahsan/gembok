@@ -753,7 +753,9 @@ if (isset($_GET['switch_router'])) {
     </style>
     <script>
         // Apply theme immediately to prevent flash
-        if (localStorage.getItem('theme') === 'light') {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        if (savedTheme === 'light' || (!savedTheme && prefersLight)) {
             document.documentElement.classList.add('light-theme');
             document.addEventListener('DOMContentLoaded', () => {
                 document.body.classList.add('light-theme');
@@ -840,12 +842,6 @@ if (isset($_GET['switch_router'])) {
                     class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'vouchers.php' ? 'active' : ''; ?>">
                     <i class="fas fa-ticket-alt"></i>
                     <span>Buat Voucher</span>
-                </a>
-
-                <a href="<?php echo APP_URL; ?>/sales/pay.php"
-                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'pay.php' || basename($_SERVER['PHP_SELF']) === 'pay_process.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-money-bill-wave"></i>
-                    <span>Bayar Tagihan</span>
                 </a>
 
                 <a href="<?php echo APP_URL; ?>/sales/history.php"

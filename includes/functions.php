@@ -1178,6 +1178,55 @@ function jsonResponse($data, $statusCode = 200)
     exit;
 }
 
+// Sync Hotspot Voucher Status against RouterOS
+function syncHotspotSalesStatus()
+{
+    $pdo = getDB();
+    
+    // 1. Self-heal and mutate schema natively
+    $colCheck = $pdo->query("SHOW COLUMNS FROM hotspot_sales LIKE 'status'");
+    if ($colCheck->rowCount() == 0) {
+        $pdo->exec("ALTER TABLE hotspot_sales ADD COLUMN status ENUM('inactive', 'active') DEFAULT 'inactive'");
+        $pdo->exec("ALTER TABLE hotspot_sales ADD COLUMN used_at DATETIME NULL");
+    }
+
+    // 2. Lookup Inactive Vouchers
+    $inactives = fetchAll("SELECT id, username FROM hotspot_sales WHERE status = 'inactive'");
+    if (empty($inactives)) return;
+    
+    $inactiveNames = array_column($inactives, 'username', 'id');
+    
+    // 3. Match and Update Uptime
+    require_once __DIR__ . '/mikrotik_api.php';
+    if (!function_exists('mikrotikGetHotspotUsers')) return;
+    
+    $users = mikrotikGetHotspotUsers();
+    if (empty($users)) return;
+    
+    $pdo->beginTransaction();
+    try {
+        foreach ($users as $u) {
+            $uname = $u['name'] ?? '';
+            $uptime = $u['uptime'] ?? '';
+            
+            if (!empty($uname) && in_array($uname, $inactiveNames)) {
+                if (!empty($uptime) && $uptime !== '0s') {
+                    $id = array_search($uname, $inactiveNames);
+                    if ($id) {
+                        update('hotspot_sales', [
+                            'status' => 'active',
+                            'used_at' => date('Y-m-d H:i:s')
+                        ], 'id = ?', [$id]);
+                    }
+                }
+            }
+        }
+        $pdo->commit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+    }
+}
+
 // Check if request is AJAX
 function isAjax()
 {

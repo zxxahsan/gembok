@@ -82,6 +82,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Log activity
             logActivity('CREATE_TICKET', "Customer ID: {$customerId}, Ticket ID: {$ticketId}");
             
+            // WA: Notify Customer
+            require_once '../includes/whatsapp.php';
+            if (!empty($customer['phone'])) {
+                $msgCust = "Halo {$customer['name']},\n\nLaporan gangguan Anda telah kami terima:\n\nTicket ID: #{$ticketId}\nMasalah: " . substr($description, 0, 100) . "...\n\nTim kami akan segera menindaklanjuti. Terima kasih.";
+                sendWhatsAppMessage($customer['phone'], $msgCust);
+            }
+            
+            // WA: Broadcast to Technicians
+            $gmapsLink = "Tidak ada kordinat map.";
+            if (!empty($customer['latitude']) && !empty($customer['longitude'])) {
+                $gmapsLink = "https://www.google.com/maps?q={$customer['latitude']},{$customer['longitude']}";
+            }
+            
+            $msgTech = "🚨 *TUGAS GANGGUAN BARU (VIA PORTAL)*\n\n";
+            $msgTech .= "Ticket: #{$ticketId}\n";
+            $msgTech .= "Pelanggan: {$customer['name']}\n";
+            $msgTech .= "Kontak (WA): {$customer['phone']}\n";
+            $msgTech .= "Alamat: " . ($customer['address'] ?? '-') . "\n";
+            $msgTech .= "Lokasi Map: {$gmapsLink}\n";
+            $msgTech .= "Masalah: {$description}\n";
+            $msgTech .= "Prioritas: " . strtoupper($priority) . "\n\n";
+            $msgTech .= "Mohon segera dicek. Terima kasih.";
+            
+            $techs = $pdo->query("SELECT phone FROM technician_users WHERE status = 'active'")->fetchAll();
+            foreach ($techs as $tech) {
+                if (!empty($tech['phone'])) {
+                    sendWhatsAppMessage($tech['phone'], $msgTech);
+                }
+            }
+            
             echo json_encode([
                 'success' => true, 
                 'message' => 'Ticket created successfully',
