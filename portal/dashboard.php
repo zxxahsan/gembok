@@ -30,6 +30,20 @@ if (isset($customer['package_id']) && !empty($customer['package_id'])) {
     $package = fetchOne("SELECT * FROM packages WHERE id = ?", [$customer['package_id']]);
 }
 
+// Ensure Monthly Usage columns exist
+try {
+    $checkCol = getDB()->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'usage_bytes_in'");
+    $checkCol->execute();
+    if (!$checkCol->fetch()) {
+        getDB()->exec("ALTER TABLE customers ADD COLUMN usage_bytes_in BIGINT DEFAULT 0, ADD COLUMN usage_bytes_out BIGINT DEFAULT 0, ADD COLUMN usage_last_reset DATE");
+    }
+} catch (Exception $e) {}
+
+// Monthly stats defaults
+$monthlyRx = $customer['usage_bytes_in'] ?? 0;
+$monthlyTx = $customer['usage_bytes_out'] ?? 0;
+$lastReset = $customer['usage_last_reset'] ?? 'Belum Tercatat';
+
 $pageTitle = 'Dashboard Pelanggan';
 
 ob_start();
@@ -73,6 +87,35 @@ ob_start();
                         <i class="fas fa-calendar-alt"></i> Tanggal Isolir: Tanggal <?php echo $customer['isolation_date']; ?>
                     </p>
                 <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Usage Info -->
+    <div class="card" style="margin-bottom: 30px; border-top: 4px solid var(--neon-purple);">
+        <h3 style="margin-bottom: 15px; color: var(--neon-purple);">
+            <i class="fas fa-chart-line"></i> Total Penggunaan Internet (Bulan Ini)
+        </h3>
+        <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+            Periode berjalan pada bulan <strong><?php echo strftime('%B %Y'); ?></strong> 
+            (Akan di-reset otomatis pada awal bulan).
+        </p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; text-align: center;">
+                <i class="fas fa-download" style="font-size: 2rem; color: var(--neon-cyan); margin-bottom: 10px;"></i>
+                <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-primary);">
+                    <?php echo formatBytes($monthlyRx); ?>
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.85rem;">Total Download</div>
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; text-align: center;">
+                <i class="fas fa-upload" style="font-size: 2rem; color: var(--neon-pink); margin-bottom: 10px;"></i>
+                <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-primary);">
+                    <?php echo formatBytes($monthlyTx); ?>
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.85rem;">Total Upload</div>
             </div>
         </div>
     </div>

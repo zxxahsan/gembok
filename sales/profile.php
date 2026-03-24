@@ -88,6 +88,11 @@ ob_start();
                 <i class="fas fa-save"></i> Simpan Password
             </button>
         </form>
+        
+        <hr style="border-color: var(--border-color); margin: 30px 0;">
+        <a href="logout.php" class="btn btn-danger" style="width: 100%; text-align: center; justify-content: center; background: rgba(255, 71, 87, 0.2); border: 1px solid var(--neon-red); color: var(--neon-red);">
+            <i class="fas fa-sign-out-alt"></i> Logout Akun
+        </a>
     </div>
 </div>
 

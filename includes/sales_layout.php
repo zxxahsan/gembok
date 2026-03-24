@@ -856,12 +856,6 @@ if (isset($_GET['switch_router'])) {
                     <span>Profile</span>
                 </a>
 
-                <div style="margin-top: 20px; border-top: 1px solid var(--border-color);"></div>
-
-                <a href="<?php echo APP_URL; ?>/sales/logout.php" class="menu-item">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Logout</span>
-                </a>
             </div>
         </div>
 
@@ -875,17 +869,9 @@ if (isset($_GET['switch_router'])) {
                 <i class="fas fa-ticket-alt"></i>
                 <span>Voucher</span>
             </a>
-            <a href="<?php echo APP_URL; ?>/sales/pay.php" class="bottom-nav-item <?php echo basename($_SERVER['PHP_SELF']) === 'pay.php' || basename($_SERVER['PHP_SELF']) === 'pay_process.php' ? 'active' : ''; ?>">
-                <i class="fas fa-money-bill-wave"></i>
-                <span>Bayar</span>
-            </a>
             <a href="<?php echo APP_URL; ?>/sales/profile.php" class="bottom-nav-item <?php echo basename($_SERVER['PHP_SELF']) === 'profile.php' ? 'active' : ''; ?>">
                 <i class="fas fa-user"></i>
                 <span>Profile</span>
-            </a>
-            <a href="<?php echo APP_URL; ?>/sales/logout.php" class="bottom-nav-item">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
             </a>
         </div>
     <?php endif; ?>

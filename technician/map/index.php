@@ -96,6 +96,7 @@ foreach ($myTasks as $task) {
         #map {
             flex: 1;
             width: 100%;
+            min-height: 70vh;
             z-index: 1;
         }
         

@@ -82,7 +82,7 @@ function runScheduler() {
                         break;
 
                     case 'system_ping':
-                        runSystemPing();
+                        runSystemPing($pdo);
                         break;
 
                     default:
@@ -424,10 +424,55 @@ function runCustomScript($pdo, $schedule)
 /**
  * Run system heartbeat ping
  */
-function runSystemPing()
+function runSystemPing($pdo)
 {
-    // Silently succeed to leave a trace in the logs that the cron daemon is healthy.
     echo "  System Heartbeat OK\n";
+
+    // Monthly Traffic Aggregator (Radius Simulation)
+    echo "  Polling RouterOS PPPoE arrays for Delta Aggregation...\n";
+    require_once __DIR__ . '/../includes/mikrotik_api.php';
+
+    try {
+        $pdo->exec("ALTER TABLE customers ADD COLUMN usage_last_rx BIGINT DEFAULT 0, ADD COLUMN usage_last_tx BIGINT DEFAULT 0");
+    } catch (Exception $e) {}
+
+    // Auto-Reset cascades executing at Midnight on the 1st of every month automatically purging old vectors
+    $pdo->exec("UPDATE customers SET usage_bytes_in=0, usage_bytes_out=0, usage_last_rx=0, usage_last_tx=0, usage_last_reset=CURDATE() WHERE DATE_FORMAT(usage_last_reset, '%Y-%m') != DATE_FORMAT(CURDATE(), '%Y-%m')");
+
+    $routers = getAllRouters();
+    foreach ($routers as $r) {
+        $mk = getMikrotikConnection($r['id']);
+        if ($mk) {
+            mikrotikWrite($mk, '/ppp/active/print');
+            mikrotikWrite($mk, '=.proplist=name,bytes-in,bytes-out');
+            $activeList = mikrotikRead($mk);
+
+            if (!empty($activeList) && !isset($activeList['!trap'])) {
+                foreach ($activeList as $session) {
+                    if (isset($session['name'], $session['bytes-in'], $session['bytes-out'])) {
+                        $user = $session['name'];
+                        $rx = (int)$session['bytes-in'];
+                        $tx = (int)$session['bytes-out'];
+
+                        $cust = fetchOne("SELECT id, usage_last_rx, usage_last_tx FROM customers WHERE pppoe_username = ?", [$user]);
+                        if ($cust) {
+                            $lastRx = (int)$cust['usage_last_rx'];
+                            $lastTx = (int)$cust['usage_last_tx'];
+
+                            // Diff Matrix ensuring disconnect metrics roll correctly natively bypassing negative crashes
+                            $deltaRx = ($rx >= $lastRx) ? ($rx - $lastRx) : $rx; 
+                            $deltaTx = ($tx >= $lastTx) ? ($tx - $lastTx) : $tx;
+
+                            if ($deltaRx > 0 || $deltaTx > 0) {
+                                $pdo->prepare("UPDATE customers SET usage_bytes_in = usage_bytes_in + ?, usage_bytes_out = usage_bytes_out + ?, usage_last_rx = ?, usage_last_tx = ? WHERE id = ?")
+                                    ->execute([$deltaRx, $deltaTx, $rx, $tx, $cust['id']]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 echo "\n";

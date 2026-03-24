@@ -273,143 +273,49 @@ if ($device) {
             <a href="search.php" class="btn btn-secondary">Kembali Cari</a>
         <?php else: ?>
             <!-- Status Card -->
-            <div class="card">
+            <div class="card" style="text-align: center;">
                 <div class="customer-header">
-                    <div class="customer-name"><?php echo htmlspecialchars($customer['name']); ?></div>
-                    
-                    <?php if ($isOnline): ?>
-                        <span class="status-badge badge-success"><i class="fas fa-wifi"></i> Online</span>
-                    <?php else: ?>
-                        <span class="status-badge badge-danger"><i class="fas fa-wifi-slash"></i> Offline</span>
-                    <?php endif; ?>
-                    
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px;">
-                        Last Inform: <?php echo $lastInform ? date('d M Y H:i', strtotime($lastInform)) : '-'; ?>
-                    </div>
+                    <div class="customer-name" style="font-size: 1.5rem; margin-bottom: 10px;"><?php echo htmlspecialchars($customer['name']); ?></div>
+                    <div style="color: var(--text-secondary);"><i class="fas fa-user-circle"></i> <?php echo htmlspecialchars($customer['pppoe_username']); ?></div>
                 </div>
 
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">RX Power</span>
-                        <?php
-                            $rxClass = '';
-                            $rxVal = floatval($rxPower);
-                            if ($rxPower === null || $rxPower === '-' || $rxPower == 0) {
+                <div style="display: flex; gap: 20px; justify-content: center; margin-top: 30px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <!-- Status Koneksi -->
+                    <div style="padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; width: 160px; border: 1px solid rgba(255,255,255,0.05);">
+                        <?php if ($isOnline): ?>
+                            <i class="fas fa-globe" style="font-size: 3rem; color: var(--success); margin-bottom: 15px;"></i>
+                            <div style="font-weight: bold; font-size: 1.3rem; color: var(--success);">ONLINE</div>
+                        <?php else: ?>
+                            <i class="fas fa-globe" style="font-size: 3rem; color: var(--danger); margin-bottom: 15px;"></i>
+                            <div style="font-weight: bold; font-size: 1.3rem; color: var(--danger);">OFFLINE</div>
+                        <?php endif; ?>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">Status Jaringan</div>
+                    </div>
+                    
+                    <!-- RX Power -->
+                    <div style="padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; width: 160px; border: 1px solid rgba(255,255,255,0.05);">
+                        <i class="fas fa-broadcast-tower" style="font-size: 3rem; color: var(--neon-cyan); margin-bottom: 15px;"></i>
+                        <div style="font-weight: bold; font-size: 1.3rem; color: var(--neon-cyan);">
+                            <?php 
                                 $rxClass = '';
-                            } elseif ($rxVal > -25) {
-                                $rxClass = 'rx-good';
-                            } elseif ($rxVal > -28) {
-                                $rxClass = 'rx-warning';
-                            } else {
-                                $rxClass = 'rx-bad';
-                            }
-                        ?>
-                        <span class="info-value rx-power <?php echo $rxClass; ?>">
-                            <?php echo $rxPower ? $rxPower . ' dBm' : '-'; ?>
-                        </span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Uptime</span>
-                        <span class="info-value"><?php echo $uptimeStr; ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Temperature</span>
-                        <span class="info-value"><?php echo $temp; ?> °C</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Device Info -->
-            <div class="card">
-                <h3 style="font-size: 1rem; margin-bottom: 15px; color: var(--primary);">Info Perangkat</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Model</span>
-                        <span class="info-value"><?php echo htmlspecialchars($model); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Serial Number</span>
-                        <span class="info-value" style="font-family: monospace;"><?php echo htmlspecialchars($sn); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">PON Mode</span>
-                        <span class="info-value"><?php echo htmlspecialchars($ponMode); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">IP Address</span>
-                        <span class="info-value"><?php echo htmlspecialchars($wanIp); ?></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- WiFi Info -->
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="font-size: 1rem; color: var(--primary); margin: 0;">WiFi & Klien</h3>
-                    <button class="btn btn-secondary" style="width: auto; padding: 5px 15px; margin: 0; font-size: 0.8rem;" onclick="openWifiModal()">
-                        <i class="fas fa-edit"></i> Edit WiFi
-                    </button>
-                </div>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">SSID</span>
-                        <span class="info-value"><?php echo htmlspecialchars($ssid); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Password</span>
-                        <span class="info-value" style="font-family: monospace;"><?php echo htmlspecialchars($wifiPass); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Perangkat Terhubung</span>
-                        <span class="info-value"><?php echo htmlspecialchars($assocDevices); ?> User</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- WiFi Edit Modal -->
-            <div id="wifiModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
-                <div class="card" style="width: 400px; max-width: 90%;">
-                    <div class="customer-header" style="margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                        <h3 class="customer-name" style="font-size: 1.1rem; margin: 0;">Edit WiFi</h3>
-                        <button onclick="closeWifiModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.25rem;">&times;</button>
-                    </div>
-                    
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label class="form-label">SSID (Nama WiFi)</label>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" id="editSsid" class="form-control" value="<?php echo htmlspecialchars($ssid); ?>">
-                            <button class="btn btn-primary" style="width: auto; padding: 10px 15px; margin: 0;" onclick="saveSsid()" title="Simpan SSID">
-                                <i class="fas fa-save"></i>
-                            </button>
+                                $rxVal = floatval($rxPower);
+                                if ($rxVal > -25 && $rxVal < 0) $rxClass = 'color: var(--success);';
+                                elseif ($rxVal > -28 && $rxVal <= -25) $rxClass = 'color: var(--warning);';
+                                else if ($rxVal <= -28) $rxClass = 'color: var(--danger);';
+                            ?>
+                            <span style="<?php echo $rxClass; ?>">
+                                <?php echo $rxPower ? htmlspecialchars($rxPower) . ' dBm' : '-'; ?>
+                            </span>
                         </div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label class="form-label">Password</label>
-                        <div style="display: flex; gap: 10px;">
-                            <div style="position: relative; flex: 1;">
-                                <input type="text" id="editPassword" class="form-control" value="<?php echo htmlspecialchars($wifiPass); ?>" style="padding-right: 40px;">
-                                <i class="fas fa-eye" id="togglePass" onclick="togglePasswordVisibility()" 
-                                   style="position: absolute; right: 10px; top: 12px; cursor: pointer; color: var(--text-secondary);"></i>
-                            </div>
-                            <button class="btn btn-primary" style="width: auto; padding: 10px 15px; margin: 0;" onclick="savePassword()" title="Simpan Password">
-                                <i class="fas fa-save"></i>
-                            </button>
-                        </div>
-                        <small style="color: var(--text-secondary); font-size: 0.8rem;">Minimal 8 karakter</small>
-                    </div>
-
-                    <div style="text-align: right; margin-top: 15px;">
-                        <button class="btn btn-secondary" style="width: auto; display: inline-block;" onclick="closeWifiModal()">Tutup</button>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">Redaman Laser RX</div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Actions -->
-            <div style="margin-bottom: 20px;">
-                <button class="btn btn-danger" onclick="rebootDevice()">
-                    <i class="fas fa-power-off"></i> Reboot ONT
-                </button>
+                
+                <?php if ($lastInform): ?>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05);">
+                    <i class="fas fa-clock"></i> Sinkronisasi Terakhir: <?php echo date('d M Y H:i', strtotime($lastInform)); ?>
+                </div>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>

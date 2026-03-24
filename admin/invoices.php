@@ -140,7 +140,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         update('invoices', [
                             'due_date' => $newDueDate,
-                            'description' => $description,
                             'updated_at' => date('Y-m-d H:i:s')
                         ], 'id = ?', [$invoiceId]);
                         
@@ -256,7 +255,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'amount' => $amount,
                         'status' => 'unpaid',
                         'due_date' => $dueDate,
-                        'description' => $description,
                         'created_at' => date('Y-m-d H:i:s')
                     ];
                     
