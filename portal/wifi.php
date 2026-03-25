@@ -287,48 +287,6 @@ ob_start();
     $isCustomerDeviceOnline = $customerDevice && $onuOnline;
     ?>
 
-    <!-- ONU Info -->
-    <div class="card">
-        <h3 style="margin-bottom: 15px; color: var(--neon-cyan);">
-            <i class="fas fa-satellite-dish"></i> Informasi Router (ONU)
-        </h3>
-        
-        <?php if ($onuData): ?>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <div>
-                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Perangkat Terhubung</p>
-                    <p><?php echo htmlspecialchars($onuDevices); ?> Device</p>
-                </div>
-                <div>
-                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Status</p>
-                    <p>
-                        <?php if ($onuOnline): ?>
-                            <span class="badge badge-success">Online</span>
-                        <?php else: ?>
-                            <span class="badge badge-danger">Offline</span>
-                        <?php endif; ?>
-                    </p>
-                </div>
-                <div>
-                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Uptime PPPoE</p>
-                    <p><i class="fas fa-clock" style="color: var(--neon-orange); margin-right: 5px;"></i><?php echo htmlspecialchars($pppoeUptime); ?></p>
-                </div>
-                <div>
-                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Total Penggunaan</p>
-                    <p><i class="fas fa-exchange-alt" style="color: var(--neon-cyan); margin-right: 5px;"></i><?php echo htmlspecialchars($pppoeUsage); ?></p>
-                </div>
-                <div>
-                    <p style="color: var(--text-secondary); margin-bottom: 5px;">Signal ONU</p>
-                    <p><?php echo $onuSignal; ?> dBm</p>
-                </div>
-            </div>
-        <?php else: ?>
-            <p style="color: var(--text-muted);">
-                <i class="fas fa-info-circle"></i> Data ONU tidak tersedia. Pastikan Router terhubung.
-            </p>
-        <?php endif; ?>
-    </div>
-
     <!-- WiFi Settings -->
     <?php if ($isCustomerDeviceOnline && $customerDevice): ?>
     <div class="card" id="wifi-settings">
