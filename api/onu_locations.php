@@ -81,28 +81,82 @@ if ($method === 'GET') {
     // Fetch ALL active PPPoE sessions instantaneously merging logic avoiding sequential API bottlenecks
     require_once '../includes/mikrotik_api.php';
     
-    $apiRouters = getAllRouters();
-
-    foreach ($onuLocations as &$onu) {
-        $pu = trim((string)$onu['pppoe_username']); // Accurate raw case required
-        $onu['status'] = 'offline';
-        
-        if (!empty($pu)) {
-            $rid = $onu['router_id'] ?? null;
-            $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pu, $rid);
+    if (!function_exists('mikrotikReadAllAndParse')) {
+        function mikrotikReadAllAndParse($socket) {
+            if (!$socket) return [];
             
-            if (!$dynamicInterface) {
-                foreach ($apiRouters as $r) {
-                    if ($r['id'] == $rid) continue;
-                    $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pu, $r['id']);
-                    if ($dynamicInterface) break;
+            $allWords = [];
+            $done = false;
+            $timeout = time() + 10;
+            while (!$done && time() < $timeout) {
+                $words = mikrotikReadSentence($socket);
+                if (empty($words)) break;
+                foreach ($words as $word) {
+                    $allWords[] = $word;
+                    if ($word === '!done' || strpos((string)$word, '!trap') === 0) {
+                        $done = true;
+                        break;
+                    }
                 }
             }
             
-            if ($dynamicInterface) {
-                $onu['status'] = 'online';
+            $parsed = []; $current = [];
+            foreach ($allWords as $word) {
+                if ($word === '!re') {
+                    if (!empty($current)) { $parsed[] = $current; $current = []; }
+                } elseif ($word === '!done' || strpos((string)$word, '!trap') === 0) {
+                    if (!empty($current)) { $parsed[] = $current; }
+                    break;
+                } elseif (strpos((string)$word, '=') === 0) {
+                    $parts = explode('=', substr((string)$word, 1), 2);
+                    if (count($parts) === 2) {
+                        $current[$parts[0]] = $parts[1];
+                    }
+                }
+            }
+            return $parsed;
+        }
+    }
+    
+    $activeUsers = [];
+    $routers = getAllRouters();
+    foreach ($routers as $r) {
+        $mk = getMikrotikConnection($r['id']);
+        if ($mk) {
+            mikrotikWrite($mk, '/interface/print');
+            mikrotikWrite($mk, '');
+            $activeList = mikrotikReadAllAndParse($mk);
+            
+            if (!empty($activeList)) {
+                foreach ($activeList as $intf) {
+                    if (isset($intf['name'])) {
+                        $name = strtolower(trim($intf['name']));
+                        if (strpos($name, '<pppoe-') === 0) {
+                            $username = substr($name, 7, -1);
+                            $activeUsers[$username] = true;
+                        }
+                    }
+                }
             }
         }
+    }
+
+    // Fetch Open Trouble Tickets targeting customer phones natively
+    $openTicketsRaw = fetchAll("
+        SELECT c.phone 
+        FROM trouble_tickets t
+        JOIN customers c ON t.customer_id = c.id
+        WHERE t.status != 'resolved'
+    ");
+    $hasTicketMap = [];
+    foreach ($openTicketsRaw as $t) {
+        if (!empty($t['phone'])) $hasTicketMap[$t['phone']] = true;
+    }
+
+    foreach ($onuLocations as &$onu) {
+        $pu = strtolower(trim((string)$onu['pppoe_username']));
+        $onu['status'] = (!empty($pu) && isset($activeUsers[$pu])) ? 'online' : 'offline';
+        $onu['has_ticket'] = (!empty($onu['serial_number']) && isset($hasTicketMap[$onu['serial_number']]));
         $onu['device_info'] = null;
         $onu['ssid'] = '';
         $onu['password'] = '';

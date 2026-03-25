@@ -108,41 +108,59 @@ $onuLocations = fetchAll("
     ORDER BY o.name
 ");
 
-require_once '../includes/mikrotik_api.php';
-$activeUsers = [];
-$routers = getAllRouters();
-foreach ($routers as $r) {
-    if ($mk = getMikrotikConnection($r['id'])) {
-        mikrotikWrite($mk, '/ppp/active/print');
-        mikrotikWrite($mk, '=.proplist=name');
-        $activeList = mikrotikRead($mk);
-        if (!empty($activeList) && !isset($activeList['!trap'])) {
-            foreach ($activeList as $session) {
-                if (isset($session['name'])) $activeUsers[$session['name']] = true;
-            }
+    // Strip massive multi-router bulk arrays mimicking the 100% secure Customer Portal logic!
+    $apiRouters = getAllRouters();
+
+    $totalOnu = count($onuLocations);
+    $onlineOnu = 0;
+    $offlineOnu = 0;
+
+    $mapCenter = ['lat' => -6.252471, 'lng' => 107.920660];
+    $centerQuery = fetchOne("SELECT AVG(lat) as avg_lat, AVG(lng) as avg_lng FROM onu_locations WHERE lat IS NOT NULL AND lng IS NOT NULL");
+    if ($centerQuery && $centerQuery['avg_lat']) {
+        $mapCenter['lat'] = $centerQuery['avg_lat'];
+        $mapCenter['lng'] = $centerQuery['avg_lng'];
+    }
+
+    // Fetch Open Tickets for Highlighting
+    $openTicketsRaw = fetchAll("SELECT customer_id, phone, status FROM tasks WHERE status != 'Selesai'");
+    $openTickets = [];
+    foreach ($openTicketsRaw as $t) {
+        if (!empty($t['phone'])) {
+            $openTickets[$t['phone']] = true;
         }
     }
-}
 
-$totalOnu = count($onuLocations);
-$onlineOnu = 0;
-$offlineOnu = 0;
+    $onuData = [];
+    foreach ($onuLocations as $onu) {
+        $pu = trim((string)$onu['pppoe_username']); 
+        $isOnline = false;
+        
+        if (!empty($pu)) {
+            $rid = $onu['router_id'] ?? null;
+            $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pu, $rid);
+            
+            if (!$dynamicInterface) {
+                foreach ($apiRouters as $r) {
+                    if ($r['id'] == $rid) continue;
+                    $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pu, $r['id']);
+                    if ($dynamicInterface) {
+                        break;
+                    }
+                }
+            }
+            if ($dynamicInterface) {
+                $isOnline = true;
+            }
+        }
+        
+        $hasOpenTicket = (!empty($onu['serial_number']) && isset($openTickets[$onu['serial_number']]));
 
-$mapCenter = ['lat' => -6.252471, 'lng' => 107.920660];
-$centerQuery = fetchOne("SELECT AVG(lat) as avg_lat, AVG(lng) as avg_lng FROM onu_locations WHERE lat IS NOT NULL AND lng IS NOT NULL");
-if ($centerQuery && $centerQuery['avg_lat']) {
-    $mapCenter['lat'] = $centerQuery['avg_lat'];
-    $mapCenter['lng'] = $centerQuery['avg_lng'];
-}
-
-$onuData = [];
-foreach ($onuLocations as $onu) {
-    $isOnline = (!empty($onu['pppoe_username']) && isset($activeUsers[$onu['pppoe_username']]));
-    if ($isOnline) {
-        $onlineOnu++;
-    } else {
-        $offlineOnu++;
-    }
+        if ($isOnline) {
+            $onlineOnu++;
+        } else {
+            $offlineOnu++;
+        }
     
     $onuData[] = [
         'id' => $onu['id'],
@@ -762,10 +780,22 @@ function loadMarkers() {
                     return;
                 }
                 const isOnline = onu.status === 'online';
+                const hasTicket = onu.has_ticket || false;
+                
+                let bgHex = '#ff4757';
+                let iconClass = 'fa-satellite-dish';
+                
+                if (hasTicket) {
+                    bgHex = '#ffa502'; // Bright Orange Warning
+                    iconClass = 'fa-exclamation-triangle';
+                } else if (isOnline) {
+                    bgHex = '#00ff88'; // Neon Green
+                }
+                
                 const marker = L.marker([onu.lat, onu.lng], {
                     icon: L.divIcon({
                         className: 'custom-marker',
-                        html: '<div style="background: ' + (isOnline ? '#00ff88' : '#ff4757') + '; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-satellite-dish"></i></div>'
+                        html: '<div style="background: ' + bgHex + '; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas ' + iconClass + '"></i></div>'
                     })
                 });
                 
@@ -778,7 +808,15 @@ function loadMarkers() {
                 
                 if (onu.odp_id && odpIndex[onu.odp_id]) {
                     const odp = odpIndex[onu.odp_id];
-                    const color = onu.status === 'online' ? '#00ff88' : (onu.status === 'offline' ? '#ff4757' : '#9aa0a6');
+                    let color = '#9aa0a6';
+                    if (hasTicket) {
+                        color = '#ffa502';
+                    } else if (isOnline) {
+                        color = '#00ff88';
+                    } else if (onu.status === 'offline') {
+                        color = '#ff4757';
+                    }
+                    
                     const line = L.polyline([[odp.lat, odp.lng], [onu.lat, onu.lng]], {
                         color,
                         weight: 2,

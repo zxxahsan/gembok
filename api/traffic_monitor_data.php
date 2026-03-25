@@ -12,40 +12,98 @@ require_once '../includes/mikrotik_api.php';
 
 $customers = fetchAll("SELECT id, name, pppoe_username, usage_bytes_in, usage_bytes_out, usage_last_rx, usage_last_tx, status, router_id FROM customers ORDER BY name ASC");
 
-// Strip massive multi-router bulk arrays, query RouterOS natively matching the 100% secure Customer Portal logic!
-$apiRouters = getAllRouters();
+function mikrotikReadAllAndParse($socket) {
+    if (!$socket) return [];
+    
+    $allWords = [];
+    $done = false;
+    $timeout = time() + 10;
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words)) break;
+        foreach ($words as $word) {
+            $allWords[] = $word;
+            if ($word === '!done' || strpos((string)$word, '!trap') === 0) {
+                $done = true;
+                break;
+            }
+        }
+    }
+    
+    $parsed = []; $current = [];
+    foreach ($allWords as $word) {
+        if ($word === '!re') {
+            if (!empty($current)) { $parsed[] = $current; $current = []; }
+        } elseif ($word === '!done' || strpos((string)$word, '!trap') === 0) {
+            if (!empty($current)) { $parsed[] = $current; }
+            break;
+        } elseif (strpos((string)$word, '=') === 0) {
+            $parts = explode('=', substr((string)$word, 1), 2);
+            if (count($parts) === 2) {
+                $current[$parts[0]] = $parts[1];
+            }
+        }
+    }
+    return $parsed;
+}
+
+$allActiveSessions = [];
+$routers = getAllRouters();
+
+foreach ($routers as $r) {
+    if ($mk = getMikrotikConnection($r['id'])) {
+        // Bulk Interface Request without proplist forcing native property dumps identical to single queries scaling safely
+        mikrotikWrite($mk, '/interface/print');
+        mikrotikWrite($mk, '');
+        $interfaces = mikrotikReadAllAndParse($mk);
+        
+        $activeSessions = [];
+        if (!empty($interfaces)) {
+            foreach ($interfaces as $intf) {
+                if (isset($intf['name'])) {
+                    $name = strtolower(trim($intf['name']));
+                    if (strpos($name, '<pppoe-') === 0) {
+                        $username = substr($name, 7, -1);
+                        $activeSessions[$username] = [
+                            'rx' => (float)($intf['rx-byte'] ?? 0),
+                            'tx' => (float)($intf['tx-byte'] ?? 0)
+                        ];
+                    }
+                }
+            }
+        }
+        $allActiveSessions[$r['id']] = $activeSessions;
+    }
+}
+
 $data = [];
 
 foreach ($customers as $c) {
     if (empty($c['pppoe_username'])) continue;
     
     $userOrig = $c['pppoe_username'];
-    $user = trim($c['pppoe_username']); // Preserve exact case for Mikrotik query
+    $user = strtolower(trim($c['pppoe_username'])); 
     $rid = $c['router_id'];
     
     $liveRx = 0;
     $liveTx = 0;
     $isOnline = false;
     
-    $dynamicInterface = mikrotikGetInterfaceBytesByUsername($user, $rid);
-    
-    // Explicit cross-router traversal overcoming missing local `router_id` matrices natively
-    if (!$dynamicInterface) {
-        foreach ($apiRouters as $r) {
-            if ($r['id'] == $rid) continue;
-            $dynamicInterface = mikrotikGetInterfaceBytesByUsername($user, $r['id']);
-            if ($dynamicInterface) {
-                $rid = $r['id']; // Update tracker
+    if ($rid && isset($allActiveSessions[$rid]) && isset($allActiveSessions[$rid][$user])) {
+        $isOnline = true;
+    } else {
+        foreach ($allActiveSessions as $routerId => $sessions) {
+            if (isset($sessions[$user])) {
+                $isOnline = true;
+                $rid = $routerId;
                 break;
             }
         }
     }
     
-    // Evaluate Usage Statistics bridging verified native interface metrics
-    if ($dynamicInterface) {
-        $isOnline = true;
-        $liveRx = (float)($dynamicInterface['rx-byte'] ?? 0);
-        $liveTx = (float)($dynamicInterface['tx-byte'] ?? 0);
+    if ($isOnline) {
+        $liveRx = $allActiveSessions[$rid][$user]['rx'];
+        $liveTx = $allActiveSessions[$rid][$user]['tx'];
     }
     
     $dbRx = (float)($c['usage_bytes_in'] ?? 0);
