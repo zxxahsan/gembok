@@ -48,27 +48,11 @@ function mikrotikReadAllAndParse($socket) {
 }
 
 $allActiveSessions = [];
-$allOnlineUsers = [];
 $routers = getAllRouters();
 
 foreach ($routers as $r) {
     if ($mk = getMikrotikConnection($r['id'])) {
-        // Find accurately connected users!
-        mikrotikWrite($mk, '/ppp/active/print');
-        mikrotikWrite($mk, '=.proplist=name');
-        mikrotikWrite($mk, '');
-        $pppActive = mikrotikReadAllAndParse($mk);
-        
-        if (!empty($pppActive)) {
-            foreach ($pppActive as $session) {
-                if (isset($session['name'])) {
-                    $u = strtolower(trim($session['name']));
-                    $allOnlineUsers[$r['id']][$u] = true;
-                }
-            }
-        }
-        
-        // Find byte traffic for those connected dynamically!
+        // Find byte traffic & Verify Active Online Status dynamically
         mikrotikWrite($mk, '/interface/print');
         mikrotikWrite($mk, '=.proplist=name,rx-byte,tx-byte');
         mikrotikWrite($mk, '');
@@ -105,12 +89,12 @@ foreach ($customers as $c) {
     $liveTx = 0;
     $isOnline = false;
     
-    // Check accurately using PPP Active tracking bridging offline issues
-    if ($rid && isset($allOnlineUsers[$rid]) && isset($allOnlineUsers[$rid][$user])) {
+    // Check accurately using dynamic Interface arrays natively validating Bytes instantly!
+    if ($rid && isset($allActiveSessions[$rid]) && isset($allActiveSessions[$rid][$user])) {
         $isOnline = true;
     } else {
-        foreach ($allOnlineUsers as $routerId => $users) {
-            if (isset($users[$user])) {
+        foreach ($allActiveSessions as $routerId => $sessions) {
+            if (isset($sessions[$user])) {
                 $isOnline = true;
                 $rid = $routerId; // Update tracking matrix overriding mismatched arrays securely
                 break;
@@ -119,7 +103,7 @@ foreach ($customers as $c) {
     }
     
     // Map usage statistics mirroring verified active interfaces
-    if ($isOnline && isset($allActiveSessions[$rid]) && isset($allActiveSessions[$rid][$user])) {
+    if ($isOnline) {
         $liveRx = $allActiveSessions[$rid][$user]['rx'];
         $liveTx = $allActiveSessions[$rid][$user]['tx'];
     }
