@@ -110,6 +110,9 @@ $onuLocations = fetchAll("
 
     // Strip massive multi-router bulk arrays mimicking the 100% secure Customer Portal logic!
     $apiRouters = getAllRouters();
+    if (empty($apiRouters)) {
+        $apiRouters = [['id' => 0, 'name' => 'Default']];
+    }
 
     $totalOnu = count($onuLocations);
     $onlineOnu = 0;

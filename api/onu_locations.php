@@ -120,6 +120,11 @@ if ($method === 'GET') {
     
     $activeUsers = [];
     $routers = getAllRouters();
+    if (empty($routers)) {
+        // Legacy fallback bridging Single Router setups
+        $routers = [['id' => 0, 'name' => 'Default']];
+    }
+    
     foreach ($routers as $r) {
         $mk = getMikrotikConnection($r['id']);
         if ($mk) {

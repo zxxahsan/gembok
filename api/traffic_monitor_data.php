@@ -49,6 +49,10 @@ function mikrotikReadAllAndParse($socket) {
 
 $allActiveSessions = [];
 $routers = getAllRouters();
+if (empty($routers)) {
+    // Legacy fallback bridging Single Router installations without `routers` table records natively
+    $routers = [['id' => 0, 'name' => 'Default']];
+}
 
 foreach ($routers as $r) {
     if ($mk = getMikrotikConnection($r['id'])) {
