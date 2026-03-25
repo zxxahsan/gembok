@@ -307,7 +307,7 @@ $tech = $_SESSION['technician'];
                     data.results.forEach(r => {
                         const statusClass = r.is_online ? 'status-online' : 'status-offline';
                         const statusIcon = r.is_online ? 'fa-check-circle' : 'fa-times-circle';
-                        const statusText = r.is_online ? 'Berjalan' : 'Terputus';
+                        const statusText = r.is_online ? 'Online' : 'Offline';
                         
                         const card = document.createElement('a');
                         card.href = r.url;
