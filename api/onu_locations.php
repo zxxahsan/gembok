@@ -81,71 +81,28 @@ if ($method === 'GET') {
     // Fetch ALL active PPPoE sessions instantaneously merging logic avoiding sequential API bottlenecks
     require_once '../includes/mikrotik_api.php';
     
-    if (!function_exists('mikrotikReadAllAndParse')) {
-        function mikrotikReadAllAndParse($socket) {
-            if (!$socket) return [];
-            
-            $allWords = [];
-            $done = false;
-            $timeout = time() + 10;
-            while (!$done && time() < $timeout) {
-                $words = mikrotikReadSentence($socket);
-                if (empty($words)) break;
-                foreach ($words as $word) {
-                    $allWords[] = $word;
-                    if ($word === '!done' || strpos((string)$word, '!trap') === 0) {
-                        $done = true;
-                        break;
-                    }
-                }
-            }
-            
-            $parsed = []; $current = [];
-            foreach ($allWords as $word) {
-                if ($word === '!re') {
-                    if (!empty($current)) { $parsed[] = $current; $current = []; }
-                } elseif ($word === '!done' || strpos((string)$word, '!trap') === 0) {
-                    if (!empty($current)) { $parsed[] = $current; }
-                    break;
-                } elseif (strpos((string)$word, '=') === 0) {
-                    $parts = explode('=', substr((string)$word, 1), 2);
-                    if (count($parts) === 2) {
-                        $current[$parts[0]] = $parts[1];
-                    }
-                }
-            }
-            return $parsed;
-        }
-    }
-    
-    $activeUsers = [];
-    $routers = getAllRouters();
-    foreach ($routers as $r) {
-        $mk = getMikrotikConnection($r['id']);
-        if ($mk) {
-            mikrotikWrite($mk, '/interface/print');
-            mikrotikWrite($mk, '=.proplist=name');
-            mikrotikWrite($mk, '');
-            $activeList = mikrotikReadAllAndParse($mk);
-            
-            if (!empty($activeList)) {
-                foreach ($activeList as $intf) {
-                    if (isset($intf['name'])) {
-                        $name = strtolower(trim($intf['name']));
-                        if (strpos($name, '<pppoe-') === 0) {
-                            $username = substr($name, 7, -1);
-                            $activeUsers[$username] = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    $apiRouters = getAllRouters();
 
     foreach ($onuLocations as &$onu) {
-        // Evaluate native presence over localized Mikrotik memory clusters
-        $pu = strtolower(trim((string)$onu['pppoe_username']));
-        $onu['status'] = (!empty($pu) && isset($activeUsers[$pu])) ? 'online' : 'offline';
+        $pu = trim((string)$onu['pppoe_username']); // Accurate raw case required
+        $onu['status'] = 'offline';
+        
+        if (!empty($pu)) {
+            $rid = $onu['router_id'] ?? null;
+            $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pu, $rid);
+            
+            if (!$dynamicInterface) {
+                foreach ($apiRouters as $r) {
+                    if ($r['id'] == $rid) continue;
+                    $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pu, $r['id']);
+                    if ($dynamicInterface) break;
+                }
+            }
+            
+            if ($dynamicInterface) {
+                $onu['status'] = 'online';
+            }
+        }
         $onu['device_info'] = null;
         $onu['ssid'] = '';
         $onu['password'] = '';
