@@ -394,7 +394,14 @@ foreach ($myTasks as $task) {
 
         // Fetch data from API like admin/map.php
         fetch('../../api/onu_locations.php')
-... (keep going)
+            .then(res => res.json())
+            .then(result => {
+                if (result.success && result.data) {
+                    var onus = result.data;
+                    for (var i = 0; i < onus.length; i++) {
+                        var o = onus[i];
+                        if (!o.lat || !o.lng) continue;
+                        
                         var isOnline = o.status === 'online';
                         var color = isOnline ? '#00ff88' : (o.status === 'offline' ? '#ff4757' : '#9aa0a6');
                         var iconClass = 'fa-satellite-dish';
@@ -448,10 +455,9 @@ foreach ($myTasks as $task) {
                              }
                         }
                     }
-                });
-            }
-        })
-        .catch(err => console.error('Error fetching map data:', err));
+                }
+            })
+            .catch(err => console.error('Error fetching map data:', err));
         
         // ONU Detail Modal Functions
         var currentDetailOnu = null;
