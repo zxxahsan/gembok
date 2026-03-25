@@ -81,4 +81,6 @@ usort($data, function($a, $b) {
     return $b['raw_total'] <=> $a['raw_total'];
 });
 
+// Clear implicit network timeouts masking clean responses
+if (ob_get_length()) ob_clean();
 echo json_encode(['data' => $data]);

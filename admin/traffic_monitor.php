@@ -3,7 +3,7 @@ require_once '../includes/auth.php';
 requireAdminLogin();
 
 $pageTitle = 'Traffic & Usage Monitor';
-require_once '../includes/layout.php';
+ob_start();
 ?>
 
 <style>
@@ -133,4 +133,7 @@ require_once '../includes/layout.php';
     setInterval(fetchTrafficData, 5000);
 </script>
 
-<?php require_once '../includes/footer.php'; ?>
+<?php 
+$content = ob_get_clean();
+require_once '../includes/layout.php'; 
+?>

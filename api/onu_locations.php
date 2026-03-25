@@ -67,10 +67,13 @@ if ($method === 'GET') {
         echo json_encode(['success' => false, 'message' => $schema['message']]);
         exit;
     }
+    // Mute incidental PHP errors protecting JSON schemas
+    error_reporting(0);
+
     $onuLocations = fetchAll("
         SELECT o.*, c.pppoe_username 
         FROM onu_locations o
-        LEFT JOIN customers c ON c.serial_number = o.serial_number
+        LEFT JOIN customers c ON c.phone = o.serial_number
         ORDER BY o.name
     ");
 

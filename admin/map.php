@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $onuLocations = fetchAll("
     SELECT o.*, c.pppoe_username 
     FROM onu_locations o
-    LEFT JOIN customers c ON c.serial_number = o.serial_number
+    LEFT JOIN customers c ON c.phone = o.serial_number
     ORDER BY o.name
 ");
 
@@ -364,7 +364,7 @@ ob_start();
                     <td><code><?php echo htmlspecialchars($onu['serial_number']); ?></code></td>
                     <td>
                         <?php 
-                        if ($onu['device_info']) {
+                        if (is_array($onu['device_info'])) {
                             $model = trim(($onu['device_info']['manufacturer'] ?? '') . ' ' . ($onu['device_info']['model'] ?? ''));
                             echo htmlspecialchars($model ?: '-');
                         } else {
@@ -374,7 +374,7 @@ ob_start();
                     </td>
                     <td>
                         <?php 
-                        if ($onu['device_info'] && $onu['device_info']['ip_address']) {
+                        if (is_array($onu['device_info']) && !empty($onu['device_info']['ip_address'])) {
                             echo '<code style="background: rgba(0, 245, 255, 0.1); padding: 2px 6px; border-radius: 4px;">' . htmlspecialchars($onu['device_info']['ip_address']) . '</code>';
                         } else {
                             echo '<span style="color: var(--text-muted);">-</span>';
@@ -383,7 +383,7 @@ ob_start();
                     </td>
                     <td>
                         <?php 
-                        if ($onu['device_info'] && $onu['device_info']['ssid']) {
+                        if (is_array($onu['device_info']) && !empty($onu['device_info']['ssid'])) {
                             echo '<span style="color: var(--neon-green);"><i class="fas fa-wifi"></i> ' . htmlspecialchars($onu['device_info']['ssid']) . '</span>';
                         } else {
                             echo '<span style="color: var(--text-muted);">-</span>';
@@ -392,9 +392,9 @@ ob_start();
                     </td>
                     <td>
                         <?php 
-                        if ($onu['device_info']) {
-                            $rx = $onu['device_info']['rx_power'];
-                            $tx = $onu['device_info']['tx_power'];
+                        if (is_array($onu['device_info'])) {
+                            $rx = $onu['device_info']['rx_power'] ?? null;
+                            $tx = $onu['device_info']['tx_power'] ?? null;
                             if ($rx || $tx) {
                                 $rxColor = $rx > -25 ? 'var(--neon-green)' : ($rx > -30 ? 'orange' : 'var(--danger)');
                                 echo '<span style="color: ' . $rxColor . ';">RX: ' . htmlspecialchars($rx ?? '-') . ' dBm</span><br>';
@@ -420,7 +420,7 @@ ob_start();
                     </td>
                     <td>
                         <?php 
-                        if ($onu['device_info'] && $onu['device_info']['last_inform']) {
+                        if (is_array($onu['device_info']) && !empty($onu['device_info']['last_inform'])) {
                             $lastInform = strtotime($onu['device_info']['last_inform']);
                             $diff = time() - $lastInform;
                             if ($diff < 60) {
