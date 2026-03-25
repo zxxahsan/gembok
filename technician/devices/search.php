@@ -16,9 +16,9 @@ if (isset($_GET['ajax']) && isset($_GET['q'])) {
         exit;
     }
     
-    // 1. Search DB for matching customers injecting router IDs inherently 
+    // 1. Search DB for matching customers generically supporting multi-tier schemas inherently 
     $customers = fetchAll("
-        SELECT id, name, pppoe_username, serial_number, phone, address, router_id
+        SELECT *
         FROM customers 
         WHERE name LIKE ? OR pppoe_username LIKE ? OR phone LIKE ?
         LIMIT 5

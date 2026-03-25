@@ -11,13 +11,13 @@ if (empty($username) && empty($serial)) {
     redirect('search.php');
 }
 
-// 1. Try to find customer in DB
+// 1. Try to find customer in DB parsing generalized phone schema maps natively 
 $customer = null;
 if (!empty($username)) {
     $customer = fetchOne("SELECT * FROM customers WHERE pppoe_username = ?", [$username]);
 } 
 if (!$customer && !empty($serial)) {
-    $customer = fetchOne("SELECT * FROM customers WHERE serial_number = ? OR pppoe_username = ?", [$serial, $serial]);
+    $customer = fetchOne("SELECT * FROM customers WHERE phone = ? OR pppoe_username = ?", [$serial, $serial]);
 }
 
 if (!$customer) {

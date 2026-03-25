@@ -46,6 +46,13 @@ foreach ($myTasks as $task) {
     }
 }
 
+$mapCenter = ['lat' => -6.200000, 'lng' => 106.816666];
+$centerQuery = fetchOne("SELECT AVG(lat) as avg_lat, AVG(lng) as avg_lng FROM onu_locations WHERE lat IS NOT NULL AND lng IS NOT NULL");
+if ($centerQuery && $centerQuery['avg_lat']) {
+    $mapCenter['lat'] = $centerQuery['avg_lat'];
+    $mapCenter['lng'] = $centerQuery['avg_lng'];
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -345,7 +352,7 @@ foreach ($myTasks as $task) {
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        var map = L.map('map').setView([-6.200000, 106.816666], 13);
+        var map = L.map('map').setView([<?php echo $mapCenter['lat']; ?>, <?php echo $mapCenter['lng']; ?>], 14);
 
         // Base layers
         var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
