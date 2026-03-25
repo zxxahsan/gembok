@@ -52,10 +52,13 @@ $routers = getAllRouters();
 
 foreach ($routers as $r) {
     if ($mk = getMikrotikConnection($r['id'])) {
-        // Bulk Interface Request without proplist forcing native property dumps identical to single queries scaling safely
+        // Bulk Interface Request fetching ONLY active PPPoE sessions scaling safely avoiding static interface bloat
         mikrotikWrite($mk, '/interface/print');
+        mikrotikWrite($mk, '?type=pppoe-in');
         mikrotikWrite($mk, '');
         $interfaces = mikrotikReadAllAndParse($mk);
+        
+        file_put_contents(__DIR__ . '/debug_traffic_log.txt', "ROUTER {$r['id']} FETCHED PPPOE-IN: " . count($interfaces) . "\n", FILE_APPEND);
         
         $activeSessions = [];
         if (!empty($interfaces)) {

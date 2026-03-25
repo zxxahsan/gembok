@@ -124,6 +124,7 @@ if ($method === 'GET') {
         $mk = getMikrotikConnection($r['id']);
         if ($mk) {
             mikrotikWrite($mk, '/interface/print');
+            mikrotikWrite($mk, '?type=pppoe-in');
             mikrotikWrite($mk, '');
             $activeList = mikrotikReadAllAndParse($mk);
             
