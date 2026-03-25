@@ -289,10 +289,28 @@ ob_start();
 
     <!-- WiFi Settings -->
     <?php if ($isCustomerDeviceOnline && $customerDevice): ?>
-    <div class="card" id="wifi-settings">
+    <div class="card" id="wifi-settings" style="margin-bottom: 30px;">
         <h3 style="margin-bottom: 15px; color: var(--neon-cyan);">
             <i class="fas fa-wifi"></i> Pengaturan WiFi
         </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+                <i class="fas fa-desktop" style="font-size: 1.5rem; color: var(--neon-cyan); margin-bottom: 10px;"></i>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px;">IP Address Router</div>
+                <div style="font-size: 1.1rem; font-weight: bold; color: var(--text-primary);"><?php echo htmlspecialchars($onuData['ip_address'] ?? 'N/A'); ?></div>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+                <i class="fas fa-users" style="font-size: 1.5rem; color: var(--primary); margin-bottom: 10px;"></i>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px;">Perangkat Terhubung</div>
+                <div style="font-size: 1.1rem; font-weight: bold; color: var(--text-primary);"><?php echo htmlspecialchars($onuDevices); ?> Device</div>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+                <i class="fas fa-microchip" style="font-size: 1.5rem; color: var(--neon-purple); margin-bottom: 10px;"></i>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px;">Model Perangkat</div>
+                <div style="font-size: 1.1rem; font-weight: bold; color: var(--text-primary);"><?php echo htmlspecialchars(trim(($onuData['manufacturer'] ?? '') . ' ' . ($onuData['model'] ?? 'N/A'))); ?></div>
+            </div>
+        </div>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
             <div style="display: flex; flex-direction: column; justify-content: space-between;">
@@ -306,7 +324,7 @@ ob_start();
                                 echo htmlspecialchars(is_array($currentSsid) ? ($currentSsid['_value'] ?? 'Unknown') : ($currentSsid ?? 'Unknown')); 
                             ?>
                         </p>
-                    </div>
+                     </div>
                 </div>
                 <button type="button" class="btn btn-primary" onclick="openModal('modalChangeSsid')">
                     <i class="fas fa-edit"></i> Ubah Nama WiFi

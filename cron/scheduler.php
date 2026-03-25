@@ -443,6 +443,11 @@ function runSystemPing($pdo)
     try {
         $pdo->exec("ALTER TABLE customers ADD COLUMN usage_last_rx BIGINT DEFAULT 0, ADD COLUMN usage_last_tx BIGINT DEFAULT 0");
     } catch (Exception $e) {}
+    
+    // Prevent 32-bit Integer overflow causing phantom traffic "resets" upon crossing 2.14GB demarcations
+    try {
+        $pdo->exec("ALTER TABLE customers MODIFY COLUMN usage_bytes_in BIGINT UNSIGNED DEFAULT 0, MODIFY COLUMN usage_bytes_out BIGINT UNSIGNED DEFAULT 0");
+    } catch (Exception $e) {}
 
     // Auto-Reset cascades executing at Midnight on the 1st of every month automatically purging old vectors
     $pdo->exec("UPDATE customers SET usage_bytes_in=0, usage_bytes_out=0, usage_last_rx=0, usage_last_tx=0, usage_last_reset=CURDATE() WHERE DATE_FORMAT(usage_last_reset, '%Y-%m') != DATE_FORMAT(CURDATE(), '%Y-%m')");

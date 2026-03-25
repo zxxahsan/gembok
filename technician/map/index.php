@@ -389,8 +389,8 @@ foreach ($myTasks as $task) {
             iconAnchor: [12, 12]
         });
         
-        // Pass the task map dynamically ensuring Object-casting
-        var myTasks = JSON.parse('<?php echo addslashes(json_encode(empty($taskMap) ? new stdClass() : $taskMap)); ?>');
+        // Pass the task map dynamically ensuring Object-casting securely
+        var myTasks = <?php echo json_encode(empty($taskMap) ? new stdClass() : $taskMap); ?>;
 
         // Fetch data from API like admin/map.php
         fetch('../../api/onu_locations.php')
