@@ -44,6 +44,50 @@ $monthlyRx = $customer['usage_bytes_in'] ?? 0;
 $monthlyTx = $customer['usage_bytes_out'] ?? 0;
 $lastReset = $customer['usage_last_reset'] ?? 'Belum Tercatat';
 
+// ==========================================
+// Integrasi Data ONU (GenieACS + MikroTik)
+// ==========================================
+$onuData = null;
+$onuOnline = false;
+$onuSignal = 'N/A';
+
+require_once '../includes/mikrotik_api.php';
+$pppoeUptime = 'Offline';
+$pppoeUser = $customer['pppoe_username'] ?? '';
+
+if (!empty($pppoeUser)) {
+    // 1. Dapatkan Uptime Murni dari /ppp/active
+    $activeSession = mikrotikGetActiveSessionByUsername($pppoeUser);
+    if ($activeSession) {
+        $pppoeUptime = $activeSession['uptime'] ?? 'N/A';
+    }
+}
+
+// 2. Dapatkan Metadata Modem/Hardware dari GenieACS
+$customerDevice = null;
+if (!empty($customer['phone'])) {
+    $customerDevice = genieacsGetDevice($customer['phone']);
+}
+
+if ($customerDevice) {
+    $deviceId = $customerDevice['_id'] ?? $customerDevice['_deviceId']['_SerialNumber'] ?? $pppoeUser;
+    $onuData = genieacsGetDeviceInfo($deviceId);
+    
+    if ($onuData && isset($onuData['status'])) {
+        $onuOnline = ($onuData['status'] === 'online');
+    }
+    
+    $rxPowerFromDevice = genieacsGetValue($customerDevice, 'VirtualParameters.RXPower');
+    if ($rxPowerFromDevice !== null) {
+        $onuSignal = $rxPowerFromDevice;
+    } elseif ($onuData && isset($onuData['rx_power'])) {
+        $onuSignal = is_array($onuData['rx_power']) ? ($onuData['rx_power']['_value'] ?? 'N/A') : $onuData['rx_power'];
+    }
+    if (is_array($onuSignal)) {
+        $onuSignal = $onuSignal['_value'] ?? $onuSignal['value'] ?? 'N/A';
+    }
+}
+
 $pageTitle = 'Dashboard Pelanggan';
 
 ob_start();
@@ -51,10 +95,41 @@ ob_start();
 
 <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
 
-    <!-- Welcome Header -->
-    <div style="margin-bottom: 30px;">
-        <h2 style="color: var(--text-primary); margin-bottom: 5px;">Selamat Datang, <?php echo htmlspecialchars($customer['name']); ?>!</h2>
-        <p style="color: var(--text-secondary);">Kelola layanan internet Anda dari portal ini.</p>
+    <!-- Welcome Header & Hardware Indicators -->
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; align-items: flex-end; margin-bottom: 30px;">
+        <div style="flex: 1; min-width: 300px;">
+            <h2 style="color: var(--text-primary); margin-bottom: 5px;">Selamat Datang, <?php echo htmlspecialchars($customer['name']); ?>!</h2>
+            <p style="color: var(--text-secondary);">Kelola layanan internet Anda dari portal ini.</p>
+        </div>
+        
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <!-- Status Pill -->
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 12px;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: <?php echo $onuOnline ? 'var(--neon-green)' : 'var(--neon-red)'; ?>; box-shadow: 0 0 10px <?php echo $onuOnline ? 'var(--neon-green)' : 'var(--neon-red)'; ?>;"></div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Status ONU</div>
+                    <div style="font-weight: 600; color: <?php echo $onuOnline ? 'var(--neon-green)' : 'var(--neon-red)'; ?>;"><?php echo $onuOnline ? 'Online' : 'Offline'; ?></div>
+                </div>
+            </div>
+            
+            <!-- Uptime Pill -->
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 12px;">
+                <i class="fas fa-clock" style="color: var(--neon-orange); font-size: 1.2rem;"></i>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Uptime PPPoE</div>
+                    <div style="font-weight: 600; color: var(--text-primary);"><?php echo htmlspecialchars($pppoeUptime); ?></div>
+                </div>
+            </div>
+            
+            <!-- Signal Pill -->
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 12px;">
+                <i class="fas fa-signal" style="color: var(--neon-cyan); font-size: 1.2rem;"></i>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Signal Fiber</div>
+                    <div style="font-weight: 600; color: var(--text-primary);"><?php echo htmlspecialchars($onuSignal); ?> dBm</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Package Info -->
@@ -93,38 +168,45 @@ ob_start();
 
     <!-- Monthly Usage Info -->
     <div class="card" style="margin-bottom: 30px; border-top: 4px solid var(--neon-purple);">
-        <h3 style="margin-bottom: 15px; color: var(--neon-purple);">
-            <i class="fas fa-chart-pie"></i> Akumulasi Penggunaan Internet Berjalan
-        </h3>
-        <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
-            Periode pemakaian dari awal bulan <strong><?php echo strftime('%B %Y'); ?></strong> hingga saat ini. Kecepatan 100% tanpa FUP!
-        </p>
-        
-        <?php $monthlyTotal = $monthlyRx + $monthlyTx; ?>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
-            <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; text-align: center; border-left: 3px solid var(--neon-purple);">
-                <i class="fas fa-database" style="font-size: 2rem; color: var(--neon-purple); margin-bottom: 10px;"></i>
-                <div style="font-size: 1.8rem; font-weight: bold; color: var(--text-primary);">
-                    <?php echo formatBytes($monthlyTotal); ?>
-                </div>
-                <div style="color: var(--text-muted); font-size: 0.85rem;">Total (Download + Upload)</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div>
+                <h3 style="margin-bottom: 10px; color: var(--neon-purple);">
+                    <i class="fas fa-chart-pie"></i> Total Penggunaan Bulan Ini
+                </h3>
+                <p style="color: var(--text-secondary); margin-bottom: 0; font-size: 0.9rem;">
+                    Periode berjalan dari <strong>1 <?php echo strftime('%B %Y'); ?></strong> hingga Hari Ini. (Termasuk total historis + aktif berjalan).
+                </p>
             </div>
             
-            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; text-align: center;">
-                <i class="fas fa-download" style="font-size: 1.5rem; color: var(--neon-cyan); margin-bottom: 5px;"></i>
-                <div style="font-size: 1.3rem; font-weight: bold; color: var(--text-primary);">
-                    <?php echo formatBytes($monthlyTx); // Router TX = Customer Download ?>
-                </div>
-                <div style="color: var(--text-muted); font-size: 0.8rem;">Porsi Download</div>
-            </div>
+            <?php 
+                // Kalkulasi Pendekatan WiFi + Historis Database
+                $liveSessionRx = 0;
+                $liveSessionTx = 0;
+                if (!empty($pppoeUser)) {
+                    $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pppoeUser);
+                    if ($dynamicInterface) {
+                        $liveSessionRx = (float)($dynamicInterface['rx-byte'] ?? 0);
+                        $liveSessionTx = (float)($dynamicInterface['tx-byte'] ?? 0);
+                    }
+                }
+                
+                // Live Session + DB (Dipotong offset usage_last_rx agar tidak duplikat delta)
+                $dbTotalIn = $customer['usage_bytes_in'] ?? 0;
+                $dbTotalOut = $customer['usage_bytes_out'] ?? 0;
+                $lastRxTracked = $customer['usage_last_rx'] ?? 0;
+                $lastTxTracked = $customer['usage_last_tx'] ?? 0;
+                
+                $deltaRx = ($liveSessionRx >= $lastRxTracked) ? ($liveSessionRx - $lastRxTracked) : $liveSessionRx;
+                $deltaTx = ($liveSessionTx >= $lastTxTracked) ? ($liveSessionTx - $lastTxTracked) : $liveSessionTx;
+                
+                // Total Akumulasi Murni Keseluruhan
+                $grandTotalBytes = $dbTotalIn + $dbTotalOut + $deltaRx + $deltaTx;
+            ?>
             
-            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; text-align: center;">
-                <i class="fas fa-upload" style="font-size: 1.5rem; color: var(--neon-pink); margin-bottom: 5px;"></i>
-                <div style="font-size: 1.3rem; font-weight: bold; color: var(--text-primary);">
-                    <?php echo formatBytes($monthlyRx); // Router RX = Customer Upload ?>
+            <div style="background: rgba(0,0,0,0.3); padding: 15px 30px; border-radius: 12px; text-align: center; border-left: 4px solid var(--neon-purple); margin-top: 10px;">
+                <div style="font-size: 2.2rem; font-weight: 800; color: var(--text-primary); letter-spacing: -1px;">
+                    <?php echo formatBytes($grandTotalBytes); ?>
                 </div>
-                <div style="color: var(--text-muted); font-size: 0.8rem;">Porsi Upload</div>
             </div>
         </div>
     </div>
@@ -285,6 +367,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    
+    let lastRx = 0;
+    let lastTx = 0;
+    let lastTime = 0;
+
     const trafficChart = new Chart(ctx, config);
 
     function fetchLiveTraffic() {
@@ -295,17 +382,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     badge.className = 'badge badge-success';
                     badge.innerHTML = '<i class="fas fa-wifi"></i> Online';
                     
-                    const dnMbps = (data.download_bps / 1000000).toFixed(2);
-                    const upMbps = (data.upload_bps / 1000000).toFixed(2);
+                    const currentTime = data.timestamp_ms;
+                    
+                    let dnMbps = 0;
+                    let upMbps = 0;
+                    
+                    // First poll establishes the baseline
+                    if (lastTime !== 0) {
+                        const timeDelta = currentTime - lastTime;
+                        if (timeDelta > 0) {
+                            // RouterOS: tx_bytes is Customer's Download stream, rx_bytes is Customer's Upload
+                            const byteDeltaDn = Math.max(0, data.tx_bytes - lastTx);
+                            const byteDeltaUp = Math.max(0, data.rx_bytes - lastRx);
+                            
+                            // Convert pure Bytes to Bits, divide by TimeDelta, scale down to Mbps
+                            dnMbps = ((byteDeltaDn * 8) / timeDelta) / 1000000;
+                            upMbps = ((byteDeltaUp * 8) / timeDelta) / 1000000;
+                        }
+                    }
+                    
+                    lastRx = data.rx_bytes;
+                    lastTx = data.tx_bytes;
+                    lastTime = currentTime;
 
                     // Push new data and shift old
-                    trafficChart.data.datasets[0].data.push(dnMbps);
-                    trafficChart.data.datasets[1].data.push(upMbps);
-                    
-                    trafficChart.data.datasets[0].data.shift();
-                    trafficChart.data.datasets[1].data.shift();
-                    
-                    trafficChart.update();
+                    if (lastTime !== 0 && dnMbps !== 0 && upMbps !== 0) {
+                        trafficChart.data.datasets[0].data.push(dnMbps.toFixed(2));
+                        trafficChart.data.datasets[1].data.push(upMbps.toFixed(2));
+                        
+                        trafficChart.data.datasets[0].data.shift();
+                        trafficChart.data.datasets[1].data.shift();
+                        
+                        trafficChart.update();
+                    }
                 } else {
                     badge.className = 'badge badge-error';
                     badge.innerHTML = '<i class="fas fa-times-circle"></i> ' + (data.message || 'Offline');
