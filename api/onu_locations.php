@@ -80,6 +80,26 @@ if ($method === 'GET') {
 
     // Fetch ALL active PPPoE sessions instantaneously merging logic avoiding sequential API bottlenecks
     require_once '../includes/mikrotik_api.php';
+    
+    if (!function_exists('parseMikrotikList')) {
+        function parseMikrotikList($responseWords) {
+            if (empty($responseWords)) return [];
+            $parsed = []; $current = [];
+            foreach ($responseWords as $word) {
+                if ($word === '!re') {
+                    if (!empty($current)) { $parsed[] = $current; $current = []; }
+                } elseif ($word === '!done' || strpos((string)$word, '!trap') === 0) {
+                    if (!empty($current)) { $parsed[] = $current; }
+                    break;
+                } elseif (strpos((string)$word, '=') === 0) {
+                    $parts = explode('=', substr((string)$word, 1), 2);
+                    if (count($parts) === 2) $current[$parts[0]] = $parts[1];
+                }
+            }
+            return $parsed;
+        }
+    }
+    
     $activeUsers = [];
     $routers = getAllRouters();
     foreach ($routers as $r) {
@@ -88,8 +108,10 @@ if ($method === 'GET') {
             mikrotikWrite($mk, '/ppp/active/print');
             mikrotikWrite($mk, '=.proplist=name');
             mikrotikWrite($mk, '');
-            $activeList = mikrotikRead($mk);
-            if (!empty($activeList) && !isset($activeList['!trap'])) {
+            $activeListRaw = mikrotikRead($mk);
+            $activeList = parseMikrotikList($activeListRaw);
+            
+            if (!empty($activeList)) {
                 foreach ($activeList as $session) {
                     if (isset($session['name'])) {
                         $username = strtolower(trim($session['name']));

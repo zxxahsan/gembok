@@ -12,6 +12,23 @@ require_once '../includes/mikrotik_api.php';
 
 $customers = fetchAll("SELECT id, name, pppoe_username, usage_bytes_in, usage_bytes_out, usage_last_rx, usage_last_tx, status, router_id FROM customers ORDER BY name ASC");
 
+function parseMikrotikList($responseWords) {
+    if (empty($responseWords)) return [];
+    $parsed = []; $current = [];
+    foreach ($responseWords as $word) {
+        if ($word === '!re') {
+            if (!empty($current)) { $parsed[] = $current; $current = []; }
+        } elseif ($word === '!done' || strpos((string)$word, '!trap') === 0) {
+            if (!empty($current)) { $parsed[] = $current; }
+            break;
+        } elseif (strpos((string)$word, '=') === 0) {
+            $parts = explode('=', substr((string)$word, 1), 2);
+            if (count($parts) === 2) $current[$parts[0]] = $parts[1];
+        }
+    }
+    return $parsed;
+}
+
 $allActiveSessions = [];
 $allOnlineUsers = [];
 $routers = getAllRouters();
@@ -22,8 +39,10 @@ foreach ($routers as $r) {
         mikrotikWrite($mk, '/ppp/active/print');
         mikrotikWrite($mk, '=.proplist=name');
         mikrotikWrite($mk, '');
-        $pppActive = mikrotikRead($mk);
-        if (!empty($pppActive) && !isset($pppActive['!trap'])) {
+        $pppActiveRaw = mikrotikRead($mk);
+        $pppActive = parseMikrotikList($pppActiveRaw);
+        
+        if (!empty($pppActive)) {
             foreach ($pppActive as $session) {
                 if (isset($session['name'])) {
                     $u = strtolower(trim($session['name']));
@@ -36,10 +55,11 @@ foreach ($routers as $r) {
         mikrotikWrite($mk, '/interface/print');
         mikrotikWrite($mk, '=.proplist=name,rx-byte,tx-byte');
         mikrotikWrite($mk, '');
-        $interfaces = mikrotikRead($mk);
+        $interfacesRaw = mikrotikRead($mk);
+        $interfaces = parseMikrotikList($interfacesRaw);
         
         $activeSessions = [];
-        if (!empty($interfaces) && !isset($interfaces['!trap'])) {
+        if (!empty($interfaces)) {
             foreach ($interfaces as $intf) {
                 if (isset($intf['name'])) {
                     $name = strtolower(trim($intf['name']));
