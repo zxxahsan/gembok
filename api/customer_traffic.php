@@ -24,9 +24,21 @@ try {
         $liveRx = (float)($dynamicInterface['rx-byte'] ?? 0);
         $liveTx = (float)($dynamicInterface['tx-byte'] ?? 0);
         
-        // Single Source of Truth architecture: We do NOT write to Database here anymore.
-        // We defer all accumulation writing exclusively to cron/scheduler.php every 1 Minute,
-        // preventing dual-racing overlapping bugs when the dashboard rests open.
+        // AUTO-SAVE LOGIC: Crucial fallback for Local Server environments where CRON daemon is missing!
+        // We calculate Session drops intrinsically here to ensure usage_bytes gracefully aggregates over disconnects securely.
+        $lastRxTracked = (float)($customer['usage_last_rx'] ?? 0);
+        $lastTxTracked = (float)($customer['usage_last_tx'] ?? 0);
+        
+        $pdo = getDB();
+        if ($liveRx < $lastRxTracked || $liveTx < $lastTxTracked) {
+            // Router reconnected. Move last metrics to the History base!
+            $stmt = $pdo->prepare("UPDATE customers SET usage_bytes_in = usage_bytes_in + ?, usage_bytes_out = usage_bytes_out + ?, usage_last_rx = ?, usage_last_tx = ? WHERE id = ?");
+            $stmt->execute([$lastRxTracked, $lastTxTracked, $liveRx, $liveTx, $customer['id']]);
+        } else {
+            // Session persists linearly, override the last active tick.
+            $stmt = $pdo->prepare("UPDATE customers SET usage_last_rx = ?, usage_last_tx = ? WHERE id = ?");
+            $stmt->execute([$liveRx, $liveTx, $customer['id']]);
+        }
         
         echo json_encode([
             'success' => true, 

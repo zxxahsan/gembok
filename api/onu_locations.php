@@ -67,25 +67,39 @@ if ($method === 'GET') {
         echo json_encode(['success' => false, 'message' => $schema['message']]);
         exit;
     }
-    $onuLocations = fetchAll("SELECT * FROM onu_locations ORDER BY name");
+    $onuLocations = fetchAll("
+        SELECT o.*, c.pppoe_username 
+        FROM onu_locations o
+        LEFT JOIN customers c ON c.serial_number = o.serial_number
+        ORDER BY o.name
+    ");
+
+    // Fetch ALL active PPPoE sessions instantaneously merging logic avoiding sequential API bottlenecks
+    require_once '../includes/mikrotik_api.php';
+    $activeUsers = [];
+    $routers = getAllRouters();
+    foreach ($routers as $r) {
+        $mk = getMikrotikConnection($r['id']);
+        if ($mk) {
+            mikrotikWrite($mk, '/ppp/active/print');
+            mikrotikWrite($mk, '=.proplist=name');
+            $activeList = mikrotikRead($mk);
+            if (!empty($activeList) && !isset($activeList['!trap'])) {
+                foreach ($activeList as $session) {
+                    if (isset($session['name'])) {
+                        $activeUsers[$session['name']] = true;
+                    }
+                }
+            }
+        }
+    }
 
     foreach ($onuLocations as &$onu) {
-        try {
-            $deviceInfo = genieacsGetDeviceInfo($onu['serial_number']);
-
-            if ($deviceInfo) {
-                $onu['status'] = $deviceInfo['status'];
-                $onu['device_info'] = $deviceInfo;
-                $onu['ssid'] = $deviceInfo['ssid'] ?? '';
-                $onu['password'] = $deviceInfo['wifi_password'] ?? '';
-            } else {
-                $onu['status'] = 'unknown';
-                $onu['device_info'] = null;
-            }
-        } catch (Exception $e) {
-            $onu['status'] = 'unknown';
-            $onu['device_info'] = null;
-        }
+        // Evaluate native presence over localized Mikrotik memory clusters
+        $onu['status'] = (!empty($onu['pppoe_username']) && isset($activeUsers[$onu['pppoe_username']])) ? 'online' : 'offline';
+        $onu['device_info'] = null;
+        $onu['ssid'] = '';
+        $onu['password'] = '';
     }
 
     $odps = fetchAll("SELECT * FROM odps ORDER BY name");
