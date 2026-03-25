@@ -15,34 +15,34 @@ $onus = fetchAll("
 ");
 $odps = fetchAll("SELECT * FROM onu_locations WHERE type = 'odp' AND lat IS NOT NULL AND lng IS NOT NULL");
 
-// Get Customers
+// Get Customers safely mapping phone keys natively over serial tags
 $customers = fetchAll("
     SELECT c.id, c.name, 
            COALESCE(c.lat, o.lat) as lat, 
            COALESCE(c.lng, o.lng) as lng, 
            c.address, c.status, c.pppoe_username 
     FROM customers c
-    LEFT JOIN onu_locations o ON c.pppoe_username = o.serial_number
+    LEFT JOIN onu_locations o ON c.phone = o.serial_number
     WHERE c.status IN ('registered', 'active')
     HAVING lat IS NOT NULL AND lng IS NOT NULL
 ");
 
-// Get technician's tasks to highlight
+// Get technician's tasks to highlight mapping Phone triggers directly representing ACS/Onu Serial constraints
 $myTasks = fetchAll("
-    SELECT t.id, t.customer_id, c.pppoe_username, 'ticket' as type 
+    SELECT t.id, t.customer_id, c.phone, 'ticket' as type 
     FROM trouble_tickets t
     JOIN customers c ON t.customer_id = c.id
     WHERE t.technician_id = ? AND t.status != 'resolved'
     UNION
-    SELECT id, id as customer_id, pppoe_username, 'install' as type 
+    SELECT id, id as customer_id, phone, 'install' as type 
     FROM customers 
     WHERE installed_by = ? AND status = 'registered'
 ", [$tech['id'], $tech['id']]);
 
 $taskMap = [];
 foreach ($myTasks as $task) {
-    if (!empty($task['pppoe_username'])) {
-        $taskMap[$task['pppoe_username']] = $task['type'];
+    if (!empty($task['phone'])) {
+        $taskMap[$task['phone']] = $task['type'];
     }
 }
 

@@ -24,7 +24,7 @@ foreach ($routers as $r) {
         if (!empty($interfaces) && !isset($interfaces['!trap'])) {
             foreach ($interfaces as $intf) {
                 if (isset($intf['name']) && strpos($intf['name'], '<pppoe-') === 0) {
-                    $username = substr($intf['name'], 7, -1);
+                    $username = trim(substr($intf['name'], 7, -1));
                     $activeSessions[$username] = [
                         'rx' => (float)($intf['rx-byte'] ?? 0),
                         'tx' => (float)($intf['tx-byte'] ?? 0)

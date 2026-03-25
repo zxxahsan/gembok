@@ -74,6 +74,7 @@ if ($method === 'GET') {
         SELECT o.*, c.pppoe_username 
         FROM onu_locations o
         LEFT JOIN customers c ON c.phone = o.serial_number
+        WHERE o.lat IS NOT NULL AND o.lng IS NOT NULL AND o.lat != '' AND o.lng != ''
         ORDER BY o.name
     ");
 
@@ -84,13 +85,14 @@ if ($method === 'GET') {
     foreach ($routers as $r) {
         $mk = getMikrotikConnection($r['id']);
         if ($mk) {
-            mikrotikWrite($mk, '/ppp/active/print');
+            mikrotikWrite($mk, '/interface/print');
             mikrotikWrite($mk, '=.proplist=name');
             $activeList = mikrotikRead($mk);
             if (!empty($activeList) && !isset($activeList['!trap'])) {
-                foreach ($activeList as $session) {
-                    if (isset($session['name'])) {
-                        $activeUsers[$session['name']] = true;
+                foreach ($activeList as $intf) {
+                    if (isset($intf['name']) && strpos($intf['name'], '<pppoe-') === 0) {
+                        $username = trim(substr($intf['name'], 7, -1));
+                        $activeUsers[$username] = true;
                     }
                 }
             }
@@ -99,7 +101,8 @@ if ($method === 'GET') {
 
     foreach ($onuLocations as &$onu) {
         // Evaluate native presence over localized Mikrotik memory clusters
-        $onu['status'] = (!empty($onu['pppoe_username']) && isset($activeUsers[$onu['pppoe_username']])) ? 'online' : 'offline';
+        $pu = trim((string)$onu['pppoe_username']);
+        $onu['status'] = (!empty($pu) && isset($activeUsers[$pu])) ? 'online' : 'offline';
         $onu['device_info'] = null;
         $onu['ssid'] = '';
         $onu['password'] = '';
