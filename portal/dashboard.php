@@ -211,17 +211,18 @@ ob_start();
                     }
                 }
                 
-                // Live Session + DB (Dipotong offset usage_last_rx agar tidak duplikat delta)
-                $dbTotalIn = $customer['usage_bytes_in'] ?? 0;
-                $dbTotalOut = $customer['usage_bytes_out'] ?? 0;
-                $lastRxTracked = $customer['usage_last_rx'] ?? 0;
-                $lastTxTracked = $customer['usage_last_tx'] ?? 0;
+                // Live Session + DB Historical
+                $dbTotalIn = (float)($customer['usage_bytes_in'] ?? 0);
+                $dbTotalOut = (float)($customer['usage_bytes_out'] ?? 0);
+                $lastRxTracked = (float)($customer['usage_last_rx'] ?? 0);
+                $lastTxTracked = (float)($customer['usage_last_tx'] ?? 0);
                 
-                $deltaRx = ($liveSessionRx >= $lastRxTracked) ? ($liveSessionRx - $lastRxTracked) : $liveSessionRx;
-                $deltaTx = ($liveSessionTx >= $lastTxTracked) ? ($liveSessionTx - $lastTxTracked) : $liveSessionTx;
+                // Active session safely merges highest possible chunk to natively prevent tracking resets
+                $activeRx = max((float)$liveSessionRx, $lastRxTracked);
+                $activeTx = max((float)$liveSessionTx, $lastTxTracked);
                 
                 // Total Akumulasi Murni Keseluruhan
-                $grandTotalBytes = $dbTotalIn + $dbTotalOut + $deltaRx + $deltaTx;
+                $grandTotalBytes = $dbTotalIn + $dbTotalOut + $activeRx + $activeTx;
             ?>
             
             <div style="background: rgba(0,0,0,0.3); padding: 15px 30px; border-radius: 12px; text-align: center; border-left: 4px solid var(--neon-purple); margin-top: 10px;">

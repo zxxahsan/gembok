@@ -2,20 +2,75 @@
 require_once '../../includes/auth.php';
 requireTechnicianLogin();
 
-$pageTitle = 'Cari Perangkat';
-$tech = $_SESSION['technician'];
-$results = [];
-$search = $_GET['q'] ?? '';
-
-if (!empty($search)) {
-    // Search in local DB first to get PPPoE username
-    $results = fetchAll("
-        SELECT id, name, pppoe_username, address, phone 
+// ==========================================
+// AJAX ENDPOINT FOR LIVE SEARCH
+// ==========================================
+if (isset($_GET['ajax']) && isset($_GET['q'])) {
+    header('Content-Type: application/json');
+    require_once '../../includes/functions.php';
+    require_once '../../includes/mikrotik_api.php';
+    
+    $search = trim($_GET['q']);
+    if (strlen($search) < 2) {
+        echo json_encode(['results' => []]);
+        exit;
+    }
+    
+    // 1. Search DB for matching customers
+    $customers = fetchAll("
+        SELECT id, name, pppoe_username, serial_number, phone, address 
         FROM customers 
         WHERE name LIKE ? OR pppoe_username LIKE ? OR phone LIKE ?
-        LIMIT 10
+        LIMIT 5
     ", ["%$search%", "%$search%", "%$search%"]);
+    
+    $output = [];
+    foreach ($customers as $r) {
+        $isOnline = false;
+        $redaman = '-';
+        
+        // 2. Fetch True Online Status from Mikrotik
+        if (!empty($r['pppoe_username'])) {
+            $session = mikrotikGetActiveSessionByUsername($r['pppoe_username']);
+            if ($session) {
+                $isOnline = true;
+            }
+        }
+        
+        // 3. Fetch Optical RX Power from GenieACS
+        $device = null;
+        if (!empty($r['serial_number'])) $device = genieacsGetDevice($r['serial_number']);
+        if (!$device && !empty($r['phone'])) $device = genieacsFindDeviceByPppoe($r['phone']);
+        if (!$device && !empty($r['pppoe_username'])) $device = genieacsFindDeviceByPppoe($r['pppoe_username']);
+        
+        if ($device) {
+            $rxPower = genieacsGetValue($device, 'VirtualParameters.RXPower');
+            if ($rxPower === null) $rxPower = genieacsGetValue($device, 'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.RxPower');
+            if ($rxPower === null) $rxPower = genieacsGetValue($device, 'Device.Optical.Interface.1.RXPower');
+            
+            if (is_array($rxPower)) $rxPower = $rxPower['_value'] ?? $rxPower['value'] ?? '-';
+            if ($rxPower !== null && $rxPower !== '') $redaman = $rxPower;
+        }
+        
+        $output[] = [
+            'name' => $r['name'],
+            'username' => $r['pppoe_username'],
+            'address' => substr($r['address'] ?? '-', 0, 30),
+            'url' => 'manage.php?username=' . urlencode($r['pppoe_username']),
+            'is_online' => $isOnline,
+            'redaman' => $redaman
+        ];
+    }
+    
+    echo json_encode(['results' => $output]);
+    exit;
 }
+
+// ==========================================
+// REGULAR PAGE RENDER
+// ==========================================
+$pageTitle = 'Cari Perangkat';
+$tech = $_SESSION['technician'];
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -31,6 +86,8 @@ if (!empty($search)) {
             --bg-card: #161628;
             --text-primary: #ffffff;
             --text-secondary: #b0b0c0;
+            --success: #00ff88;
+            --danger: #ff4757;
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
@@ -65,84 +122,209 @@ if (!empty($search)) {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            position: relative;
         }
         
         .form-control {
             flex: 1;
-            padding: 12px;
+            padding: 15px 20px;
             background: var(--bg-card);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
+            border-radius: 12px;
             color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s;
         }
         
-        .btn-search {
-            padding: 0 20px;
-            background: var(--primary);
-            border: none;
-            border-radius: 8px;
-            color: #000;
-            cursor: pointer;
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(0,245,255,0.2);
+        }
+        
+        .search-icon {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 1.2rem;
         }
         
         .result-card {
             background: var(--bg-card);
             padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
+            border-radius: 12px;
+            margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             text-decoration: none;
             color: inherit;
             border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.2s;
         }
         
-        .result-info h3 { font-size: 1rem; margin-bottom: 5px; }
-        .result-info p { font-size: 0.8rem; color: var(--text-secondary); }
+        .result-card:active {
+            transform: scale(0.98);
+        }
         
-        .btn-manage {
-            background: rgba(0, 245, 255, 0.1);
+        .result-info h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--primary); }
+        .result-info p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; }
+        
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        
+        .status-online { background: rgba(0,255,136,0.1); color: var(--success); border: 1px solid rgba(0,255,136,0.3); }
+        .status-offline { background: rgba(255,71,87,0.1); color: var(--danger); border: 1px solid rgba(255,71,87,0.3); }
+        
+        .signal-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            display: inline-block;
+            background: rgba(255,255,255,0.05);
+            color: var(--text-secondary);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 20px;
             color: var(--primary);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.9rem;
+        }
+        
+        .loader i {
+            animation: spin 1s linear infinite;
+            font-size: 2rem;
+        }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        .empty-state {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-top: 50px;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <a href="../dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i></a>
-        <h2>Cek Perangkat</h2>
+        <h2>Cari Perangkat</h2>
     </div>
 
     <div class="container">
-        <form method="GET" class="search-box">
-            <input type="text" name="q" class="form-control" placeholder="Nama, PPPoE, atau HP..." value="<?php echo htmlspecialchars($search); ?>">
-            <button type="submit" class="btn-search"><i class="fas fa-search"></i></button>
-        </form>
+        <div class="search-box">
+            <input type="text" id="searchInput" class="form-control" placeholder="Ketik Nama, PPPoE, atau HP..." autocomplete="off">
+            <i class="fas fa-search search-icon"></i>
+        </div>
         
-        <?php if (!empty($search) && empty($results)): ?>
-            <div style="text-align: center; color: var(--text-secondary); margin-top: 30px;">
-                <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                <p>Tidak ditemukan.</p>
-            </div>
-        <?php endif; ?>
+        <div id="loader" class="loader">
+            <i class="fas fa-circle-notch"></i>
+            <p style="margin-top: 10px; font-size: 0.9rem; color: var(--text-secondary);">Mencari pelanggan & sinkronisasi ALAT...</p>
+        </div>
         
-        <?php foreach ($results as $r): ?>
-            <a href="manage.php?username=<?php echo urlencode($r['pppoe_username']); ?>" class="result-card">
-                <div class="result-info">
-                    <h3><?php echo htmlspecialchars($r['name']); ?></h3>
-                    <p><i class="fas fa-user-circle"></i> <?php echo htmlspecialchars($r['pppoe_username']); ?></p>
-                    <p><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars(substr($r['address'] ?? '-', 0, 25)); ?></p>
-                </div>
-                <div class="btn-manage">
-                    <i class="fas fa-cog"></i> Atur
-                </div>
-            </a>
-        <?php endforeach; ?>
+        <div id="emptyState" class="empty-state">
+            <i class="fas fa-satellite-dish" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+            <p>Mulai ketik (min 2 huruf) nama, nomor HP, atau id PPPoE pelanggan.</p>
+        </div>
+        
+        <div id="resultsContainer"></div>
     </div>
 
     <?php require_once '../includes/bottom_nav.php'; ?>
+    
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const loader = document.getElementById('loader');
+        const emptyState = document.getElementById('emptyState');
+        let typingTimer;
+        
+        // Auto-focus input for instant typing
+        searchInput.focus();
+        
+        searchInput.addEventListener('input', function() {
+            clearTimeout(typingTimer);
+            const query = this.value.trim();
+            
+            if (query.length < 2) {
+                resultsContainer.innerHTML = '';
+                emptyState.style.display = 'block';
+                loader.style.display = 'none';
+                return;
+            }
+            
+            // Wait 600ms after user finishes bouncing to avoid crashing MikroTik / ACS API loops
+            emptyState.style.display = 'none';
+            resultsContainer.innerHTML = '';
+            loader.style.display = 'block';
+            
+            typingTimer = setTimeout(() => {
+                fetchDevices(query);
+            }, 600);
+        });
+        
+        function fetchDevices(query) {
+            fetch(`search.php?ajax=1&q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    loader.style.display = 'none';
+                    resultsContainer.innerHTML = '';
+                    
+                    if (!data.results || data.results.length === 0) {
+                        resultsContainer.innerHTML = `
+                            <div style="text-align: center; color: var(--text-secondary); margin-top: 30px;">
+                                <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                                <p>Pelanggan "${query}" tidak ditemukan.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    data.results.forEach(r => {
+                        const statusClass = r.is_online ? 'status-online' : 'status-offline';
+                        const statusIcon = r.is_online ? 'fa-check-circle' : 'fa-times-circle';
+                        const statusText = r.is_online ? 'Berjalan' : 'Terputus';
+                        
+                        const card = document.createElement('a');
+                        card.href = r.url;
+                        card.className = 'result-card';
+                        card.innerHTML = `
+                            <div class="result-info" style="width: 100%;">
+                                <h3>${r.name}</h3>
+                                <p><i class="fas fa-user-circle"></i> ${r.username}</p>
+                                <p style="margin-bottom: 10px;"><i class="fas fa-map-marker-alt"></i> ${r.address}</p>
+                                
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <span class="status-badge ${statusClass}">
+                                        <i class="fas ${statusIcon}"></i> ${statusText}
+                                    </span>
+                                    <span class="signal-badge">
+                                        <i class="fas fa-signal" style="color: var(--primary);"></i> ${r.redaman} dBm
+                                    </span>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right" style="color: var(--text-secondary); font-size: 1.2rem;"></i>
+                        `;
+                        resultsContainer.appendChild(card);
+                    });
+                })
+                .catch(err => {
+                    loader.style.display = 'none';
+                    resultsContainer.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> Gagal terhubung ke API Mikrotik/ACS.</div>`;
+                    console.error(err);
+                });
+        }
+    </script>
 </body>
 </html>

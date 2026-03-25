@@ -467,18 +467,21 @@ function runSystemPing($pdo)
                         $rx = (int)$session['bytes-in'];
                         $tx = (int)$session['bytes-out'];
 
-                        $cust = fetchOne("SELECT id, usage_last_rx, usage_last_tx FROM customers WHERE pppoe_username = ?", [$user]);
+                        $cust = fetchOne("SELECT id, usage_bytes_in, usage_bytes_out, usage_last_rx, usage_last_tx FROM customers WHERE pppoe_username = ?", [$user]);
                         if ($cust) {
                             $lastRx = (int)$cust['usage_last_rx'];
                             $lastTx = (int)$cust['usage_last_tx'];
 
                             // Diff Matrix ensuring disconnect metrics roll correctly natively bypassing negative crashes
-                            $deltaRx = ($rx >= $lastRx) ? ($rx - $lastRx) : $rx; 
-                            $deltaTx = ($tx >= $lastTx) ? ($tx - $lastTx) : $tx;
-
-                            if ($deltaRx > 0 || $deltaTx > 0) {
+                            if ($rx < $lastRx || $tx < $lastTx) {
+                                // Router reconnected. Previous session effectively terminated.
+                                // Move previous $lastRx/$lastTx into Historical Base securely!
                                 $pdo->prepare("UPDATE customers SET usage_bytes_in = usage_bytes_in + ?, usage_bytes_out = usage_bytes_out + ?, usage_last_rx = ?, usage_last_tx = ? WHERE id = ?")
-                                    ->execute([$deltaRx, $deltaTx, $rx, $tx, $cust['id']]);
+                                    ->execute([$lastRx, $lastTx, $rx, $tx, $cust['id']]);
+                            } else {
+                                // Session is still alive and linearly accumulating
+                                $pdo->prepare("UPDATE customers SET usage_last_rx = ?, usage_last_tx = ? WHERE id = ?")
+                                    ->execute([$rx, $tx, $cust['id']]);
                             }
                         }
                     }
