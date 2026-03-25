@@ -118,8 +118,31 @@ foreach ($customers as $c) {
     $lastRx = (float)($c['usage_last_rx'] ?? 0);
     $lastTx = (float)($c['usage_last_tx'] ?? 0);
     
-    $activeRx = max($liveRx, $lastRx);
-    $activeTx = max($liveTx, $lastTx);
+    // Auto-Save Aggregations natively mimicking background CRONs overriding offline Router resets unconditionally
+    if ($isOnline) {
+        $pdo = getDB();
+        if ($liveRx < $lastRx || $liveTx < $lastTx) {
+            // Router completely reset since last known tick! Move previous session quotas into permanent History!
+            $dbRx += $lastRx;
+            $dbTx += $lastTx;
+            
+            $stmt = $pdo->prepare("UPDATE customers SET usage_bytes_in = ?, usage_bytes_out = ?, usage_last_rx = ?, usage_last_tx = ? WHERE id = ?");
+            $stmt->execute([$dbRx, $dbTx, $liveRx, $liveTx, $c['id']]);
+            
+            $lastRx = $liveRx;
+            $lastTx = $liveTx;
+        } else if ($liveRx > $lastRx || $liveTx > $lastTx) {
+            // Normal linear persistent growth natively logging the active maximums!
+            $stmt = $pdo->prepare("UPDATE customers SET usage_last_rx = ?, usage_last_tx = ? WHERE id = ?");
+            $stmt->execute([$liveRx, $liveTx, $c['id']]);
+            
+            $lastRx = $liveRx;
+            $lastTx = $liveTx;
+        }
+    }
+    
+    $activeRx = $isOnline ? $liveRx : $lastRx;
+    $activeTx = $isOnline ? $liveTx : $lastTx;
     
     $totalRx = $dbRx + $activeRx; // Total Download (Bytes-In from Router)
     $totalTx = $dbTx + $activeTx; // Total Upload (Bytes-Out from Router)
