@@ -86,6 +86,16 @@ if ($customerDevice) {
     if (is_array($onuSignal)) {
         $onuSignal = $onuSignal['_value'] ?? $onuSignal['value'] ?? 'N/A';
     }
+    
+    // Hitung Perangkat Terhubung (LAN/WiFi Hosts)
+    $lanHosts = genieacsGetLanHosts($deviceId);
+    $activeCount = 0;
+    foreach ($lanHosts as $host) {
+        if (isset($host['Active']) && $host['Active'] === true) {
+            $activeCount++;
+        }
+    }
+    $onuDevices = $activeCount > 0 ? $activeCount : count($lanHosts);
 }
 
 $pageTitle = 'Dashboard Pelanggan';
@@ -120,6 +130,17 @@ ob_start();
                     <div style="font-weight: 600; color: var(--text-primary);"><?php echo htmlspecialchars($pppoeUptime); ?></div>
                 </div>
             </div>
+            
+            <!-- Devices Pill -->
+            <?php if (isset($onuDevices)): ?>
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 12px;">
+                <i class="fas fa-users" style="color: var(--neon-purple); font-size: 1.2rem;"></i>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Perangkat Aktif</div>
+                    <div style="font-weight: 600; color: var(--text-primary);"><?php echo htmlspecialchars($onuDevices); ?> Device</div>
+                </div>
+            </div>
+            <?php endif; ?>
             
             <!-- Signal Pill -->
             <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 12px;">

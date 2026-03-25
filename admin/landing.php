@@ -50,6 +50,33 @@ if ($record) {
     $currentHtml = $record['setting_value'];
 }
 
+// SELF ASSMBLY / DB WIPE: If the legacy HTML is cached, force load the new Parallax UI payload dynamically 
+if (file_exists('../landing_css.txt') && strpos($currentHtml, 'Internet Cepat & Stabil') === false) {
+    $css = file_get_contents('../landing_css.txt');
+    $js = file_get_contents('../landing_script.txt');
+    $htmlbody = file_get_contents('../landing_html.txt');
+
+    $fullHtml = '<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ahsan Network - Internet Cepat & Stabil</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>' . $css . '</style>
+</head>
+<body>' . $htmlbody . '<script>' . $js . '</script></body>
+</html>';
+
+    // Force Database update reflecting the new default
+    if ($record) {
+        update('site_settings', ['setting_value' => $fullHtml], "setting_key = 'custom_landing_html'");
+    } else {
+        insert('site_settings', ['setting_key' => 'custom_landing_html', 'setting_value' => $fullHtml]);
+    }
+    $currentHtml = $fullHtml;
+}
+
 if (empty($currentHtml)) {
     $appNameDisplay = getSetting('app_name', 'GEMBOK ISP');
     $currentHtml = <<<HTML
