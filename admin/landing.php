@@ -50,6 +50,29 @@ if ($record) {
     $currentHtml = $record['setting_value'];
 }
 
+if (empty($currentHtml)) {
+    $appNameDisplay = getSetting('app_name', 'GEMBOK ISP');
+    $currentHtml = <<<HTML
+<div style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px; text-align: center; color: white;">
+    <h1 style="font-size: 3rem; margin-bottom: 20px; background: linear-gradient(135deg, #00f5ff 0%, #bf00ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">$appNameDisplay</h1>
+    <p style="font-size: 1.15rem; color: #b0b0c0; max-width: 80%; line-height: 1.7; margin-bottom: 40px;">
+        Selamat datang di Portal Layanan Internet modern. Kami menyediakan konektivitas fiber optik tanpa batas dengan kestabilan penuh untuk rumah dan bisnis Anda.
+    </p>
+    
+    <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 25px; border-radius: 16px; width: 220px; text-align: left; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+            <h3 style="color: #00f5ff; margin-bottom: 15px; font-size: 1.2rem;"><i class="fas fa-rocket"></i> Fiber Kilat</h3>
+            <p style="font-size: 0.9rem; color: #9ca3af; margin: 0;">Teknologi kabel serat optik dengan latensi terendah untuk gaming.</p>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 25px; border-radius: 16px; width: 220px; text-align: left; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+            <h3 style="color: #bf00ff; margin-bottom: 15px; font-size: 1.2rem;"><i class="fas fa-infinity"></i> Anti FUP</h3>
+            <p style="font-size: 0.9rem; color: #9ca3af; margin: 0;">Nikmati internet Unlimited sungguhan tanpa takut kecepatan diturunkan.</p>
+        </div>
+    </div>
+</div>
+HTML;
+}
+
 ob_start();
 ?>
 
@@ -123,7 +146,7 @@ iframe.preview-frame {
                 <div class="editor-header">
                     <span><i class="fas fa-code"></i> HTML / CSS Raw Code</span>
                 </div>
-                <textarea id="htmlEditor" name="custom_landing_html" class="code-editor" spellcheck="false" placeholder="<div style='text-align:center; color:#fff; padding: 50px;'><h1>Selamat Datang di ISP Kami!</h1><p>Internet Cepat Tanpa Batas.</p></div>"><?php echo htmlspecialchars($currentHtml); ?></textarea>
+                <textarea id="htmlEditor" name="custom_landing_html" class="code-editor" spellcheck="false"><?php echo htmlspecialchars($currentHtml); ?></textarea>
             </div>
             
             <!-- PANE 2: Live Preview -->
@@ -149,22 +172,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updatePreview() {
         const code = editor.value;
-        const doc = frame.contentWindow.document;
-        doc.open();
-        // Injecting base styles matching the real index.php
-        doc.write(`
+        const htmlDoc = `
             <!DOCTYPE html>
             <html>
             <head>
                 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
                 <style>
                     body { 
                         margin: 0; 
                         padding: 0;
                         font-family: 'Inter', sans-serif; 
                         color: #ffffff;
-                        /* Background mirroring the left flex box of index.php */
-                        background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a12 100%);
+                        background: transparent;
                     }
                 </style>
             </head>
@@ -172,8 +192,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 ${code}
             </body>
             </html>
-        `);
-        doc.close();
+        `;
+        // Injecting safely via srcdoc avoiding cross-origin sandboxing blocks entirely.
+        frame.srcdoc = htmlDoc;
     }
 
     // Update on every keystroke
