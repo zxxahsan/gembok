@@ -557,6 +557,7 @@ foreach ($myTasks as $task) {
         // User Location Runtime Monitoring
         var userMarker = null;
         var watchId = null;
+        var isFirstLocation = true; // Auto-center trigger
 
         if ("geolocation" in navigator) {
             watchId = navigator.geolocation.watchPosition(function(position) {
@@ -579,6 +580,13 @@ foreach ($myTasks as $task) {
                         .addTo(map)
                         .bindPopup("Lokasi Teknisi Saat Ini<br>Akurasi: " + Math.round(acc) + "m");
                 }
+                
+                // Auto Center Map to Technician natively on first location hit synchronously
+                if (isFirstLocation) {
+                    map.setView([lat, lng], 15);
+                    isFirstLocation = false;
+                }
+                
             }, function(error) {
                 console.warn("Live Geolocation disabled: " + error.message);
             }, {

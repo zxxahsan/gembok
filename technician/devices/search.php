@@ -16,9 +16,9 @@ if (isset($_GET['ajax']) && isset($_GET['q'])) {
         exit;
     }
     
-    // 1. Search DB for matching customers
+    // 1. Search DB for matching customers injecting router IDs inherently 
     $customers = fetchAll("
-        SELECT id, name, pppoe_username, serial_number, phone, address 
+        SELECT id, name, pppoe_username, serial_number, phone, address, router_id
         FROM customers 
         WHERE name LIKE ? OR pppoe_username LIKE ? OR phone LIKE ?
         LIMIT 5
@@ -29,24 +29,37 @@ if (isset($_GET['ajax']) && isset($_GET['q'])) {
         $isOnline = false;
         $redaman = '-';
         
-        // 2. Fetch True Online Status from Mikrotik
-        if (!empty($r['pppoe_username'])) {
-            $session = mikrotikGetActiveSessionByUsername($r['pppoe_username']);
-            if ($session) {
+        $user = trim((string)$r['pppoe_username']);
+        
+        // 2. Fetch True Online Status from Mikrotik mirroring Verified Customer interface hooks seamlessly avoiding PPP drops
+        if (!empty($user)) {
+            $rid = $r['router_id'] ?? null;
+            $intf = mikrotikGetInterfaceBytesByUsername($user, $rid);
+            
+            if (!$intf) {
+                $routers = fetchAll("SELECT id FROM routers");
+                if (empty($routers)) $routers = [['id' => 0]];
+                foreach ($routers as $rt) {
+                    if ($rt['id'] == $rid) continue;
+                    $intf = mikrotikGetInterfaceBytesByUsername($user, $rt['id']);
+                    if ($intf) { $isOnline = true; break; }
+                }
+            } else {
                 $isOnline = true;
             }
         }
         
-        // 3. Fetch Optical RX Power from GenieACS
+        // 3. Fetch Optical RX Power from GenieACS parsing smart `_tags` integrations natively 
         $device = null;
         if (!empty($r['serial_number'])) $device = genieacsGetDevice($r['serial_number']);
-        if (!$device && !empty($r['phone'])) $device = genieacsFindDeviceByPppoe($r['phone']);
-        if (!$device && !empty($r['pppoe_username'])) $device = genieacsFindDeviceByPppoe($r['pppoe_username']);
+        if (!$device && !empty($r['phone'])) $device = genieacsGetDevice($r['phone']);
+        if (!$device && !empty($user)) $device = genieacsGetDevice($user);
         
         if ($device) {
             $rxPower = genieacsGetValue($device, 'VirtualParameters.RXPower');
             if ($rxPower === null) $rxPower = genieacsGetValue($device, 'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.RxPower');
             if ($rxPower === null) $rxPower = genieacsGetValue($device, 'Device.Optical.Interface.1.RXPower');
+            if ($rxPower === null) $rxPower = genieacsGetValue($device, 'InternetGatewayDevice.WANDevice.1.WANDSLInterfaceConfig.UpstreamAttenuation'); // Random backup
             
             if (is_array($rxPower)) $rxPower = $rxPower['_value'] ?? $rxPower['value'] ?? '-';
             if ($rxPower !== null && $rxPower !== '') $redaman = $rxPower;
@@ -54,9 +67,9 @@ if (isset($_GET['ajax']) && isset($_GET['q'])) {
         
         $output[] = [
             'name' => $r['name'],
-            'username' => $r['pppoe_username'],
+            'username' => $r['pppoe_username'] ?? '-',
             'address' => substr($r['address'] ?? '-', 0, 30),
-            'url' => 'manage.php?username=' . urlencode($r['pppoe_username']),
+            'url' => 'manage.php?serial=' . urlencode(!empty($r['serial_number']) ? $r['serial_number'] : (!empty($r['phone']) ? $r['phone'] : $user)),
             'is_online' => $isOnline,
             'redaman' => $redaman
         ];
