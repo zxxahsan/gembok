@@ -61,6 +61,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vouchers[] = $voucher;
         }
         
+        // Sales Track Owner Mapping
+        $salesId = null;
+        if (!empty($_POST['sales_user_id'])) {
+            $salesId = (int)$_POST['sales_user_id'];
+        }
+        
         // Save to database for history
         foreach ($vouchers as $v) {
             $voucherData = [
@@ -71,11 +77,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'created_at' => date('Y-m-d H:i:s')
             ];
             
-            // Check if vouchers table exists, if not skip
+            // Sync to Global Voucher Pool
             try {
                 insert('vouchers', $voucherData);
-            } catch (Exception $e) {
-                // Table might not exist, continue
+            } catch (Exception $e) {}
+            
+            // Assign explicitly to tracking nodes if Sales User requested
+            if ($salesId && ($v['status'] === 'saved' || $v['status'] === 'local')) {
+                // Find base price of profile conceptually, default 0
+                try {
+                    insert('hotspot_sales', [
+                        'username' => $v['username'],
+                        'profile' => $v['profile'],
+                        'price' => 0,
+                        'selling_price' => 0,
+                        'prefix' => $prefix,
+                        'sales_user_id' => $salesId,
+                        'status' => 'inactive',
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]);
+                } catch (\Exception $e) {}
             }
         }
         
@@ -109,6 +130,9 @@ if ($mikrotikConnected) {
     // Try to get hotspot profiles
     $hotspotProfiles = mikrotikGetHotspotProfiles();
 }
+
+$salesUsers = fetchAll("SELECT id, name FROM sales_users WHERE status = 'active'");
+
 
 ob_start();
 ?>
@@ -172,6 +196,17 @@ ob_start();
                 <label class="form-label">Panjang Karakter</label>
                 <input type="number" name="length" id="voucherLength" class="form-control" value="6" min="4" max="12" required>
             </div>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label class="form-label">Tugaskan Voucher ke Sales</label>
+            <select name="sales_user_id" class="form-control" style="background: #161628; color: #ffffff; padding: 12px; border: 1px solid #2a2a40; border-radius: 8px;">
+                <option value="">-- Hanya Generasi Admin --</option>
+                <?php foreach($salesUsers as $su): ?>
+                <option value="<?php echo $su['id']; ?>"><?php echo htmlspecialchars($su['name']); ?></option>
+                <?php endforeach; ?>
+            </select>
+            <small style="color: var(--text-muted);">Pilih sales jika ingin voucher dilacak di panel mereka.</small>
         </div>
         
         <div class="form-group">

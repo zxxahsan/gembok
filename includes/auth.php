@@ -55,13 +55,13 @@ function adminLogout() {
     unset($_SESSION['admin']);
     session_destroy();
     
-    redirect(APP_URL . '/admin/login.php');
+    redirect(APP_URL . '/login.php');
 }
 
 function requireAdminLogin() {
     if (!isAdminLoggedIn()) {
         setFlash('error', 'Silakan login terlebih dahulu');
-        redirect(APP_URL . '/admin/login.php');
+        redirect(APP_URL . '/login.php');
     }
 }
 
@@ -97,13 +97,13 @@ function customerLogout() {
     unset($_SESSION['customer']);
     session_destroy();
     
-    redirect(APP_URL . '/portal/login.php');
+    redirect(APP_URL . '/login.php');
 }
 
 function requireCustomerLogin() {
     if (!isCustomerLoggedIn()) {
         setFlash('error', 'Silakan login terlebih dahulu');
-        redirect(APP_URL . '/portal/login.php');
+        redirect(APP_URL . '/login.php');
     }
 }
 
@@ -220,7 +220,7 @@ function salesLogout() {
     unset($_SESSION['sales']);
     session_destroy();
     
-    redirect(APP_URL . '/sales/login.php');
+    redirect(APP_URL . '/login.php');
 }
 
 function isSalesLoggedIn() {
@@ -230,7 +230,7 @@ function isSalesLoggedIn() {
 function requireSalesLogin() {
     if (!isSalesLoggedIn()) {
         setFlash('error', 'Silakan login terlebih dahulu');
-        redirect(APP_URL . '/sales/login.php');
+        redirect(APP_URL . '/login.php');
     }
 }
 
@@ -277,7 +277,7 @@ function technicianLogout() {
     unset($_SESSION['technician']);
     session_destroy();
     
-    redirect(APP_URL . '/technician/login.php');
+    redirect(APP_URL . '/login.php');
 }
 
 function isTechnicianLoggedIn() {
@@ -287,6 +287,6 @@ function isTechnicianLoggedIn() {
 function requireTechnicianLogin() {
     if (!isTechnicianLoggedIn()) {
         setFlash('error', 'Silakan login terlebih dahulu');
-        redirect(APP_URL . '/technician/login.php');
+        redirect(APP_URL . '/login.php');
     }
 }

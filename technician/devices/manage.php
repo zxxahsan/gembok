@@ -50,9 +50,13 @@ if (!empty($customer['serial_number'])) {
     $device = genieacsGetDevice($serial);
 }
 
-// B. If not found, try by PPPoE Username
+// B. If not found, try by Phone Number explicitly matching user tagging logic
+if (!$device && !empty($customer['phone'])) {
+    $device = genieacsFindDeviceByPppoe($customer['phone']);
+}
+
+// B2. Fallback to PPPoE Username
 if (!$device && !empty($customer['pppoe_username'])) {
-    // Try finding by VirtualParameters.pppoeUsername
     $device = genieacsFindDeviceByPppoe($customer['pppoe_username']);
 }
 

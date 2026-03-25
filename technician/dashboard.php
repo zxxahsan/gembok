@@ -169,12 +169,6 @@ $todayCompleted = fetchOne("
                 </div>
                 <div class="stat-label">Pasang Baru</div>
             </div>
-            <div class="stat-card" style="grid-column: span 2;">
-                <div class="stat-number" style="color: var(--success)">
-                    <?php echo $todayCompleted['total']; ?>
-                </div>
-                <div class="stat-label">Selesai Hari Ini</div>
-            </div>
         </div>
 
         <div class="section-title">Menu Utama</div>

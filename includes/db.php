@@ -24,6 +24,11 @@ function getDB() {
                 ]);
                 // Set global SQL mode to non-strict for compatibility
                 $pdo->exec("SET sql_mode = ''");
+                
+                // Auto-Migration for new Voucher Sales Columns
+                try {
+                    $pdo->exec("ALTER TABLE hotspot_sales ADD COLUMN status ENUM('active','inactive') DEFAULT 'inactive', ADD COLUMN used_at DATETIME NULL");
+                } catch (\Exception $e) {}
         } catch (PDOException $e) {
             $logFile = __DIR__ . '/../logs/db_error.log';
             $message = "[" . date('Y-m-d H:i:s') . "] Connection Error: " . $e->getMessage() . "\n";

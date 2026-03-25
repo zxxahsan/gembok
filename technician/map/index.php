@@ -389,8 +389,8 @@ foreach ($myTasks as $task) {
             iconAnchor: [12, 12]
         });
         
-        // Pass the task map dynamically
-        var myTasks = JSON.parse('<?php echo addslashes(json_encode($taskMap)); ?>');
+        // Pass the task map dynamically ensuring Object-casting
+        var myTasks = JSON.parse('<?php echo addslashes(json_encode(empty($taskMap) ? new stdClass() : $taskMap)); ?>');
 
         // Fetch data from API like admin/map.php
         fetch('../../api/onu_locations.php')
@@ -436,7 +436,7 @@ foreach ($myTasks as $task) {
                         });
                          
                         // Draw line to ODP if exists
-                        if (o.odp_id) {
+                        if (o.odp_id && result.odps) {
                              const odp = result.odps.find(od => od.id == o.odp_id);
                              if (odp && odp.lat && odp.lng) {
                                 L.polyline([[odp.lat, odp.lng], [o.lat, o.lng]], {

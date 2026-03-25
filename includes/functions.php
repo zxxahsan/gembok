@@ -71,22 +71,19 @@ function formatDate($date, $format = 'd M Y')
     return $time ? date($format, $time) : '-';
 }
 
-// Generate invoice number
 function generateInvoiceNumber()
 {
     $prefix = INVOICE_PREFIX;
-    $start = INVOICE_START;
-
-    $lastInvoice = fetchOne("SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1");
-
-    if ($lastInvoice) {
-        $lastNum = (int) str_replace($prefix, '', $lastInvoice['invoice_number']);
-        $newNum = $lastNum + 1;
-    } else {
-        $newNum = $start;
+    $count = fetchOne("SELECT COUNT(id) as total FROM invoices")['total'] + 1;
+    $newNum = $count;
+    
+    // Ensure absolute uniqueness bypassing legacy string parsing exceptions
+    $invoiceNum = $prefix . str_pad($newNum, 6, '0', STR_PAD_LEFT);
+    while (fetchOne("SELECT id FROM invoices WHERE invoice_number = ?", [$invoiceNum])) {
+        $newNum++;
+        $invoiceNum = $prefix . str_pad($newNum, 6, '0', STR_PAD_LEFT);
     }
-
-    return $prefix . str_pad($newNum, 6, '0', STR_PAD_LEFT);
+    return $invoiceNum;
 }
 
 function sendWhatsApp($phone, $message)

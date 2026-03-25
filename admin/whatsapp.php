@@ -68,7 +68,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         ['invoice_reminder_3', "‼️ *HARI JATUH TEMPO* ‼️\n\nHalo *{customer_name}*,\nHari ini atau besok adalah jadwal pemutusan sementara. Segera lakukan pembayaran tagihan internet sebesar *Rp {amount}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nAbaikan pesan ini bila sudah membayar.", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
         ['isolation_warning', "🔴 *KONEKSI TERPUTUS* 🔴\n\nMaaf *{customer_name}*, layanan internet telah diisolir karena tagihan *Rp {amount}* melewati batas ({due_date}).\n\nAktifkan kembali dalam 1 menit dengan pembayaran di:\n{payment_url}\n\nCheckout Cepat:\n{tripay_url}", '{customer_name}, {amount}, {due_date}, {payment_url}, {tripay_url}'],
         ['payment_success_normal', "✅ *PEMBAYARAN DITERIMA* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah kami terima.\n\nTerima kasih atas pembayaran Anda.", '{customer_name}, {amount}, {period}, {invoice_number}'],
-        ['payment_success_isolated', "✅ *PEMBAYARAN DITERIMA & KONEKSI DIPULIHKAN* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nStatus Isolasi Anda telah DIBUKA otomatis. Layanan internet Anda segera aktif kembali dalam hitungan 1-2 menit ke depan.\nTerima kasih.", '{customer_name}, {amount}, {period}, {invoice_number}']
+        ['payment_success_isolated', "✅ *PEMBAYARAN DITERIMA & KONEKSI DIPULIHKAN* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nStatus Isolasi Anda telah DIBUKA otomatis. Layanan internet Anda segera aktif kembali dalam hitungan 1-2 menit ke depan.\nTerima kasih.", '{customer_name}, {amount}, {period}, {invoice_number}'],
+        ['ticket_created', "Halo *{customer_name}*,\n\nTiket gangguan Anda telah dibuat dengan detail:\n- No. Tiket: {ticket_number}\n- Keluhan: {complaint}\n- Lokasi: {location_url}\n\nTeknisi kami akan segera menangani keluhan Anda.", '{customer_name}, {ticket_number}, {complaint}, {location_url}'],
+        ['ticket_updated', "Halo *{customer_name}*,\n\nStatus tiket gangguan Anda (No. {ticket_number}) saat ini: *{status}*.\nCatatan: {notes}\n\nTerima kasih.", '{customer_name}, {ticket_number}, {status}, {notes}'],
+        ['ticket_tech_alert', "⚠️ GANGGUAN BARU ⚠️\n\nHalo Teknisi *{tech_name}*,\nTerdapat tiket gangguan baru:\n- Pelanggan: {customer_name}\n- HP: {customer_phone}\n- Keluhan: {complaint}\n- Lokasi (Map): {location_url}\n\nSegera cek portal teknisi.", '{tech_name}, {customer_name}, {complaint}, {location_url}, {customer_phone}']
     ];
     foreach ($waTemplates as $watmp) {
         $stmt = $pdo->prepare("INSERT IGNORE INTO whatsapp_templates (type, message, variables_hint) VALUES (?, ?, ?)");
@@ -115,7 +118,10 @@ try {
         ['invoice_reminder_3', "‼️ *HARI JATUH TEMPO* ‼️\n\nHalo *{customer_name}*,\nHari ini atau besok adalah jadwal pemutusan sementara. Segera lakukan pembayaran tagihan internet sebesar *Rp {amount}*.\n\nLakukan pembayaran online di:\n{payment_url}\n\nAtau bypass payment langsung:\n{tripay_url}\n\nAbaikan pesan ini bila sudah membayar.", ''],
         ['isolation_warning', "🔴 *KONEKSI TERPUTUS* 🔴\n\nMaaf *{customer_name}*, layanan internet telah diisolir karena tagihan *Rp {amount}* melewati batas ({due_date}).\n\nAktifkan kembali dalam 1 menit dengan pembayaran di:\n{payment_url}\n\nCheckout Cepat:\n{tripay_url}", ''],
         ['payment_success_normal', "✅ *PEMBAYARAN DITERIMA* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah kami terima.\n\nTerima kasih atas pembayaran Anda.", '{customer_name}, {amount}, {period}, {invoice_number}'],
-        ['payment_success_isolated', "✅ *PEMBAYARAN DITERIMA & KONEKSI DIPULIHKAN* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nStatus Isolasi Anda telah DIBUKA otomatis. Layanan internet Anda terhubung kembali dalam waktu 1-2 menit.\nTerima kasih.", '{customer_name}, {amount}, {period}, {invoice_number}']
+        ['payment_success_isolated', "✅ *PEMBAYARAN DITERIMA & KONEKSI DIPULIHKAN* ✅\n\nHalo *{customer_name}*,\nPembayaran tagihan internet Anda sebesar *Rp {amount}* untuk periode *{period}* (Invoice: {invoice_number}) telah sukses.\n\nStatus Isolasi Anda telah DIBUKA otomatis. Layanan internet Anda terhubung kembali dalam waktu 1-2 menit.\nTerima kasih.", '{customer_name}, {amount}, {period}, {invoice_number}'],
+        ['ticket_created', "Halo *{customer_name}*,\n\nTiket gangguan Anda telah dibuat dengan detail:\n- No. Tiket: {ticket_number}\n- Keluhan: {complaint}\n- Lokasi: {location_url}\n\nTeknisi kami akan segera menangani keluhan Anda.", '{customer_name}, {ticket_number}, {complaint}, {location_url}'],
+        ['ticket_updated', "Halo *{customer_name}*,\n\nStatus tiket gangguan Anda (No. {ticket_number}) saat ini: *{status}*.\nCatatan: {notes}\n\nTerima kasih.", '{customer_name}, {ticket_number}, {status}, {notes}'],
+        ['ticket_tech_alert', "⚠️ GANGGUAN BARU ⚠️\n\nHalo Teknisi *{tech_name}*,\nTerdapat tiket gangguan baru:\n- Pelanggan: {customer_name}\n- HP: {customer_phone}\n- Keluhan: {complaint}\n- Lokasi (Map): {location_url}\n\nSegera cek portal teknisi.", '{tech_name}, {customer_name}, {complaint}, {location_url}, {customer_phone}']
     ];
     foreach($coreTemplates as $ct) {
         $stmt = $pdo->prepare("INSERT IGNORE INTO whatsapp_templates (type, message, variables_hint) VALUES (?, ?, ?)");
@@ -139,7 +145,10 @@ $typeNames = [
     'invoice_reminder_3' => 'Reminder Tagihan 3 (H-Z)',
     'isolation_warning' => 'Peringatan Isolir (PPPoE Terputus)',
     'payment_success_normal' => 'Pembayaran Berhasil (Status Aktif)',
-    'payment_success_isolated' => 'Pembayaran Berhasil & Buka Isolir'
+    'payment_success_isolated' => 'Pembayaran Berhasil & Buka Isolir',
+    'ticket_created' => 'Gangguan: Tiket Baru Dibuat (Pelanggan)',
+    'ticket_updated' => 'Gangguan: Status Tiket Berubah (Pelanggan)',
+    'ticket_tech_alert' => 'Gangguan: Notifikasi ke Teknisi'
 ];
 ?>
 

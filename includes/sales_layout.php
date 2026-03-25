@@ -844,6 +844,18 @@ if (isset($_GET['switch_router'])) {
                     <span>Buat Voucher</span>
                 </a>
 
+                <a href="<?php echo APP_URL; ?>/sales/vouchers_active.php"
+                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'vouchers_active.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Voucher Aktif</span>
+                </a>
+
+                <a href="<?php echo APP_URL; ?>/sales/vouchers_inactive.php"
+                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'vouchers_inactive.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-hourglass-half"></i>
+                    <span>Voucher Belum Aktif</span>
+                </a>
+
                 <a href="<?php echo APP_URL; ?>/sales/history.php"
                     class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'history.php' ? 'active' : ''; ?>">
                     <i class="fas fa-history"></i>
