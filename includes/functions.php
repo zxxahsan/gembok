@@ -800,6 +800,29 @@ function genieacsGetDeviceInfo($serial)
     return $info;
 }
 
+// Extract dynamically hosted LAN/WiFi associated hosts cleanly (Fixes Portal Blank Screen Bug)
+function genieacsGetLanHosts($serial)
+{
+    $device = genieacsGetDevice($serial);
+    if (!$device) {
+        return [];
+    }
+    
+    // Look for Hosts.Host arrays across all standard nodes robustly
+    $hosts = [];
+    $hostNode = genieacsGetValue($device, 'InternetGatewayDevice.LANDevice.1.Hosts.Host') ?? 
+                genieacsGetValue($device, 'Device.Hosts.Host');
+                
+    if (is_array($hostNode)) {
+        foreach ($hostNode as $key => $node) {
+            if (is_numeric($key)) {
+                $hosts[] = $node;
+            }
+        }
+    }
+    return $hosts;
+}
+
 function genieacsSetParameter($serial, $parameter, $value)
 {
     $genieacs = getGenieacsSettings();
