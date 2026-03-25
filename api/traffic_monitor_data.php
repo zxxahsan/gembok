@@ -21,6 +21,7 @@ foreach ($routers as $r) {
         // Find accurately connected users!
         mikrotikWrite($mk, '/ppp/active/print');
         mikrotikWrite($mk, '=.proplist=name');
+        mikrotikWrite($mk, '');
         $pppActive = mikrotikRead($mk);
         if (!empty($pppActive) && !isset($pppActive['!trap'])) {
             foreach ($pppActive as $session) {
@@ -34,6 +35,7 @@ foreach ($routers as $r) {
         // Find byte traffic for those connected dynamically!
         mikrotikWrite($mk, '/interface/print');
         mikrotikWrite($mk, '=.proplist=name,rx-byte,tx-byte');
+        mikrotikWrite($mk, '');
         $interfaces = mikrotikRead($mk);
         
         $activeSessions = [];

@@ -87,6 +87,7 @@ if ($method === 'GET') {
         if ($mk) {
             mikrotikWrite($mk, '/ppp/active/print');
             mikrotikWrite($mk, '=.proplist=name');
+            mikrotikWrite($mk, '');
             $activeList = mikrotikRead($mk);
             if (!empty($activeList) && !isset($activeList['!trap'])) {
                 foreach ($activeList as $session) {
