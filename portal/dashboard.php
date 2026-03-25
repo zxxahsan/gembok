@@ -94,35 +94,62 @@ ob_start();
     <!-- Monthly Usage Info -->
     <div class="card" style="margin-bottom: 30px; border-top: 4px solid var(--neon-purple);">
         <h3 style="margin-bottom: 15px; color: var(--neon-purple);">
-            <i class="fas fa-chart-line"></i> Total Penggunaan Internet (Bulan Ini)
+            <i class="fas fa-chart-pie"></i> Akumulasi Penggunaan Internet Berjalan
         </h3>
         <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
-            Periode berjalan pada bulan <strong><?php echo strftime('%B %Y'); ?></strong> 
-            (Akan di-reset otomatis pada awal bulan).
+            Periode pemakaian dari awal bulan <strong><?php echo strftime('%B %Y'); ?></strong> hingga saat ini. Kecepatan 100% tanpa FUP!
         </p>
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-            <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; text-align: center;">
-                <i class="fas fa-download" style="font-size: 2rem; color: var(--neon-cyan); margin-bottom: 10px;"></i>
-                <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-primary);">
-                    <?php echo formatBytes($monthlyRx); ?>
+        <?php $monthlyTotal = $monthlyRx + $monthlyTx; ?>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+            <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; text-align: center; border-left: 3px solid var(--neon-purple);">
+                <i class="fas fa-database" style="font-size: 2rem; color: var(--neon-purple); margin-bottom: 10px;"></i>
+                <div style="font-size: 1.8rem; font-weight: bold; color: var(--text-primary);">
+                    <?php echo formatBytes($monthlyTotal); ?>
                 </div>
-                <div style="color: var(--text-muted); font-size: 0.85rem;">Total Download</div>
+                <div style="color: var(--text-muted); font-size: 0.85rem;">Total (Download + Upload)</div>
             </div>
             
-            <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; text-align: center;">
-                <i class="fas fa-upload" style="font-size: 2rem; color: var(--neon-pink); margin-bottom: 10px;"></i>
-                <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-primary);">
-                    <?php echo formatBytes($monthlyTx); ?>
+            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; text-align: center;">
+                <i class="fas fa-download" style="font-size: 1.5rem; color: var(--neon-cyan); margin-bottom: 5px;"></i>
+                <div style="font-size: 1.3rem; font-weight: bold; color: var(--text-primary);">
+                    <?php echo formatBytes($monthlyTx); // Router TX = Customer Download ?>
                 </div>
-                <div style="color: var(--text-muted); font-size: 0.85rem;">Total Upload</div>
+                <div style="color: var(--text-muted); font-size: 0.8rem;">Porsi Download</div>
             </div>
+            
+            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; text-align: center;">
+                <i class="fas fa-upload" style="font-size: 1.5rem; color: var(--neon-pink); margin-bottom: 5px;"></i>
+                <div style="font-size: 1.3rem; font-weight: bold; color: var(--text-primary);">
+                    <?php echo formatBytes($monthlyRx); // Router RX = Customer Upload ?>
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.8rem;">Porsi Upload</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Traffic Monitor -->
+    <div class="card" style="margin-bottom: 30px; border-top: 4px solid var(--neon-cyan);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="color: var(--neon-cyan); margin: 0;">
+                <i class="fas fa-satellite-dish"></i> Live Traffic Monitor
+            </h3>
+            <span id="trafficStatusBadge" class="badge badge-warning">Menyambungkan...</span>
+        </div>
+        
+        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9rem;">
+            Pantau kecepatan internet Anda secara <em>Real-time</em> langsung dari Router Utama.
+        </p>
+        
+        <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; height: 300px; position: relative;">
+            <canvas id="liveTrafficChart"></canvas>
         </div>
     </div>
 
     <!-- Account Settings -->
     <div class="card" style="margin-bottom: 30px;">
-        <h3 style="margin-bottom: 15px; color: var(--neon-cyan);">
+        <h3 style="margin-bottom: 15px; color: var(--neon-green);">
             <i class="fas fa-user-cog"></i> Pengaturan Sandi Portal
         </h3>
         <p style="color: var(--text-secondary); margin-bottom: 15px;">
@@ -132,7 +159,7 @@ ob_start();
         <div class="form-group" style="max-width: 400px;">
             <label class="form-label">Password Baru</label>
             <input type="password" id="newPassword" class="form-control" placeholder="Minimal 6 karakter" style="margin-bottom: 15px;">
-            <button class="btn btn-warning" onclick="changePortalPassword()">
+            <button class="btn btn-primary" onclick="changePortalPassword()">
                 <i class="fas fa-key"></i> Simpan Password
             </button>
         </div>
@@ -189,6 +216,117 @@ function changePortalPassword() {
         showAlert('Terjadi kesalahan sistem.', 'error');
     });
 }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('liveTrafficChart').getContext('2d');
+    const badge = document.getElementById('trafficStatusBadge');
+    
+    // Gradient configs
+    let gradientDn = ctx.createLinearGradient(0, 0, 0, 300);
+    gradientDn.addColorStop(0, 'rgba(0, 245, 255, 0.5)'); // Neon Cyan
+    gradientDn.addColorStop(1, 'rgba(0, 245, 255, 0.0)');
+    
+    let gradientUp = ctx.createLinearGradient(0, 0, 0, 300);
+    gradientUp.addColorStop(0, 'rgba(255, 0, 170, 0.5)'); // Neon Pink
+    gradientUp.addColorStop(1, 'rgba(255, 0, 170, 0.0)');
+
+    const config = {
+        type: 'line',
+        data: {
+            labels: Array(15).fill(''),
+            datasets: [
+                {
+                    label: 'Download (Mbps)',
+                    borderColor: '#00f5ff',
+                    backgroundColor: gradientDn,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    data: Array(15).fill(0),
+                    tension: 0.4
+                },
+                {
+                    label: 'Upload (Mbps)',
+                    borderColor: '#ff00aa',
+                    backgroundColor: gradientUp,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    data: Array(15).fill(0),
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 400,
+                easing: 'linear'
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#888' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { display: false }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#fff' } },
+                tooltip: { mode: 'index', intersect: false }
+            }
+        }
+    };
+    
+    const trafficChart = new Chart(ctx, config);
+
+    function fetchLiveTraffic() {
+        fetch('<?php echo APP_URL; ?>/api/customer_traffic.php')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    badge.className = 'badge badge-success';
+                    badge.innerHTML = '<i class="fas fa-wifi"></i> Online';
+                    
+                    const dnMbps = (data.download_bps / 1000000).toFixed(2);
+                    const upMbps = (data.upload_bps / 1000000).toFixed(2);
+
+                    // Push new data and shift old
+                    trafficChart.data.datasets[0].data.push(dnMbps);
+                    trafficChart.data.datasets[1].data.push(upMbps);
+                    
+                    trafficChart.data.datasets[0].data.shift();
+                    trafficChart.data.datasets[1].data.shift();
+                    
+                    trafficChart.update();
+                } else {
+                    badge.className = 'badge badge-error';
+                    badge.innerHTML = '<i class="fas fa-times-circle"></i> ' + (data.message || 'Offline');
+                    
+                    trafficChart.data.datasets[0].data.push(0);
+                    trafficChart.data.datasets[1].data.push(0);
+                    trafficChart.data.datasets[0].data.shift();
+                    trafficChart.data.datasets[1].data.shift();
+                    trafficChart.update();
+                }
+            })
+            .catch(err => {
+                badge.className = 'badge badge-warning';
+                badge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Gagal';
+            });
+    }
+
+    // Ping every 3 seconds
+    setInterval(fetchLiveTraffic, 3000);
+    fetchLiveTraffic();
+});
 </script>
 
 <?php
