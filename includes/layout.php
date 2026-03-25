@@ -1144,6 +1144,12 @@ if (isset($_GET['switch_router'])) {
                     <span>WhatsApp</span>
                 </a>
 
+                <a href="<?php echo APP_URL; ?>/admin/landing.php"
+                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'landing.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-desktop"></i>
+                    <span>Halaman Utama</span>
+                </a>
+
                 <a href="<?php echo APP_URL; ?>/admin/settings.php"
                     class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'settings.php' ? 'active' : ''; ?>">
                     <i class="fas fa-cog"></i>
@@ -1310,6 +1316,27 @@ if (isset($_GET['switch_router'])) {
                     menuToggle.style.display = 'none';
                     document.querySelector('.sidebar').classList.remove('active');
                 }
+            });
+
+            // GLOBAL IDEMPOTENCY LOCK: Prevent Double Form Submissions / WhatsApp Duplicates
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    if(this.dataset.submitting) {
+                        e.preventDefault();
+                        return false;
+                    }
+                    this.dataset.submitting = 'true';
+                    const btn = this.querySelector('button[type="submit"]');
+                    if(btn) {
+                        // Store original content to prevent UI breaking
+                        if(!btn.dataset.originalContent) {
+                            btn.dataset.originalContent = btn.innerHTML;
+                        }
+                        btn.style.opacity = '0.7';
+                        btn.style.cursor = 'wait';
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+                    }
+                });
             });
         });
 

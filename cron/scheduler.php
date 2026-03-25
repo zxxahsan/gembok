@@ -56,6 +56,14 @@ function runScheduler() {
         foreach ($schedules as $schedule) {
             echo "\n--- Running schedule: {$schedule['name']} ---\n";
 
+            // ATOMIC LOCK: Prevent concurrent execution duplicates (Double WA / Double Invoice bugs)
+            $lockStmt = $pdo->prepare("UPDATE cron_schedules SET last_status = 'running' WHERE id = ? AND (last_status != 'running' OR last_run < DATE_SUB(NOW(), INTERVAL 2 HOUR))");
+            $lockStmt->execute([$schedule['id']]);
+            if ($lockStmt->rowCount() === 0) {
+                echo "Schedule {$schedule['name']} is currently locked by another thread. Skipping to prevent duplicates...\n";
+                continue;
+            }
+
             $startTime = microtime(true);
             $status = 'started';
 
