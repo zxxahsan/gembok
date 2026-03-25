@@ -101,7 +101,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$onuLocations = fetchAll("SELECT * FROM onu_locations ORDER BY name");
+$onuLocations = fetchAll("
+    SELECT o.*, c.pppoe_username 
+    FROM onu_locations o
+    LEFT JOIN customers c ON c.serial_number = o.serial_number
+    ORDER BY o.name
+");
+
+require_once '../includes/mikrotik_api.php';
+$activeUsers = [];
+$routers = getAllRouters();
+foreach ($routers as $r) {
+    if ($mk = getMikrotikConnection($r['id'])) {
+        mikrotikWrite($mk, '/ppp/active/print');
+        mikrotikWrite($mk, '=.proplist=name');
+        $activeList = mikrotikRead($mk);
+        if (!empty($activeList) && !isset($activeList['!trap'])) {
+            foreach ($activeList as $session) {
+                if (isset($session['name'])) $activeUsers[$session['name']] = true;
+            }
+        }
+    }
+}
 
 $totalOnu = count($onuLocations);
 $onlineOnu = 0;
@@ -116,33 +137,23 @@ if ($centerQuery && $centerQuery['avg_lat']) {
 
 $onuData = [];
 foreach ($onuLocations as $onu) {
-    $deviceInfo = genieacsGetDeviceInfo($onu['serial_number']);
+    $isOnline = (!empty($onu['pppoe_username']) && isset($activeUsers[$onu['pppoe_username']]));
+    if ($isOnline) {
+        $onlineOnu++;
+    } else {
+        $offlineOnu++;
+    }
     
-    $onuItem = [
+    $onuData[] = [
         'id' => $onu['id'],
         'name' => $onu['name'],
         'serial_number' => $onu['serial_number'],
         'lat' => $onu['lat'],
         'lng' => $onu['lng'],
         'odp_id' => $onu['odp_id'],
-        'status' => 'unknown',
+        'status' => $isOnline ? 'online' : 'offline',
         'device_info' => null
     ];
-    
-    if ($deviceInfo) {
-        $onuItem['status'] = $deviceInfo['status'];
-        $onuItem['device_info'] = $deviceInfo;
-        
-        if ($deviceInfo['status'] === 'online') {
-            $onlineOnu++;
-        } else {
-            $offlineOnu++;
-        }
-    } else {
-        $offlineOnu++;
-    }
-    
-    $onuData[] = $onuItem;
 }
 
 ob_start();
@@ -799,26 +810,12 @@ function showOnuDetails(onu) {
         statusEl.innerHTML = '<span class="badge badge-warning"><i class="fas fa-question" style="font-size: 8px; margin-right: 4px;"></i>Unknown</span>';
     }
     
-    // Device info
-    const info = onu.device_info || {};
-    
-    document.getElementById('modalLastInform').textContent = info.last_inform ? formatTimeAgo(info.last_inform) : '-';
-    document.getElementById('modalModel').textContent = (info.manufacturer ? info.manufacturer + ' ' : '') + (info.model || '-');
-    document.getElementById('modalIP').textContent = info.ip_address || '-';
-    
-    // RX/TX Power with color coding
-    const rxPowerEl = document.getElementById('modalRxPower');
-    if (info.rx_power) {
-        const rxValue = parseFloat(info.rx_power);
-        let color = 'var(--neon-green)';
-        if (rxValue < -27) color = 'var(--danger)';
-        else if (rxValue < -25) color = 'orange';
-        rxPowerEl.innerHTML = '<span style="color: ' + color + ';">' + info.rx_power + ' dBm</span>';
-    } else {
-        rxPowerEl.textContent = '-';
-    }
-    
-    document.getElementById('modalTxPower').textContent = info.tx_power ? info.tx_power + ' dBm' : '-';
+    // Place Spinners to delegate active background validation gracefully
+    document.getElementById('modalLastInform').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    document.getElementById('modalModel').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    document.getElementById('modalIP').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    document.getElementById('modalRxPower').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    document.getElementById('modalTxPower').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     
     const odpSelect = document.getElementById('onuOdpSelect');
     odpSelect.innerHTML = '<option value="">-</option>';
@@ -830,10 +827,50 @@ function showOnuDetails(onu) {
     });
     odpSelect.value = onu.odp_id ? String(onu.odp_id) : '';
     
-    document.getElementById('wifiSsid').value = info.ssid || onu.ssid || '';
-    document.getElementById('wifiPassword').value = info.wifi_password || onu.password || '';
+    document.getElementById('wifiSsid').value = '';
+    document.getElementById('wifiPassword').value = '';
     
     document.getElementById('onuModal').style.display = 'flex';
+    
+    // Fetch live telemetry instantaneously avoiding map generation freezes
+    fetch(`../api/genieacs.php?action=get_device&id=${currentOnuSerial}`)
+    .then(res => res.json())
+    .then(data => {
+        if(data.success && data.data) {
+            const info = data.data;
+            document.getElementById('modalLastInform').textContent = info.last_inform ? formatTimeAgo(info.last_inform) : '-';
+            document.getElementById('modalModel').textContent = (info.manufacturer ? info.manufacturer + ' ' : '') + (info.model || '-');
+            document.getElementById('modalIP').textContent = info.ip_address || '-';
+            
+            const rxPowerEl = document.getElementById('modalRxPower');
+            if (info.rx_power && info.rx_power !== 'N/A') {
+                const rxValue = parseFloat(info.rx_power);
+                let color = 'var(--neon-green)';
+                if (rxValue < -27) color = 'var(--danger)';
+                else if (rxValue < -25) color = 'orange';
+                rxPowerEl.innerHTML = '<span style="color: ' + color + ';">' + info.rx_power + ' dBm</span>';
+            } else {
+                rxPowerEl.textContent = '-';
+            }
+            
+            document.getElementById('modalTxPower').textContent = info.tx_power ? info.tx_power + ' dBm' : '-';
+            document.getElementById('wifiSsid').value = info.ssid || '';
+            document.getElementById('wifiPassword').value = info.wifi_password || '';
+        } else {
+            document.getElementById('modalLastInform').textContent = 'Error';
+            document.getElementById('modalModel').textContent = 'Error';
+            document.getElementById('modalIP').textContent = 'Error';
+            document.getElementById('modalRxPower').textContent = 'Error';
+            document.getElementById('modalTxPower').textContent = 'Error';
+        }
+    })
+    .catch(err => {
+        document.getElementById('modalLastInform').textContent = 'Timeout';
+        document.getElementById('modalModel').textContent = 'Timeout';
+        document.getElementById('modalIP').textContent = 'Timeout';
+        document.getElementById('modalRxPower').textContent = 'Timeout';
+        document.getElementById('modalTxPower').textContent = 'Timeout';
+    });
 }
 
 function formatTimeAgo(dateStr) {

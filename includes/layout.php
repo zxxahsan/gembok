@@ -1016,6 +1016,12 @@ if (isset($_GET['switch_router'])) {
                     <span>Pelanggan</span>
                 </a>
 
+                <a href="<?php echo APP_URL; ?>/admin/traffic_monitor.php"
+                    class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'traffic_monitor.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Traffic Monitor</span>
+                </a>
+
                 <a href="<?php echo APP_URL; ?>/admin/packages.php"
                     class="menu-item <?php echo basename($_SERVER['PHP_SELF']) === 'packages.php' ? 'active' : ''; ?>">
                     <i class="fas fa-box"></i>
