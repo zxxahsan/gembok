@@ -81,11 +81,27 @@ if ($method === 'GET') {
     // Fetch ALL active PPPoE sessions instantaneously merging logic avoiding sequential API bottlenecks
     require_once '../includes/mikrotik_api.php';
     
-    if (!function_exists('parseMikrotikList')) {
-        function parseMikrotikList($responseWords) {
-            if (empty($responseWords)) return [];
+    if (!function_exists('mikrotikReadAllAndParse')) {
+        function mikrotikReadAllAndParse($socket) {
+            if (!$socket) return [];
+            
+            $allWords = [];
+            $done = false;
+            $timeout = time() + 10;
+            while (!$done && time() < $timeout) {
+                $words = mikrotikReadSentence($socket);
+                if (empty($words)) break;
+                foreach ($words as $word) {
+                    $allWords[] = $word;
+                    if ($word === '!done' || strpos((string)$word, '!trap') === 0) {
+                        $done = true;
+                        break;
+                    }
+                }
+            }
+            
             $parsed = []; $current = [];
-            foreach ($responseWords as $word) {
+            foreach ($allWords as $word) {
                 if ($word === '!re') {
                     if (!empty($current)) { $parsed[] = $current; $current = []; }
                 } elseif ($word === '!done' || strpos((string)$word, '!trap') === 0) {
@@ -93,7 +109,9 @@ if ($method === 'GET') {
                     break;
                 } elseif (strpos((string)$word, '=') === 0) {
                     $parts = explode('=', substr((string)$word, 1), 2);
-                    if (count($parts) === 2) $current[$parts[0]] = $parts[1];
+                    if (count($parts) === 2) {
+                        $current[$parts[0]] = $parts[1];
+                    }
                 }
             }
             return $parsed;
@@ -108,8 +126,7 @@ if ($method === 'GET') {
             mikrotikWrite($mk, '/ppp/active/print');
             mikrotikWrite($mk, '=.proplist=name');
             mikrotikWrite($mk, '');
-            $activeListRaw = mikrotikRead($mk);
-            $activeList = parseMikrotikList($activeListRaw);
+            $activeList = mikrotikReadAllAndParse($mk);
             
             if (!empty($activeList)) {
                 foreach ($activeList as $session) {

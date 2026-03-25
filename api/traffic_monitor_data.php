@@ -12,10 +12,26 @@ require_once '../includes/mikrotik_api.php';
 
 $customers = fetchAll("SELECT id, name, pppoe_username, usage_bytes_in, usage_bytes_out, usage_last_rx, usage_last_tx, status, router_id FROM customers ORDER BY name ASC");
 
-function parseMikrotikList($responseWords) {
-    if (empty($responseWords)) return [];
+function mikrotikReadAllAndParse($socket) {
+    if (!$socket) return [];
+    
+    $allWords = [];
+    $done = false;
+    $timeout = time() + 10;
+    while (!$done && time() < $timeout) {
+        $words = mikrotikReadSentence($socket);
+        if (empty($words)) break;
+        foreach ($words as $word) {
+            $allWords[] = $word;
+            if ($word === '!done' || strpos((string)$word, '!trap') === 0) {
+                $done = true;
+                break;
+            }
+        }
+    }
+    
     $parsed = []; $current = [];
-    foreach ($responseWords as $word) {
+    foreach ($allWords as $word) {
         if ($word === '!re') {
             if (!empty($current)) { $parsed[] = $current; $current = []; }
         } elseif ($word === '!done' || strpos((string)$word, '!trap') === 0) {
@@ -23,7 +39,9 @@ function parseMikrotikList($responseWords) {
             break;
         } elseif (strpos((string)$word, '=') === 0) {
             $parts = explode('=', substr((string)$word, 1), 2);
-            if (count($parts) === 2) $current[$parts[0]] = $parts[1];
+            if (count($parts) === 2) {
+                $current[$parts[0]] = $parts[1];
+            }
         }
     }
     return $parsed;
@@ -39,8 +57,7 @@ foreach ($routers as $r) {
         mikrotikWrite($mk, '/ppp/active/print');
         mikrotikWrite($mk, '=.proplist=name');
         mikrotikWrite($mk, '');
-        $pppActiveRaw = mikrotikRead($mk);
-        $pppActive = parseMikrotikList($pppActiveRaw);
+        $pppActive = mikrotikReadAllAndParse($mk);
         
         if (!empty($pppActive)) {
             foreach ($pppActive as $session) {
@@ -55,8 +72,7 @@ foreach ($routers as $r) {
         mikrotikWrite($mk, '/interface/print');
         mikrotikWrite($mk, '=.proplist=name,rx-byte,tx-byte');
         mikrotikWrite($mk, '');
-        $interfacesRaw = mikrotikRead($mk);
-        $interfaces = parseMikrotikList($interfacesRaw);
+        $interfaces = mikrotikReadAllAndParse($mk);
         
         $activeSessions = [];
         if (!empty($interfaces)) {
