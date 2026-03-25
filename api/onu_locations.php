@@ -85,13 +85,13 @@ if ($method === 'GET') {
     foreach ($routers as $r) {
         $mk = getMikrotikConnection($r['id']);
         if ($mk) {
-            mikrotikWrite($mk, '/interface/print');
+            mikrotikWrite($mk, '/ppp/active/print');
             mikrotikWrite($mk, '=.proplist=name');
             $activeList = mikrotikRead($mk);
             if (!empty($activeList) && !isset($activeList['!trap'])) {
-                foreach ($activeList as $intf) {
-                    if (isset($intf['name']) && strpos($intf['name'], '<pppoe-') === 0) {
-                        $username = strtolower(trim(substr($intf['name'], 7, -1)));
+                foreach ($activeList as $session) {
+                    if (isset($session['name'])) {
+                        $username = strtolower(trim($session['name']));
                         $activeUsers[$username] = true;
                     }
                 }

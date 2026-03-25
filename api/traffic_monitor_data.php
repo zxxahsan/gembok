@@ -10,29 +10,48 @@ header('Content-Type: application/json');
 require_once '../includes/functions.php';
 require_once '../includes/mikrotik_api.php';
 
-$customers = fetchAll("SELECT id, name, pppoe_username, usage_bytes_in, usage_bytes_out, usage_last_rx, usage_last_tx, status FROM customers ORDER BY name ASC");
+$customers = fetchAll("SELECT id, name, pppoe_username, usage_bytes_in, usage_bytes_out, usage_last_rx, usage_last_tx, status, router_id FROM customers ORDER BY name ASC");
 
-$activeSessions = [];
+$allActiveSessions = [];
+$allOnlineUsers = [];
 $routers = getAllRouters();
 
 foreach ($routers as $r) {
     if ($mk = getMikrotikConnection($r['id'])) {
+        // Find accurately connected users!
+        mikrotikWrite($mk, '/ppp/active/print');
+        mikrotikWrite($mk, '=.proplist=name');
+        $pppActive = mikrotikRead($mk);
+        if (!empty($pppActive) && !isset($pppActive['!trap'])) {
+            foreach ($pppActive as $session) {
+                if (isset($session['name'])) {
+                    $u = strtolower(trim($session['name']));
+                    $allOnlineUsers[$r['id']][$u] = true;
+                }
+            }
+        }
+        
+        // Find byte traffic for those connected dynamically!
         mikrotikWrite($mk, '/interface/print');
         mikrotikWrite($mk, '=.proplist=name,rx-byte,tx-byte');
         $interfaces = mikrotikRead($mk);
         
+        $activeSessions = [];
         if (!empty($interfaces) && !isset($interfaces['!trap'])) {
-            file_put_contents(__DIR__ . '/debug_mikrotik.txt', print_r($interfaces, true));
             foreach ($interfaces as $intf) {
-                if (isset($intf['name']) && strpos($intf['name'], '<pppoe-') === 0) {
-                    $username = strtolower(trim(substr($intf['name'], 7, -1)));
-                    $activeSessions[$username] = [
-                        'rx' => (float)($intf['rx-byte'] ?? 0),
-                        'tx' => (float)($intf['tx-byte'] ?? 0)
-                    ];
+                if (isset($intf['name'])) {
+                    $name = strtolower(trim($intf['name']));
+                    if (strpos($name, '<pppoe-') === 0) {
+                        $username = substr($name, 7, -1);
+                        $activeSessions[$username] = [
+                            'rx' => (float)($intf['rx-byte'] ?? 0),
+                            'tx' => (float)($intf['tx-byte'] ?? 0)
+                        ];
+                    }
                 }
             }
         }
+        $allActiveSessions[$r['id']] = $activeSessions;
     }
 }
 
@@ -48,20 +67,23 @@ foreach ($customers as $c) {
     $liveTx = 0;
     $isOnline = false;
     
-    if ($rid && isset($allActiveSessions[$rid]) && isset($allActiveSessions[$rid][$user])) {
+    // Check accurately using PPP Active tracking bridging offline issues
+    if ($rid && isset($allOnlineUsers[$rid]) && isset($allOnlineUsers[$rid][$user])) {
         $isOnline = true;
-        $liveRx = $allActiveSessions[$rid][$user]['rx'];
-        $liveTx = $allActiveSessions[$rid][$user]['tx'];
     } else {
-        // Fallback: search ALL routers if customer router_id is 0, null, or mismatched
-        foreach ($allActiveSessions as $routerId => $sessions) {
-            if (isset($sessions[$user])) {
+        foreach ($allOnlineUsers as $routerId => $users) {
+            if (isset($users[$user])) {
                 $isOnline = true;
-                $liveRx = $sessions[$user]['rx'];
-                $liveTx = $sessions[$user]['tx'];
+                $rid = $routerId; // Update tracking matrix overriding mismatched arrays securely
                 break;
             }
         }
+    }
+    
+    // Map usage statistics mirroring verified active interfaces
+    if ($isOnline && isset($allActiveSessions[$rid]) && isset($allActiveSessions[$rid][$user])) {
+        $liveRx = $allActiveSessions[$rid][$user]['rx'];
+        $liveTx = $allActiveSessions[$rid][$user]['tx'];
     }
     
     $dbRx = (float)($c['usage_bytes_in'] ?? 0);
