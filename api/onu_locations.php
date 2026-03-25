@@ -91,7 +91,7 @@ if ($method === 'GET') {
             if (!empty($activeList) && !isset($activeList['!trap'])) {
                 foreach ($activeList as $intf) {
                     if (isset($intf['name']) && strpos($intf['name'], '<pppoe-') === 0) {
-                        $username = trim(substr($intf['name'], 7, -1));
+                        $username = strtolower(trim(substr($intf['name'], 7, -1)));
                         $activeUsers[$username] = true;
                     }
                 }
@@ -101,7 +101,7 @@ if ($method === 'GET') {
 
     foreach ($onuLocations as &$onu) {
         // Evaluate native presence over localized Mikrotik memory clusters
-        $pu = trim((string)$onu['pppoe_username']);
+        $pu = strtolower(trim((string)$onu['pppoe_username']));
         $onu['status'] = (!empty($pu) && isset($activeUsers[$pu])) ? 'online' : 'offline';
         $onu['device_info'] = null;
         $onu['ssid'] = '';

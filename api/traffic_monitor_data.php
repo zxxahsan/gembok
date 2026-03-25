@@ -22,9 +22,10 @@ foreach ($routers as $r) {
         $interfaces = mikrotikRead($mk);
         
         if (!empty($interfaces) && !isset($interfaces['!trap'])) {
+            file_put_contents(__DIR__ . '/debug_mikrotik.txt', print_r($interfaces, true));
             foreach ($interfaces as $intf) {
                 if (isset($intf['name']) && strpos($intf['name'], '<pppoe-') === 0) {
-                    $username = trim(substr($intf['name'], 7, -1));
+                    $username = strtolower(trim(substr($intf['name'], 7, -1)));
                     $activeSessions[$username] = [
                         'rx' => (float)($intf['rx-byte'] ?? 0),
                         'tx' => (float)($intf['tx-byte'] ?? 0)
@@ -39,15 +40,28 @@ $data = [];
 foreach ($customers as $c) {
     if (empty($c['pppoe_username'])) continue;
     
-    $user = $c['pppoe_username'];
+    $userOrig = $c['pppoe_username'];
+    $user = strtolower(trim($c['pppoe_username']));
+    $rid = $c['router_id'];
+    
     $liveRx = 0;
     $liveTx = 0;
     $isOnline = false;
     
-    if (isset($activeSessions[$user])) {
+    if ($rid && isset($allActiveSessions[$rid]) && isset($allActiveSessions[$rid][$user])) {
         $isOnline = true;
-        $liveRx = $activeSessions[$user]['rx'];
-        $liveTx = $activeSessions[$user]['tx'];
+        $liveRx = $allActiveSessions[$rid][$user]['rx'];
+        $liveTx = $allActiveSessions[$rid][$user]['tx'];
+    } else {
+        // Fallback: search ALL routers if customer router_id is 0, null, or mismatched
+        foreach ($allActiveSessions as $routerId => $sessions) {
+            if (isset($sessions[$user])) {
+                $isOnline = true;
+                $liveRx = $sessions[$user]['rx'];
+                $liveTx = $sessions[$user]['tx'];
+                break;
+            }
+        }
     }
     
     $dbRx = (float)($c['usage_bytes_in'] ?? 0);
@@ -67,7 +81,7 @@ foreach ($customers as $c) {
 
     $data[] = [
         'name' => htmlspecialchars($c['name']),
-        'username' => htmlspecialchars($user),
+        'username' => htmlspecialchars($userOrig),
         'status' => $statusHtml,
         'download' => formatBytes($totalRx),
         'upload' => formatBytes($totalTx),

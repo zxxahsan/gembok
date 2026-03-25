@@ -30,12 +30,26 @@ try {
                     'total' => count($devices)
                 ]
             ]);
-        } elseif ($action === 'device') {
-            $serial = $_GET['serial'] ?? '';
+        } elseif ($action === 'device' || $action === 'get_device') {
+            $serial = $_GET['serial'] ?? $_GET['id'] ?? '';
 
             if (empty($serial)) {
                 echo json_encode(['success' => false, 'message' => 'Serial number required']);
                 exit;
+            }
+
+            // Resolve Phone to PPPoE Username and onto True Hardware Serial ID securely 
+            $customer = fetchOne("SELECT pppoe_username FROM customers WHERE pppoe_username = ? OR phone = ?", [$serial, $serial]);
+            if ($customer && !empty($customer['pppoe_username'])) {
+                $dev = genieacsFindDeviceByPppoe($customer['pppoe_username']);
+                if ($dev && !empty($dev['_id'])) {
+                    $serial = $dev['_id'];
+                }
+            } else {
+                $dev = genieacsFindDeviceByPppoe($serial);
+                if ($dev && !empty($dev['_id'])) {
+                    $serial = $dev['_id'];
+                }
             }
 
             $deviceInfo = genieacsGetDeviceInfo($serial);
@@ -65,12 +79,12 @@ try {
                 exit;
             }
             
-            // Check if it's a PPPoE username and get Serial
-            $customer = fetchOne("SELECT * FROM customers WHERE pppoe_username = ?", [$deviceId]);
-            if ($customer) {
+            // Check if it's a PPPoE username or Phone and get True Serial
+            $customer = fetchOne("SELECT * FROM customers WHERE pppoe_username = ? OR phone = ?", [$deviceId, $deviceId]);
+            if ($customer && !empty($customer['pppoe_username'])) {
                 // Find device by username in GenieACS
-                $device = genieacsFindDeviceByPppoe($deviceId);
-                if ($device) {
+                $device = genieacsFindDeviceByPppoe($customer['pppoe_username']);
+                if ($device && !empty($device['_id'])) {
                     $deviceId = $device['_id'];
                 }
             }
@@ -90,11 +104,11 @@ try {
             }
             
             // Resolve ID if needed (same logic as above)
-            $customer = fetchOne("SELECT * FROM customers WHERE pppoe_username = ?", [$deviceId]);
-            if ($customer) {
+            $customer = fetchOne("SELECT * FROM customers WHERE pppoe_username = ? OR phone = ?", [$deviceId, $deviceId]);
+            if ($customer && !empty($customer['pppoe_username'])) {
                 // Find device by username in GenieACS
-                $device = genieacsFindDeviceByPppoe($deviceId);
-                if ($device) {
+                $device = genieacsFindDeviceByPppoe($customer['pppoe_username']);
+                if ($device && !empty($device['_id'])) {
                     $deviceId = $device['_id'];
                 }
             }
@@ -122,11 +136,11 @@ try {
             }
             
             // Resolve ID
-            $customer = fetchOne("SELECT * FROM customers WHERE pppoe_username = ?", [$deviceId]);
-            if ($customer) {
+            $customer = fetchOne("SELECT * FROM customers WHERE pppoe_username = ? OR phone = ?", [$deviceId, $deviceId]);
+            if ($customer && !empty($customer['pppoe_username'])) {
                 // Find device by username in GenieACS
-                $device = genieacsFindDeviceByPppoe($deviceId);
-                if ($device) {
+                $device = genieacsFindDeviceByPppoe($customer['pppoe_username']);
+                if ($device && !empty($device['_id'])) {
                     $deviceId = $device['_id'];
                 }
             }

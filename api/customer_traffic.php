@@ -9,8 +9,9 @@ require_once '../includes/mikrotik_api.php';
 header('Content-Type: application/json');
 
 $customerSession = getCurrentCustomer();
-$customer = fetchOne("SELECT pppoe_username FROM customers WHERE id = ?", [$customerSession['id']]);
-$pppoeUsername = $customer['pppoe_username'] ?? '';
+$customer = fetchOne("SELECT id, pppoe_username, router_id, usage_last_rx, usage_last_tx FROM customers WHERE id = ?", [$customerSession['id']]);
+$pppoeUsername = trim((string)($customer['pppoe_username'] ?? ''));
+$rid = $customer['router_id'] ?? null;
 
 if (empty($pppoeUsername)) {
     echo json_encode(['success' => false, 'message' => 'PPPoE Username tidak diatur', 'rx' => 0, 'tx' => 0]);
@@ -18,7 +19,17 @@ if (empty($pppoeUsername)) {
 }
 
 try {
-    $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pppoeUsername);
+    $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pppoeUsername, $rid);
+    
+    // Explicit cross-router traversal overcoming missing local `router_id` matrices natively
+    if (!$dynamicInterface) {
+        $routers = fetchAll("SELECT id FROM routers");
+        foreach ($routers as $r) {
+            if ($r['id'] == $rid) continue;
+            $dynamicInterface = mikrotikGetInterfaceBytesByUsername($pppoeUsername, $r['id']);
+            if ($dynamicInterface) break;
+        }
+    }
     
     if ($dynamicInterface) {
         $liveRx = (float)($dynamicInterface['rx-byte'] ?? 0);
