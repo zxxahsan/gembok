@@ -1440,38 +1440,21 @@ function mikrotikDeleteHotspotProfile($id)
 // Generate Mikhmon v3-style on-login script
 // Mikhmon v3 format: on-login script stores comma-separated values:
 // index[0]=script, [1]=script, [2]=price, [3]=validity, [4]=sellingPrice, [5]=script, [6]=lockUser
-function generateHotspotExpiryScript($mode, $price = 0, $validity = '', $sellingPrice = 0, $lockUser = 'disable')
+function generateHotspotExpiryScript($mode, $price = 0, $validity = '', $sellingPrice = 0, $lockUser = 'disable', $limitUptime = '')
 {
-    // Mikhmon v3 on-login script structure (simplified)
-    // The comma-separated string stores metadata at fixed positions
-    $script = '';
-
-    if ($mode === 'remove') {
-        // Script that removes user after expiry
-        $script = ':local date [/system clock get date];:local time [/system clock get time];:local uname \$user;';
-        $script .= ':local comment [/ip hotspot user get [find name=\$uname] comment];';
-        $script .= ':if ([:len \$comment] = 0) do={/ip hotspot user set [find name=\$uname] comment="\$date \$time"};';
-    } elseif ($mode === 'notice') {
-        $script = ':local date [/system clock get date];:local time [/system clock get time];:local uname \$user;';
-        $script .= ':local comment [/ip hotspot user get [find name=\$uname] comment];';
-        $script .= ':if ([:len \$comment] = 0) do={/ip hotspot user set [find name=\$uname] comment="\$date \$time"};';
-    } elseif ($mode === 'record') {
-        $script = ':local date [/system clock get date];:local time [/system clock get time];:local uname \$user;';
-        $script .= ':local comment [/ip hotspot user get [find name=\$uname] comment];';
-        $script .= ':if ([:len \$comment] = 0) do={/ip hotspot user set [find name=\$uname] comment="\$date \$time"};';
-    } else {
-        // mode 'none' - only store metadata, no expiry action
-        $script = ':nothing';
-    }
+    // ULTRA STABLE ROS 7 SCRIPT:
+    // Added 2s delay and extra variable safety for RouterOS v7.
+    // Uses the Mikhmon v3 format for appending the activation timestamp.
+    $script = ':delay 2s; :local u "$user"; :local d [/system clock get date]; :local t [/system clock get time]; /ip hotspot user { :local id [find name=$u]; :if ([:len $id] > 0) do={ :local c [get $id comment]; :if ([:find [:tostr $c] " / "] = -1) do={ set $id comment=($c . " / " . $d . " " . $t); :log info "GEMBOK: Updated $u" } } }';
 
     $price = (int) $price;
     $sellingPrice = (int) $sellingPrice;
 
-    // Mikhmon v3 comma-separated format at fixed positions:
-    // [0]=script, [1]=(unused), [2]=price, [3]=validity, [4]=sellingPrice, [5]=(unused), [6]=lockUser
-    $onLoginData = $script . ',' . $mode . ',' . $price . ',' . $validity . ',' . $sellingPrice . ',0,' . $lockUser;
-
-    return $onLoginData;
+    // Mikhmon v3 indices for parseMikhmonOnLogin:
+    // [0]=script, [1]=mode, [2]=price, [3]=validity, [4]=sellingPrice, [5]=datalimit, [6]=timelimit, [7]=lockUser
+    $metadata = '# ,' . $mode . ',' . $price . ',' . $validity . ',' . $sellingPrice . ',0,' . $limitUptime . ',' . $lockUser;
+    
+    return $script . '; ' . $metadata;
 }
 
 // Parse Mikhmon v3 on-login script to extract price, validity, selling price, lock user
@@ -1949,6 +1932,85 @@ function mikrotikDeleteHotspotCookie($id)
     }
     return true;
 }
+
+/**
+ * Monitor Hotspot users and expire them based on validity
+ */
+function mikrotikMonitorHotspotExpiry($routerId = null)
+{
+    $socket = getMikrotikConnection($routerId);
+    if (!$socket) return 0;
+
+    $users = mikrotikGetHotspotUsers();
+    $profiles = mikrotikGetHotspotProfiles();
+    
+    // Create profiles index for fast lookup
+    $profilesMap = [];
+    foreach ($profiles as $p) {
+        $profilesMap[$p['name']] = parseMikhmonOnLogin($p['on-login'] ?? '');
+    }
+
+    $expiredCount = 0;
+    $now = time();
+
+    foreach ($users as $user) {
+        $comment = $user['comment'] ?? '';
+        $profileName = $user['profile'] ?? 'default';
+        $pData = $profilesMap[$profileName] ?? null;
+
+        if (!$pData || $pData['mode'] === 'none') continue;
+
+        // Check for activation timestamp in comment: "Initial / mar/28/2026 12:00:00"
+        if (strpos($comment, ' / ') !== false) {
+            $parts = explode(' / ', $comment);
+            $activationStr = trim(end($parts));
+            
+            // Expected format from MikroTik: "jan/01/2026 12:00:00"
+            $activationTime = strtotime($activationStr);
+            if (!$activationTime) continue;
+
+            $validity = $pData['validity'];
+            if (empty($validity)) continue;
+
+            // Simple parser for 1d, 3h, 10m etc.
+            $durationSec = 0;
+            if (preg_match('/(\d+)([dhms])/', $validity, $matches)) {
+                $val = (int)$matches[1];
+                $unit = $matches[2];
+                switch($unit) {
+                    case 'd': $durationSec = $val * 86400; break;
+                    case 'h': $durationSec = $val * 3600; break;
+                    case 'm': $durationSec = $val * 60; break;
+                    case 's': $durationSec = $val; break;
+                }
+            }
+
+            if ($durationSec > 0) {
+                $expiryTime = $activationTime + $durationSec;
+                if ($now > $expiryTime) {
+                    // EXPIRED!
+                    $expiredCount++;
+                    
+                    if ($pData['mode'] === 'remove') {
+                        mikrotikDeleteHotspotUser($user['name']);
+                        mikrotikKickHotspotUser($user['name']);
+                    } elseif ($pData['mode'] === 'notice') {
+                        // Just disable or change profile
+                        mikrotikToggleHotspotUser($user['name'], 'disable');
+                        mikrotikKickHotspotUser($user['name']);
+                    } elseif ($pData['mode'] === 'record') {
+                        // Simply record and disable
+                        mikrotikToggleHotspotUser($user['name'], 'disable');
+                        mikrotikKickHotspotUser($user['name']);
+                    }
+                }
+            }
+        }
+    }
+
+    return $expiredCount;
+}
+
 
 // Get MikroTik Hotspot Hosts (connected devices)
 function mikrotikGetHotspotHosts()

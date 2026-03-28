@@ -67,6 +67,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('hotspot-profile.php');
     }
+
+    if ($action === 'monitor') {
+        $expiredCount = mikrotikMonitorHotspotExpiry();
+        setFlash('success', "Monitor selesai. $expiredCount user expired telah dibersihkan.");
+        redirect('hotspot-profile.php');
+    }
 }
 
 // Get Data
@@ -88,9 +94,14 @@ ob_start();
 ?>
 
 <!-- Add/Edit Form -->
-<div class="card">
-    <div class="card-header">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3 class="card-title"><i class="fas fa-plus-circle"></i> Tambah/Edit Profile</h3>
+        <form method="POST" onsubmit="return confirm('Jalankan pembersihan voucher expired sekarang?')">
+            <input type="hidden" name="action" value="monitor">
+            <button type="submit" class="btn btn-warning btn-sm">
+                <i class="fas fa-sync"></i> Jalankan Monitor (Cek Expired)
+            </button>
+        </form>
     </div>
     <form method="POST" id="profileForm">
         <input type="hidden" name="action" value="add" id="formAction">
