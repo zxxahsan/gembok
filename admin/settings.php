@@ -48,7 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'timezone' => sanitize($_POST['timezone']),
                     'currency' => sanitize($_POST['currency']),
                     'invoice_prefix' => sanitize($_POST['invoice_prefix']),
-                    'invoice_start' => (int)$_POST['invoice_start']
+                    'invoice_start' => (int)$_POST['invoice_start'],
+                    'DEFAULT_MONITOR_INTERFACE' => sanitize($_POST['default_monitor_interface'])
                 ];
                 
                 foreach ($systemSettings as $key => $value) {
@@ -197,6 +198,12 @@ ob_start();
                 <option value="IDR" <?php echo ($settings['currency'] ?? '') === 'IDR' ? 'selected' : ''; ?>>IDR - Rupiah</option>
                 <option value="USD" <?php echo ($settings['currency'] ?? '') === 'USD' ? 'selected' : ''; ?>>USD - Dollar</option>
             </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Traffic Monitor Interface Default</label>
+            <input type="text" name="default_monitor_interface" class="form-control" value="<?php echo htmlspecialchars($settings['DEFAULT_MONITOR_INTERFACE'] ?? 'ether1'); ?>" placeholder="ether1, pppoe-out1, wlan1...">
+            <small style="color: var(--text-muted);">Interface awal yang langsung ditampilkan di grafik Dashboard.</small>
         </div>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">

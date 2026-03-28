@@ -378,13 +378,13 @@ ob_start();
 </div>
 
 <!-- Charts -->
-<div style="display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px;" id="charts-container">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 20px;" id="charts-container">
     <!-- Revenue Chart -->
     <div class="card">
         <div class="card-header">
             <h3 class="card-title"><i class="fas fa-chart-line"></i> Pendapatan Bulanan</h3>
         </div>
-        <canvas id="revenueChart" height="250"></canvas>
+        <canvas id="revenueChart" height="200"></canvas>
     </div>
 
     <!-- Customer Growth Chart -->
@@ -392,7 +392,7 @@ ob_start();
         <div class="card-header">
             <h3 class="card-title"><i class="fas fa-chart-bar"></i> Pelanggan Baru</h3>
         </div>
-        <canvas id="customerChart" height="250"></canvas>
+        <canvas id="customerChart" height="200"></canvas>
     </div>
 </div>
 
@@ -567,7 +567,11 @@ ob_start();
     // ==================== TRAFFIC MONITOR ====================
     const MAX_POINTS = 20;
     let trafficData = { labels: [], tx: [], rx: [] };
-    let currentInterface = document.getElementById('interfaceSelector')?.value || 'ether1';
+    
+    // Fallback order: Admin UI Choice -> System Setting -> 'ether1'
+    let systemInterface = '<?php echo htmlspecialchars(getSetting('DEFAULT_MONITOR_INTERFACE', 'ether1')); ?>';
+    let currentInterface = document.getElementById('interfaceSelector')?.value || systemInterface;
+    
     let trafficChart;
 
     function formatBits(bits) {

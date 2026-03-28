@@ -23,12 +23,18 @@ function ensureOdpSchema()
             code VARCHAR(50) UNIQUE,
             lat DECIMAL(11,8),
             lng DECIMAL(11,8),
+            total_ports INT DEFAULT 8,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         if (!$created) {
             return ['success' => false, 'message' => 'Gagal membuat tabel ODP'];
         }
+    }
+
+    $portColumn = fetchOne("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'odps' AND COLUMN_NAME = 'total_ports'", [DB_NAME]);
+    if (!$portColumn) {
+        query("ALTER TABLE odps ADD COLUMN total_ports INT DEFAULT 8");
     }
 
     if (!tableExists('odp_links')) {
@@ -168,7 +174,12 @@ if ($method === 'GET') {
         $onu['password'] = '';
     }
 
-    $odps = fetchAll("SELECT * FROM odps ORDER BY name");
+    $odps = fetchAll("
+        SELECT o.*, 
+            (SELECT COUNT(*) FROM onu_locations WHERE odp_id = o.id) as connected_clients 
+        FROM odps o 
+        ORDER BY o.name
+    ");
     $odpLinks = fetchAll("SELECT * FROM odp_links");
 
     echo json_encode([
@@ -193,6 +204,7 @@ if ($method === 'GET') {
         $code = trim($input['code'] ?? '');
         $lat = ($input['lat'] === '' || $input['lat'] === null) ? null : $input['lat'];
         $lng = ($input['lng'] === '' || $input['lng'] === null) ? null : $input['lng'];
+        $totalPorts = isset($input['total_ports']) ? (int)$input['total_ports'] : 8;
 
         if ($name === '') {
             echo json_encode(['success' => false, 'message' => 'Nama ODP wajib diisi']);
@@ -212,7 +224,8 @@ if ($method === 'GET') {
                 'name' => $name,
                 'code' => $code ?: null,
                 'lat' => $lat,
-                'lng' => $lng
+                'lng' => $lng,
+                'total_ports' => $totalPorts
             ], 'id = ?', [$id]);
             
             echo json_encode(['success' => true, 'message' => 'ODP berhasil diperbarui']);
@@ -221,7 +234,8 @@ if ($method === 'GET') {
                 'name' => $name,
                 'code' => $code ?: null,
                 'lat' => $lat,
-                'lng' => $lng
+                'lng' => $lng,
+                'total_ports' => $totalPorts
             ]);
             
             if ($inserted) {

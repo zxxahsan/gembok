@@ -299,6 +299,10 @@ ob_start();
                 <input type="text" id="odpCode" class="form-control">
             </div>
             <div class="form-group">
+                <label class="form-label">Kapasitas (Port)</label>
+                <input type="number" id="odpTotalPorts" class="form-control" value="8" min="1" max="128">
+            </div>
+            <div class="form-group">
                 <label class="form-label">Latitude</label>
                 <input type="number" id="odpLat" class="form-control" step="0.00000001">
             </div>
@@ -598,6 +602,10 @@ ob_start();
                 <input type="text" id="editOdpCode" class="form-control">
             </div>
             <div class="form-group">
+                <label class="form-label">Kapasitas (Port)</label>
+                <input type="number" id="editOdpTotalPorts" class="form-control" min="1" max="128">
+            </div>
+            <div class="form-group">
                 <label class="form-label">Latitude</label>
                 <input type="number" id="editOdpLat" class="form-control" step="0.00000001">
             </div>
@@ -710,8 +718,8 @@ function initMap() {
     // but Layer Control is preferred
     
     map.on('click', function(e) {
-        // Only set point if in add mode or similar context if needed
-        // For now kept simple
+        // Automatically assign coordinates when adding or editing an ODP
+        setOdpPoint(e.latlng.lat, e.latlng.lng, true);
     });
     
     loadMarkers();
@@ -749,11 +757,20 @@ function loadMarkers() {
                         html: '<div style="background: #00f5ff; width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #0a0a12; font-size: 12px; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-network-wired"></i></div>'
                     })
                 });
+                const totalPorts = odp.total_ports || 8;
+                const connectedClients = odp.connected_clients || 0;
+                const freeSlots = Math.max(0, totalPorts - connectedClients);
+
                 marker.bindPopup(`
                     <div style="min-width: 150px;">
                         <strong>${odp.name || 'ODP'}</strong><br>
                         ${odp.code || ''}<br>
                         <hr style="margin: 5px 0; border-color: #ddd;">
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">
+                            Terhubung: <span style="color: var(--neon-cyan); font-weight: bold;">${connectedClients}</span><br>
+                            Sisa Slot: <span style="color: var(--neon-green); font-weight: bold;">${freeSlots}</span><br>
+                            Kapasitas: ${totalPorts} Port
+                        </span>
                         <button class="btn btn-sm btn-secondary" onclick="editOdp(${odp.id})" style="width: 100%; margin-top: 5px;">
                             <i class="fas fa-edit"></i> Edit ODP
                         </button>
@@ -1179,6 +1196,7 @@ function editOdp(id) {
     document.getElementById('editOdpCode').value = odp.code || '';
     document.getElementById('editOdpLat').value = odp.lat;
     document.getElementById('editOdpLng').value = odp.lng;
+    document.getElementById('editOdpTotalPorts').value = odp.total_ports || 8;
     
     document.getElementById('odpEditModal').style.display = 'flex';
 }
@@ -1194,6 +1212,7 @@ document.getElementById('editOdpForm').addEventListener('submit', function(e) {
     const code = document.getElementById('editOdpCode').value.trim();
     const lat = document.getElementById('editOdpLat').value;
     const lng = document.getElementById('editOdpLng').value;
+    const totalPorts = document.getElementById('editOdpTotalPorts').value;
     
     fetch('../api/onu_locations.php', {
         method: 'POST',
@@ -1204,7 +1223,8 @@ document.getElementById('editOdpForm').addEventListener('submit', function(e) {
             name,
             code,
             lat: lat ? parseFloat(lat.replace(',', '.')) : null,
-            lng: lng ? parseFloat(lng.replace(',', '.')) : null
+            lng: lng ? parseFloat(lng.replace(',', '.')) : null,
+            total_ports: totalPorts ? parseInt(totalPorts, 10) : 8
         })
     })
     .then(response => response.json())
@@ -1224,6 +1244,7 @@ document.getElementById('addOdpForm').addEventListener('submit', function(e) {
     const code = document.getElementById('odpCode').value.trim();
     const lat = document.getElementById('odpLat').value;
     const lng = document.getElementById('odpLng').value;
+    const totalPorts = document.getElementById('odpTotalPorts').value;
     
     fetch('../api/onu_locations.php', {
         method: 'POST',
@@ -1233,7 +1254,8 @@ document.getElementById('addOdpForm').addEventListener('submit', function(e) {
             name,
             code,
             lat: lat ? parseFloat(lat.replace(',', '.')) : null,
-            lng: lng ? parseFloat(lng.replace(',', '.')) : null
+            lng: lng ? parseFloat(lng.replace(',', '.')) : null,
+            total_ports: totalPorts ? parseInt(totalPorts, 10) : 8
         })
     })
     .then(response => response.json())

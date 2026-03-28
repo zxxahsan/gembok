@@ -506,7 +506,6 @@ function createDatabaseTables() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (sales_user_id) REFERENCES sales_users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
     CREATE TABLE IF NOT EXISTS whatsapp_templates (
         id INT AUTO_INCREMENT PRIMARY KEY,
