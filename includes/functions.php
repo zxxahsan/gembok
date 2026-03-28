@@ -1198,7 +1198,7 @@ function jsonResponse($data, $statusCode = 200)
     exit;
 }
 
-// Sync Hotspot Voucher Status against RouterOS
+// Sync Hotspot Voucher Status against RouterOS (Robust Version)
 function syncHotspotSalesStatus()
 {
     $pdo = getDB();
@@ -1206,41 +1206,138 @@ function syncHotspotSalesStatus()
     // 1. Self-heal and mutate schema natively
     $colCheck = $pdo->query("SHOW COLUMNS FROM hotspot_sales LIKE 'status'");
     if ($colCheck->rowCount() == 0) {
-        $pdo->exec("ALTER TABLE hotspot_sales ADD COLUMN status ENUM('inactive', 'active') DEFAULT 'inactive'");
+        $pdo->exec("ALTER TABLE hotspot_sales ADD COLUMN status ENUM('inactive', 'active', 'expired') DEFAULT 'inactive'");
         $pdo->exec("ALTER TABLE hotspot_sales ADD COLUMN used_at DATETIME NULL");
+    } else {
+        // Update enum if 'expired' is missing
+        $pdo->exec("ALTER TABLE hotspot_sales MODIFY COLUMN status ENUM('inactive', 'active', 'expired') DEFAULT 'inactive'");
     }
 
-    // 2. Lookup Inactive Vouchers
+    // Additional columns for detailed history
+    $existingCols = $pdo->query("SHOW COLUMNS FROM hotspot_sales")->fetchAll(PDO::FETCH_COLUMN);
+    $neededCols = [
+        'mac_address' => "VARCHAR(20) DEFAULT NULL",
+        'uptime'      => "VARCHAR(20) DEFAULT '0s'",
+        'expired_at'  => "DATETIME DEFAULT NULL"
+    ];
+
+    foreach ($neededCols as $col => $definition) {
+        if (!in_array($col, $existingCols)) {
+            $pdo->exec("ALTER TABLE hotspot_sales ADD COLUMN $col $definition");
+        }
+    }
+
+    // 2. Identify Vouchers needing status check
     $inactives = fetchAll("SELECT id, username FROM hotspot_sales WHERE status = 'inactive'");
-    if (empty($inactives)) return;
+    $actives = fetchAll("SELECT id, username FROM hotspot_sales WHERE status = 'active'");
     
     $inactiveNames = array_column($inactives, 'username', 'id');
+    $activeNames = array_column($actives, 'username', 'id');
     
-    // 3. Match and Update Uptime
+    if (empty($inactiveNames) && empty($activeNames)) return;
+    
+    // 3. Match against RouterOS Users
     require_once __DIR__ . '/mikrotik_api.php';
     if (!function_exists('mikrotikGetHotspotUsers')) return;
     
-    $users = mikrotikGetHotspotUsers();
-    if (empty($users)) return;
+    $routerUsers = mikrotikGetHotspotUsers();
+    $routerUserNames = is_array($routerUsers) ? array_filter(array_column($routerUsers, 'name')) : [];
     
     $pdo->beginTransaction();
     try {
-        foreach ($users as $u) {
-            $uname = $u['name'] ?? '';
-            $uptime = $u['uptime'] ?? '';
-            
-            if (!empty($uname) && in_array($uname, $inactiveNames)) {
-                if (!empty($uptime) && $uptime !== '0s') {
-                    $id = array_search($uname, $inactiveNames);
-                    if ($id) {
+        // Fetch Profiles for validity
+        $profiles = mikrotikGetHotspotProfiles();
+        $profValidity = [];
+        if (is_array($profiles)) {
+            foreach ($profiles as $p) {
+                $pData = parseMikhmonOnLogin($p['on-login'] ?? '');
+                if (!empty($pData['validity']) && $pData['validity'] !== '-') {
+                    $profValidity[$p['name']] = $pData['validity'];
+                }
+            }
+        }
+
+        // Process Inactive -> Active migration
+        if (is_array($routerUsers) && !empty($routerUsers)) {
+            foreach ($routerUsers as $u) {
+                $uname = $u['name'] ?? '';
+                $uptime = $u['uptime'] ?? '0s';
+                $mac = $u['mac-address'] ?? null;
+                $pName = $u['profile'] ?? 'default';
+                $comment = $u['comment'] ?? '';
+                
+                if (!empty($uname) && in_array($uname, $inactiveNames)) {
+                    // Marker check: if uptime > 0 OR comment has activation marker " / "
+                    if (($uptime !== '0s' && !empty($uptime)) || strpos($comment, ' / ') !== false) {
+                        $id = array_search($uname, $inactiveNames);
+                        if ($id !== false) {
+                            $usedAt = date('Y-m-d H:i:s');
+                            
+                            if (strpos($comment, ' / ') !== false) {
+                                $cParts = explode(' / ', $comment);
+                                $ts = trim(end($cParts));
+                                if (strtotime($ts)) {
+                                    $usedAt = date('Y-m-d H:i:s', strtotime($ts));
+                                }
+                            }
+                            
+                            $expiryAt = null;
+                            if (isset($profValidity[$pName])) {
+                                $sec = parseValidityToSeconds($profValidity[$pName]);
+                                if ($sec > 0) {
+                                    $expiryAt = date('Y-m-d H:i:s', strtotime($usedAt) + $sec);
+                                }
+                            }
+
+                            update('hotspot_sales', [
+                                'status' => 'active',
+                                'used_at' => $usedAt,
+                                'expired_at' => $expiryAt,
+                                'mac_address' => $mac,
+                                'uptime' => $uptime
+                            ], 'id = ?', [$id]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Process Active -> Update Uptime/MAC
+        if (is_array($routerUsers) && !empty($routerUsers)) {
+            foreach ($routerUsers as $u) {
+                $uname = $u['name'] ?? '';
+                $uptime = $u['uptime'] ?? null;
+                $mac = $u['mac-address'] ?? null;
+                
+                if (!empty($uname) && in_array($uname, $activeNames)) {
+                    $id = array_search($uname, $activeNames);
+                    if ($id !== false) {
                         update('hotspot_sales', [
-                            'status' => 'active',
-                            'used_at' => date('Y-m-d H:i:s')
+                            'mac_address' => $mac,
+                            'uptime' => $uptime
                         ], 'id = ?', [$id]);
                     }
                 }
             }
         }
+
+        // Process Cleanup (Missing from Router)
+        // Safety: Only perform cleanup if we successfully got a result from Mikrotik
+        if (is_array($routerUsers)) {
+            // Inactive -> Expired
+            foreach ($inactiveNames as $id => $uname) {
+                if (!in_array($uname, $routerUserNames)) {
+                    update('hotspot_sales', ['status' => 'expired'], 'id = ?', [$id]);
+                }
+            }
+            // Active -> Expired
+            foreach ($activeNames as $id => $uname) {
+                if (!in_array($uname, $routerUserNames)) {
+                    update('hotspot_sales', ['status' => 'expired'], 'id = ?', [$id]);
+                }
+            }
+        }
+
         $pdo->commit();
     } catch (Exception $e) {
         $pdo->rollBack();
