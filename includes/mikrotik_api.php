@@ -1445,7 +1445,7 @@ function generateHotspotExpiryScript($mode, $price = 0, $validity = '', $selling
     // ULTRA STABLE ROS 7 SCRIPT:
     // Added 2s delay and extra variable safety for RouterOS v7.
     // Uses the Mikhmon v3 format for appending the activation timestamp.
-    $script = ':delay 2s; :local u "$user"; :local d [/system clock get date]; :local t [/system clock get time]; /ip hotspot user { :local id [find name=$u]; :if ([:len $id] > 0) do={ :local c [get $id comment]; :if ([:find [:tostr $c] " / "] = -1) do={ set $id comment=($c . " / " . $d . " " . $t); :log info "GEMBOK: Updated $u" } } }';
+    $script = ':delay 2s; :local u "$user"; :local d [/system clock get date]; :local t [/system clock get time]; /ip hotspot user { :local id [find name=$u]; :if ([:len $id] > 0) do={ :local c [get $id comment]; :if (!([:tostr $c] ~ " / ")) do={ set $id comment=($c . " / " . $d . " " . $t); :log info "GEMBOK: Updated $u" } } }';
 
     $price = (int) $price;
     $sellingPrice = (int) $sellingPrice;
