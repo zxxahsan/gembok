@@ -38,11 +38,10 @@ if (isset($_GET['users'])) {
         
         $vouchers[] = [
             'username' => $rec['username'],
-            'password' => $rec['username'], // Fallback: Assume U=P or hide it. 
-                                            // In a real scenario, you'd fetch from Mikrotik if possible.
+            'password' => $rec['username'],
             'profile' => $rec['profile'],
             'price' => formatCurrency($rec['selling_price']),
-            'validity' => '-' // Validity not stored in local sales table
+            'validity' => $rec['validity'] ?: '-'
         ];
     }
 }

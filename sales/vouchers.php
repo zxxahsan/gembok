@@ -101,10 +101,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 recordHotspotSale(
                     $user, 
                     $selectedProfile['profile_name'], 
-                    $selectedProfile['base_price'], 
                     $selectedProfile['selling_price'], 
                     $prefix, 
-                    $salesId
+                    $salesId,
+                    $selectedProfile['validity']
                 );
                 
                 $generatedVouchers[] = [
@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'password' => $pass,
                     'profile' => $selectedProfile['profile_name'],
                     'price' => formatCurrency($selectedProfile['selling_price']),
-                    'validity' => '-' // We don't have validity in sales_profile_prices, maybe fetch from Mikrotik or assume profile default
+                    'validity' => $selectedProfile['validity'] ?: '-'
                 ];
                 $successCount++;
             }
