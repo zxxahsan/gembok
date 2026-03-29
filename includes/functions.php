@@ -1227,38 +1227,54 @@ function syncHotspotSalesStatus()
         }
     }
 
-    // 2. Identify Vouchers needing status check
-    $inactives = fetchAll("SELECT id, username FROM hotspot_sales WHERE status = 'inactive'");
-    $actives = fetchAll("SELECT id, username FROM hotspot_sales WHERE status = 'active'");
+    // 2. Identify Vouchers needing status check, grouped by router
+    $inactives = fetchAll("SELECT * FROM hotspot_sales WHERE status = 'inactive'");
+    $actives = fetchAll("SELECT * FROM hotspot_sales WHERE status = 'active'");
     
-    $inactiveNames = array_column($inactives, 'username', 'id');
-    $activeNames = array_column($actives, 'username', 'id');
+    if (empty($inactives) && empty($actives)) return;
+
+    // Group by router_id
+    $byRouter = [];
+    foreach ($inactives as $v) {
+        $rid = $v['router_id'] ?: 0;
+        if (!isset($byRouter[$rid])) $byRouter[$rid] = ['inactive' => [], 'active' => []];
+        $byRouter[$rid]['inactive'][] = $v;
+    }
+    foreach ($actives as $v) {
+        $rid = $v['router_id'] ?: 0;
+        if (!isset($byRouter[$rid])) $byRouter[$rid] = ['inactive' => [], 'active' => []];
+        $byRouter[$rid]['active'][] = $v;
+    }
     
-    if (empty($inactiveNames) && empty($activeNames)) return;
-    
-    // 3. Match against RouterOS Users
     require_once __DIR__ . '/mikrotik_api.php';
     if (!function_exists('mikrotikGetHotspotUsers')) return;
-    
-    $routerUsers = mikrotikGetHotspotUsers();
-    $routerUserNames = is_array($routerUsers) ? array_filter(array_column($routerUsers, 'name')) : [];
-    
-    $pdo->beginTransaction();
-    try {
-        // Fetch Profiles for validity
-        $profiles = mikrotikGetHotspotProfiles();
-        $profValidity = [];
-        if (is_array($profiles)) {
-            foreach ($profiles as $p) {
-                $pData = parseMikhmonOnLogin($p['on-login'] ?? '');
-                if (!empty($pData['validity']) && $pData['validity'] !== '-') {
-                    $profValidity[$p['name']] = $pData['validity'];
+
+    foreach ($byRouter as $routerId => $groups) {
+        $inactiveNames = array_column($groups['inactive'], 'username', 'id');
+        $activeNames = array_column($groups['active'], 'username', 'id');
+
+        $routerUsers = mikrotikGetHotspotUsers($routerId);
+        
+        // Safety: If API fails (returns false or null), skip this router to avoid accidental expiration
+        if (!is_array($routerUsers)) continue;
+
+        $routerUserNames = array_filter(array_column($routerUsers, 'name'));
+        
+        $pdo->beginTransaction();
+        try {
+            // Fetch Profiles for validity on this specific router
+            $profiles = mikrotikGetHotspotProfiles($routerId);
+            $profValidity = [];
+            if (is_array($profiles)) {
+                foreach ($profiles as $p) {
+                    $pData = parseMikhmonOnLogin($p['on-login'] ?? '');
+                    if (!empty($pData['validity']) && $pData['validity'] !== '-') {
+                        $profValidity[$p['name']] = $pData['validity'];
+                    }
                 }
             }
-        }
 
-        // Process Inactive -> Active migration
-        if (is_array($routerUsers) && !empty($routerUsers)) {
+            // Process Inactive -> Active migration
             foreach ($routerUsers as $u) {
                 $uname = $u['name'] ?? '';
                 $uptime = $u['uptime'] ?? '0s';
@@ -1267,26 +1283,20 @@ function syncHotspotSalesStatus()
                 $comment = $u['comment'] ?? '';
                 
                 if (!empty($uname) && in_array($uname, $inactiveNames)) {
-                    // Marker check: if uptime > 0 OR comment has activation marker " / "
                     if (($uptime !== '0s' && !empty($uptime)) || strpos($comment, ' / ') !== false) {
                         $id = array_search($uname, $inactiveNames);
                         if ($id !== false) {
                             $usedAt = date('Y-m-d H:i:s');
-                            
                             if (strpos($comment, ' / ') !== false) {
                                 $cParts = explode(' / ', $comment);
                                 $ts = trim(end($cParts));
-                                if (strtotime($ts)) {
-                                    $usedAt = date('Y-m-d H:i:s', strtotime($ts));
-                                }
+                                if (strtotime($ts)) $usedAt = date('Y-m-d H:i:s', strtotime($ts));
                             }
                             
                             $expiryAt = null;
                             if (isset($profValidity[$pName])) {
                                 $sec = parseValidityToSeconds($profValidity[$pName]);
-                                if ($sec > 0) {
-                                    $expiryAt = date('Y-m-d H:i:s', strtotime($usedAt) + $sec);
-                                }
+                                if ($sec > 0) $expiryAt = date('Y-m-d H:i:s', strtotime($usedAt) + $sec);
                             }
 
                             update('hotspot_sales', [
@@ -1300,10 +1310,8 @@ function syncHotspotSalesStatus()
                     }
                 }
             }
-        }
 
-        // Process Active -> Update Uptime/MAC
-        if (is_array($routerUsers) && !empty($routerUsers)) {
+            // Process Active -> Update Uptime/MAC
             foreach ($routerUsers as $u) {
                 $uname = $u['name'] ?? '';
                 $uptime = $u['uptime'] ?? null;
@@ -1319,11 +1327,8 @@ function syncHotspotSalesStatus()
                     }
                 }
             }
-        }
 
-        // Process Cleanup (Missing from Router)
-        // Safety: Only perform cleanup if we successfully got a result from Mikrotik
-        if (is_array($routerUsers)) {
+            // Process Cleanup (Only if we definitely didn't find them)
             // Inactive -> Expired
             foreach ($inactiveNames as $id => $uname) {
                 if (!in_array($uname, $routerUserNames)) {
@@ -1336,11 +1341,11 @@ function syncHotspotSalesStatus()
                     update('hotspot_sales', ['status' => 'expired'], 'id = ?', [$id]);
                 }
             }
-        }
 
-        $pdo->commit();
-    } catch (Exception $e) {
-        $pdo->rollBack();
+            $pdo->commit();
+        } catch (Exception $e) {
+            $pdo->rollBack();
+        }
     }
 }
 
@@ -1367,4 +1372,47 @@ function formatBytes($bytes, $precision = 2)
     $pow = min($pow, count($units) - 1);
     $bytes /= pow(1024, $pow);
     return round($bytes, $precision) . ' ' . $units[$pow];
+}
+
+/**
+ * Parse Mikhmon-style on-login script for validity metadata
+ */
+function parseMikhmonOnLogin($script) {
+    $data = ['validity' => '-', 'price' => 0];
+    if (empty($script)) return $data;
+    
+    // Example: ... ; set validity=1d; set price=5000; ...
+    if (preg_match('/validity=([^;|\s]+)/', $script, $matches)) {
+        $data['validity'] = trim($matches[1], '"\'');
+    }
+    if (preg_match('/price=([^;|\s]+)/', $script, $matches)) {
+        $data['price'] = trim($matches[1], '"\'');
+    }
+    return $data;
+}
+
+/**
+ * Convert MikroTik validity string (1d, 1h, etc) to seconds
+ */
+function parseValidityToSeconds($validity) {
+    if (empty($validity) || $validity === '-') return 0;
+    
+    $seconds = 0;
+    // Handle 1d 1h 12m format
+    if (preg_match_all('/(\d+)([dhms])/', strtolower($validity), $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $match) {
+            $val = (int)$match[1];
+            $unit = $match[2];
+            switch ($unit) {
+                case 'd': $seconds += $val * 86400; break;
+                case 'h': $seconds += $val * 3600; break;
+                case 'm': $seconds += $val * 60; break;
+                case 's': $seconds += $val; break;
+            }
+        }
+    } else if (is_numeric($validity)) {
+        return (int)$validity;
+    }
+    
+    return $seconds;
 }

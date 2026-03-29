@@ -96,16 +96,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Format: vc-namasales-tanggal (e.g., vc-jhon-26/02/26)
             $comment = "vc-" . strtolower($salesUser['username']) . "-" . date('d/m/y');
             
-            if (mikrotikAddHotspotUser($user, $pass, $selectedProfile['profile_name'], ['comment' => $comment])) {
+            if (mikrotikAddHotspotUser($user, $pass, $selectedProfile['profile_name'], ['comment' => $comment], $selectedProfile['router_id'])) {
                 // Record Sale
                 recordHotspotSale(
                     $user, 
                     $selectedProfile['profile_name'], 
+                    $selectedProfile['base_price'], // use modal price
                     $selectedProfile['selling_price'], 
                     $prefix, 
                     $salesId,
                     $selectedProfile['validity'],
-                    $selectedProfile['timelimit']
+                    $selectedProfile['timelimit'],
+                    $selectedProfile['router_id']
                 );
                 
                 $generatedVouchers[] = [
